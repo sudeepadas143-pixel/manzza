@@ -224,7 +224,7 @@ export function fallbackFrames() {
   const offs = stepOffsets(STEPS, STEP);
   const w = 0.95;
   const cx0 = CORE.limbX[0] - 0.95 / 2;
-  const view = { x0: cx0 - 0.12, y0: -0.12, x1: cx0 + 1.78, y1: 1.78 };
+  const view = { x0: cx0 - 0.12, y0: -0.12, x1: cx0 + 1.58, y1: 1.58 }; // stop short of the V-notch
   view.w = view.x1 - view.x0; view.h = view.y1 - view.y0;
   const { map } = mapper(view, { x: 160, y: 20, w: 480, h: 480 }, 0);
   const top = corePieces({ w, o: offs[STEPS - 1], gap: 0.012 }).filter((p) => p.id === 'limb-l' || p.id === 'yoke-b');

@@ -41,7 +41,16 @@ function manzzaContent() {
       },
     },
     configurePreviewServer(server) {
-      server.middlewares.use(cleanUrls(path.join(root, 'dist')));
+      const out = path.resolve(root, server.config.build.outDir);
+      server.middlewares.use(cleanUrls(out));
+      // like Vercel: unknown pages get 404.html with a 404 status
+      return () => server.middlewares.use((req, res, next) => {
+        const pathname = req.url.split('?')[0];
+        if (path.extname(pathname) || fs.existsSync(path.join(out, pathname, 'index.html'))) return next();
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.end(fs.readFileSync(path.join(out, '404.html')));
+      });
     },
     configureServer(server) {
       server.middlewares.use(cleanUrls(root));
