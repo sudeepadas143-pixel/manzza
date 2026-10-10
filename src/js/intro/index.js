@@ -35,9 +35,10 @@ export async function initIntro(section) {
     return;
   }
 
-  const mobile = window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;
-  // ?capture: deterministic scrubbing for recording a video of the intro
+  // ?capture: deterministic scrubbing at full quality, header hidden, for recording a film of the intro
   const capture = new URLSearchParams(location.search).has('capture');
+  if (capture) document.documentElement.classList.add('capture');
+  const mobile = !capture && window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;
   const useGL = webglAvailable() && !new URLSearchParams(location.search).has('nogl');
   section.classList.add('intro--live', useGL ? 'intro--gl' : 'intro--frames');
 
@@ -106,7 +107,7 @@ export async function initIntro(section) {
         canvas = fresh;
       }
       canvas.dataset.used = '1';
-      scene = createScene(canvas, { mobile });
+      scene = createScene(canvas, { mobile, capture });
       scene.resize(size.w, size.h);
       section.classList.add('is-ready');
       apply(state.p);

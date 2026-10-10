@@ -35,10 +35,10 @@ const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 export const STUDIO = new THREE.Color('#eef1f5'); // matches --stage in main.css
 const NIGHT = new THREE.Color('#000000');
 
-export function createIntroScene(canvas, { mobile = false } = {}) {
+export function createIntroScene(canvas, { mobile = false, capture = false } = {}) {
   /* ---------------------------------------------------------------- setup */
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, capture ? 3 : mobile ? 1.5 : 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = 1.0;

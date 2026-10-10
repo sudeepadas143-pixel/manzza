@@ -691,3 +691,6 @@ html.js:not(.rm) .intro--gl:not(.is-ready) .intro__stage { background: var(--sta
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+
+/* film capture (?capture): pure animation, no site chrome */
+html.capture .site-header { display: none; }
