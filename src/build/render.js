@@ -251,6 +251,7 @@ function header(d, a) {
     <a class="btn btn--primary btn--sm header__cta" href="/quote"${cur('quote')}>Request a Quote</a>
     <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu"><span class="menu-toggle__bars" aria-hidden="true"><i></i><i></i></span><span class="menu-toggle__label">Menu</span></button>
   </div>
+</header>
   <div class="mobile-menu" id="mobile-menu" hidden>
     <div class="container">
       <p class="mobile-menu__label">Products</p>
@@ -263,7 +264,7 @@ function header(d, a) {
       <p class="mobile-menu__contact">${icon.phone} ${phoneLink(d)}</p>
     </div>
   </div>
-</header>`;
+`;
 }
 
 function footer(d) {
@@ -510,7 +511,7 @@ function productPage(d, a) {
         </div>
       </div>
       <div class="phero__visual">
-        ${mini(p.visual, 'mini--hero', 'Live model, drawn from lamination geometry')}
+        ${mini(p.visual, 'mini--hero')}
       </div>
     </div>
     <div class="container"><dl class="facts">${facts}</dl></div>

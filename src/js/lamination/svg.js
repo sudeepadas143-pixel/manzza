@@ -47,7 +47,7 @@ export function stepLapFaceSVG({ id = 'face', compact = false } = {}) {
   const ox = CORE.limbX[0] - w / 2;
   const oy = CORE.yokeY[0] - w / 2;
   // Window onto the bottom-left corner
-  const view = { x0: ox - 0.12, y0: oy - 0.12, x1: ox + 1.8, y1: oy + 2.05 };
+  const view = { x0: ox - 0.12, y0: oy - 0.12, x1: ox + 1.58, y1: oy + 2.05 }; // stop short of the V-notch
   view.w = view.x1 - view.x0; view.h = view.y1 - view.y0;
   const W = 780, H = 560;
   const { map } = mapper(view, { x: 80, y: 20, w: 420, h: 520 }, 0);
@@ -82,7 +82,7 @@ export function stepLapFaceSVG({ id = 'face', compact = false } = {}) {
   const arc = `M${f(outer[0])} ${f(outer[1] - r)} A${r} ${r} 0 0 1 ${f(outer[0] + r * Math.SQRT1_2)} ${f(outer[1] - r * Math.SQRT1_2)}`;
 
   const limbC = map([ox + w / 2, oy + 1.45]);
-  const yokeC = map([ox + 1.45, oy + w / 2]);
+  const yokeC = map([ox + 0.98, oy + w / 2]); // clear of the bolt hole
 
   let n = 0;
   const vb = compact ? '-14 0 530 560' : `0 0 ${W} ${H}`;

@@ -27,7 +27,7 @@ function initNav() {
 
   // Mobile menu
   const toggle = header.querySelector('.menu-toggle');
-  const menu = header.querySelector('#mobile-menu');
+  const menu = document.getElementById('mobile-menu'); // sibling of the header (see render.js)
   if (toggle && menu) {
     const set = (open) => {
       toggle.setAttribute('aria-expanded', String(open));

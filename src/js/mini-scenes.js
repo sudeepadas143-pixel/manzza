@@ -32,7 +32,7 @@ function buildCore(mat) {
   const m = new THREE.Mesh(extrudeLaminations(items), mat);
   m.position.set(0, -2.15, 0);
   g.add(m);
-  return { group: g, tilt: 0.32, spin: 0.22, swing: 0.45, half };
+  return { group: g, tilt: 0.42, spin: 0.22, swing: 0.45, half };
 }
 
 function buildMitreCorner(mat) {
@@ -99,6 +99,7 @@ export function startMinis(canvases) {
   const views = canvases.map((canvas) => {
     const scene = new THREE.Scene();
     scene.environment = env;
+    scene.environmentIntensity = 1.25; // product shots: brighter than the intro studio
     addLights(scene);
     const uniforms = createSteelUniforms();
     uniforms.uEdge.value = 0.14;
