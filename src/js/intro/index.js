@@ -115,7 +115,7 @@ export async function initIntro(section) {
     skip.classList.toggle('is-hidden', p > FINAL);
 
     if (scene) {
-      canvas.style.opacity = 1 - smooth(seg(p, 0.875, 0.93)) * 0.88;
+      canvas.style.opacity = 1 - smooth(seg(p, 0.875, 0.93)) * (document.documentElement.dataset.theme === 'light' ? 0.6 : 0.88);
       const labels = scene.update(p);
       for (const [id, el] of Object.entries(labelEls)) {
         const l = labels[id];
@@ -145,7 +145,7 @@ export async function initIntro(section) {
         canvas = fresh;
       }
       canvas.dataset.used = '1';
-      scene = createScene(canvas, { mobile });
+      scene = createScene(canvas, { mobile, light: document.documentElement.dataset.theme === 'light' });
       scene.resize(size.w, size.h);
       section.classList.add('is-ready');
       apply(state.p);

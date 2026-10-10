@@ -125,6 +125,8 @@ export function createSteelUniforms() {
     uEdge: { value: 0.0 },
     uEdgeColor: { value: BRAND.blueGlow.clone() },
     uDim: { value: 1 },
+    uFade: { value: 0 }, // mix the final colour towards uFadeColor (light theme: fade into the page)
+    uFadeColor: { value: new THREE.Color(0xf3f5f8) },
   };
 }
 
@@ -133,7 +135,7 @@ export function createSteelMaterial(uniforms, opts = {}) {
   const m = new THREE.MeshStandardMaterial({
     color: opts.color || BRAND.steel,
     metalness: 0.78,
-    roughness: 0.4,
+    roughness: opts.roughness ?? 0.4,
     roughnessMap: brushedTexture(),
     envMapIntensity: opts.envMapIntensity ?? 0.9,
     side: THREE.FrontSide,
@@ -150,11 +152,13 @@ export function createSteelMaterial(uniforms, opts = {}) {
         vSide = aSide;`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
-        varying float vSide; uniform float uEdge; uniform vec3 uEdgeColor; uniform float uDim;`)
+        varying float vSide; uniform float uEdge; uniform vec3 uEdgeColor; uniform float uDim; uniform float uFade; uniform vec3 uFadeColor;`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         diffuseColor.rgb *= mix(1.0, 0.55, min(vSide, 1.0)) * uDim;`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-        totalEmissiveRadiance += uEdgeColor * uEdge * (vSide > 1.5 ? 1.0 : 0.12 * vSide);`);
+        totalEmissiveRadiance += uEdgeColor * uEdge * (vSide > 1.5 ? 1.0 : 0.12 * vSide);`)
+      .replace('#include <dithering_fragment>', `#include <dithering_fragment>
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, uFadeColor, uFade);`);
   };
   m.customProgramCacheKey = () => 'manzza-steel';
   return m;
@@ -165,18 +169,19 @@ export function createSteelMaterial(uniforms, opts = {}) {
 /* ------------------------------------------------------------------------ */
 
 /** Neutral studio environment for metal reflections, generated procedurally. */
-export function studioEnvironment(renderer) {
+export function studioEnvironment(renderer, { light = false } = {}) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   const env = new THREE.Scene();
   const box = new THREE.BoxGeometry(1, 1, 1);
-  const room = new THREE.Mesh(box, new THREE.MeshBasicMaterial({ color: 0x15181f, side: THREE.BackSide }));
+  const room = new THREE.Mesh(box, new THREE.MeshBasicMaterial({ color: light ? 0x535a66 : 0x15181f, side: THREE.BackSide }));
   room.scale.set(20, 12, 20);
   env.add(room);
   const panel = (w, h, x, y, z, ry, c) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide }));
     m.position.set(x, y, z); m.rotation.y = ry; m.lookAt(0, 0, 0); env.add(m);
   };
-  panel(12, 4, 0, 5.5, 0, 0, 0xe4e8f0); //  soft overhead light
+  // light theme: a softer overhead so highlights don't bleach into the white page
+  panel(12, 4, 0, 5.5, 0, 0, light ? 0x9aa2ae : 0xe4e8f0); //  soft overhead light
   panel(5, 7, -9, 1, 2, 0, 0x8c95a8); //    neutral side fill
   panel(4, 6, 9, 1, -3, 0, 0x5d6b8c); //    cool bounce
   panel(8, 2, 2, -2, 8, 0, 0x4a4f5a); //    front floor bounce

@@ -27,7 +27,7 @@ import {
 const easeOut = (t) => 1 - (1 - t) ** 3;
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
-export function createIntroScene(canvas, { mobile = false } = {}) {
+export function createIntroScene(canvas, { mobile = false, light = false } = {}) {
   /* ---------------------------------------------------------------- setup */
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -39,21 +39,24 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.12;
+  renderer.toneMappingExposure = light ? 1.0 : 1.12;
   renderer.localClippingEnabled = true;
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(34, 1, 0.05, 80);
-  const envTex = studioEnvironment(renderer);
+  const envTex = studioEnvironment(renderer, { light });
   scene.environment = envTex;
   addLights(scene);
 
   const uniforms = createSteelUniforms();
-  const steel = createSteelMaterial(uniforms);
+  const steelOpts = light ? { roughness: 0.52 } : {};
+  const steel = createSteelMaterial(uniforms, steelOpts);
 
   const W0 = 0.95; // widest lamination = strip width
+  // on a light background the glow tint washes out: use the deeper brand blue
+  const lineBlue = light ? BRAND.blue : BRAND.blueGlow;
   const blueLine = (opacity = 1) => new THREE.MeshBasicMaterial({
-    color: BRAND.blueGlow, transparent: true, opacity, toneMapped: false, depthWrite: false,
+    color: lineBlue, transparent: true, opacity, toneMapped: false, depthWrite: false,
   });
 
   /* ----------------------------------------------------------------- coil */
@@ -63,7 +66,7 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
     const tex = brushedTexture().clone();
     tex.repeat.set(6, 1);
     tex.needsUpdate = true;
-    const outerMat = new THREE.MeshStandardMaterial({ color: 0xb4bcc7, metalness: 0.62, roughness: 0.4, roughnessMap: tex });
+    const outerMat = new THREE.MeshStandardMaterial({ color: light ? 0x98a2b0 : 0xb4bcc7, metalness: light ? 0.7 : 0.62, roughness: light ? 0.5 : 0.4, roughnessMap: tex });
     const outer = new THREE.Mesh(new THREE.CylinderGeometry(R, R, CW, 128, 1, true), outerMat);
     outer.rotation.x = Math.PI / 2;
     const bore = new THREE.Mesh(
@@ -112,9 +115,9 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
   scene.add(strips);
 
   const clip = new THREE.Plane(new THREE.Vector3(1, 0, 0), -XS1); // keeps x >= the coil's position
-  const sheetMat = createSteelMaterial(uniforms);
+  const sheetMat = createSteelMaterial(uniforms, steelOpts);
   sheetMat.clippingPlanes = [clip];
-  const offcutMat = createSteelMaterial(uniforms);
+  const offcutMat = createSteelMaterial(uniforms, steelOpts);
   offcutMat.clippingPlanes = [clip];
   offcutMat.transparent = true;
 
@@ -155,7 +158,7 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
     g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
   })();
-  const headMat = new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending });
+  const headMat = new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, toneMapped: false, blending: light ? THREE.NormalBlending : THREE.AdditiveBlending });
   const heads = [];
   const mkHead = () => { const s = new THREE.Sprite(headMat); s.scale.setScalar(0.32); scene.add(s); heads.push(s); return s; };
 
@@ -192,7 +195,7 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
   const profiles = new THREE.Group();
   profiles.rotation.x = -Math.PI / 2;
   scene.add(profiles);
-  const profileMat = createSteelMaterial(uniforms);
+  const profileMat = createSteelMaterial(uniforms, steelOpts);
   profileMat.transparent = true;
   const profileItems = [];
   {
@@ -231,6 +234,27 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
   const PIVOT_Z = 2.15;
   turn.position.set(0, 0, PIVOT_Z);
 
+  // Soft contact shadows (light theme): ground the coil and the core on the table
+  const shadowTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d');
+    const gr = g.createRadialGradient(64, 64, 4, 64, 64, 64);
+    gr.addColorStop(0, 'rgba(10,21,50,0.55)'); gr.addColorStop(0.55, 'rgba(10,21,50,0.22)'); gr.addColorStop(1, 'rgba(10,21,50,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  })();
+  const mkShadow = () => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, toneMapped: false }));
+    m.rotation.x = -Math.PI / 2;
+    m.renderOrder = -1;
+    m.visible = light;
+    return m;
+  };
+  const coilShadow = mkShadow();
+  scene.add(coilShadow);
+  const coreShadow = mkShadow();
+  turn.add(coreShadow);
+
   const widths = mobile ? [0.95, 0.7] : [0.95, 0.85, 0.7, 0.5];
   const packets = cruciform(CORE.D, widths);
   const stackHalf = packets[packets.length - 1].z1;
@@ -266,7 +290,7 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
   const demo = new THREE.Group();
   const DEMO_T = 0.03;
   const demoPlates = [];
-  const demoMat = createSteelMaterial(uniforms);
+  const demoMat = createSteelMaterial(uniforms, steelOpts);
   demoMat.transparent = true;
   const demoLineMat = blueLine(1);
   {
@@ -296,7 +320,7 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
   upend.add(demo);
 
   // Core outline (front face) for the logo moment
-  const outlineMat = new THREE.LineBasicMaterial({ color: BRAND.blueGlow, transparent: true, opacity: 0, toneMapped: false, depthTest: false });
+  const outlineMat = new THREE.LineBasicMaterial({ color: lineBlue, transparent: true, opacity: 0, toneMapped: false, depthTest: false });
   {
     const o = coreOutline({ w: W0 });
     for (const loop of [o.outer, ...o.windows]) {
@@ -370,6 +394,12 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
     coil.userData.spin.rotation.z = seg(p, 0.1, 0.21) * 0.6 + (XS1 - coilX) / R;
     const coilFade = coilIn * (1 - smooth(seg(p, 0.375, 0.42)));
     coil.traverse((o) => { if (o.material) { o.material.transparent = coilFade < 1; o.material.opacity = coilFade; } });
+    if (light) {
+      coilShadow.position.set(coilX + 0.15, 0.003, 0.1);
+      coilShadow.scale.set(R * 2.8, CW * 1.25, 1);
+      coilShadow.material.opacity = coilFade * 0.9;
+      coilShadow.visible = coilFade > 0;
+    }
 
     /* sheet */
     const sheetOn = roll > 0;
@@ -468,11 +498,21 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
     /* core: upend and turn */
     const up = easeInOut(seg(p, 0.71, 0.8));
     upend.rotation.x = -Math.PI / 2 * (1 - up);
+    if (light) {
+      // flat footprint → upright footprint as the core is stood up
+      const built = smooth(seg(p, 0.65, 0.7));
+      coreShadow.visible = built > 0;
+      coreShadow.position.set(0, 0.003, lerp(-2.15, 0.45, up));
+      coreShadow.scale.set(lerp(6.4, 6.8, up), lerp(5.6, 2.0, up), 1);
+      coreShadow.material.opacity = built * lerp(0.45, 0.85, up) * (1 - smooth(seg(p, 0.88, 0.95)));
+    }
     turn.rotation.y = lerp(0, -0.42, smooth(seg(p, 0.7, 0.8))) + lerp(0, 0.42, smooth(seg(p, 0.79, 0.9)));
 
     /* light: blue on the cut edges while stacking, dims for the logo */
     uniforms.uEdge.value = demoGlow * 0.9 + smooth(seg(p, 0.86, 0.9)) * 0.45 * (1 - smooth(seg(p, 0.92, 0.97)));
-    uniforms.uDim.value = 1 - smooth(seg(p, 0.855, 0.9)) * 0.82;
+    // dark theme: the steel darkens into the page; light theme: it fades into the page
+    uniforms.uDim.value = light ? 1 : 1 - smooth(seg(p, 0.855, 0.9)) * 0.82;
+    uniforms.uFade.value = light ? smooth(seg(p, 0.855, 0.9)) * 0.94 : 0;
     outlineMat.opacity = smooth(seg(p, 0.86, 0.895));
 
     /* camera */
@@ -503,6 +543,7 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
   function dispose() {
     disposeTree(scene);
     glowTex.dispose();
+    shadowTex.dispose();
     headMat.dispose();
     envTex.dispose();
     releaseShared();

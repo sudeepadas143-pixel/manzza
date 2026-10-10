@@ -741,3 +741,63 @@ html:not(.js) .intro__skip, html.rm .intro__skip { display: none !important; }
    404
    ========================================================================== */
 .phero--404 { min-height: 60vh; display: grid; align-content: center; }
+
+/* ==========================================================================
+   Light theme (intro + header), enabled with ?theme=light
+   Same three brand colours: white and light greys come from the navy,
+   text is deep navy, electric blue stays the single accent.
+   ========================================================================== */
+html[data-theme='light'] .site-header,
+html[data-theme='light'] .intro {
+  --black: #f3f5f8; /* the stage background in this theme */
+  --text: #0a1532;
+  --text-2: #36425e;
+  --text-3: #5b6680;
+  --line: rgba(10, 21, 50, 0.12);
+  --line-2: rgba(10, 21, 50, 0.26);
+  --blue-hi: #2f6bea;
+  color-scheme: light;
+}
+html[data-theme='light'] body { background: #f3f5f8; }
+html[data-theme='light'] .site-header { background: rgba(248, 249, 251, 0.88); }
+html[data-theme='light'] .site-header.is-scrolled { border-bottom-color: rgba(10, 21, 50, 0.1); }
+html[data-theme='light'] .dd { background: #fff; box-shadow: 0 24px 60px rgba(10, 21, 50, 0.16); }
+html[data-theme='light'] .dd__list a:hover, html[data-theme='light'] .dd__list a:focus-visible { background: #eef2f8; }
+html[data-theme='light'] .mobile-menu { background: #f8f9fb; }
+
+/* the logo artwork is made for black: in this theme it sits on a black plate */
+html[data-theme='light'] .brand img {
+  box-sizing: content-box; height: 24px; padding: 7px 12px; background: #000;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+}
+@media (min-width: 720px) { html[data-theme='light'] .brand img { height: 28px; } }
+html[data-theme='light'] .intro__logo {
+  box-sizing: border-box; width: min(700px, 90vw); padding: clamp(18px, 3vw, 30px) clamp(22px, 4vw, 44px); background: #000;
+  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+}
+
+html[data-theme='light'] .intro { background: radial-gradient(120% 90% at 62% 38%, #ffffff 0%, #f3f5f8 55%, #e9edf3 100%); }
+html[data-theme='light'] .intro__scrim { background: linear-gradient(90deg, rgba(243, 245, 248, 0.92) 0%, rgba(243, 245, 248, 0.6) 26%, rgba(243, 245, 248, 0) 46%); }
+html[data-theme='light'] .ilabel { background: rgba(255, 255, 255, 0.9); color: var(--text); }
+html[data-theme='light'] .ilabel--dim { color: var(--text); border-color: rgba(47, 107, 234, 0.6); }
+html[data-theme='light'] .intro__skip { background: rgba(255, 255, 255, 0.75); }
+html[data-theme='light'] .intro__tagline { color: var(--blue); }
+html[data-theme='light'] .f-steel { fill: #dfe4ec; stroke: #6d7890; }
+html[data-theme='light'] .f-outline { stroke: var(--blue); }
+@media (max-width: 899px) {
+  html[data-theme='light'] .intro__captions::before { background: linear-gradient(rgba(243, 245, 248, 0), rgba(243, 245, 248, 0.92) 55%); }
+}
+html[data-theme='light'] .intro .btn--ghost { color: var(--text); }
+html[data-theme='light'] .intro .btn--ghost:hover::before { background: #e6ebf3; }
+/* light theme: captions sit on a frosted panel instead of a full-width scrim
+   (a pale scrim would bleach the steel on the left of the scene) */
+html[data-theme='light'] .intro__scrim { display: none !important; }
+html.js:not(.rm)[data-theme='light'] .beat {
+  padding: 18px 22px 20px; background: rgba(255, 255, 255, 0.8);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border: 1px solid rgba(10, 21, 50, 0.1);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+}
+@media (max-width: 899px) {
+  html[data-theme='light'] .intro__captions::before { display: none; }
+}
