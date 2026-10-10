@@ -109,9 +109,22 @@ export function bounds(polys) {
  */
 export const CORE = {
   D: 1, // circumscribing diameter of the limb section
-  limbX: [-2.05, 0, 2.05], // limb centrelines
-  yokeY: [0.475, 3.825], // yoke centrelines (bottom yoke sits on y = 0 for the widest packet)
+  // Proportions follow MANZZA's own core photographs: windows about 0.8 x the
+  // lamination width wide and 2.2 x tall, so the core reads nearly square.
+  limbX: [-1.71, 0, 1.71], // limb centrelines
+  yokeY: [0.475, 3.515], // yoke centrelines (bottom yoke sits on y = 0 for the widest packet)
+  holeR: 0.055, // yoke bolt holes, on fixed centrelines so they line up through every layer
 };
+
+/** Polygon approximating a circle (clockwise, for use as a hole). */
+export function circle(cx, cy, r, seg = 20) {
+  const pts = [];
+  for (let k = 0; k < seg; k++) {
+    const t = -(k / seg) * Math.PI * 2;
+    pts.push([cx + Math.cos(t) * r, cy + Math.sin(t) * r]);
+  }
+  return pts;
+}
 
 /**
  * Pieces of one lamination layer of a three-phase, three-limb mitre core.
@@ -123,7 +136,7 @@ export const CORE = {
  *
  * Returns [{ id, dir, poly }] where dir is the rolling (grain) direction.
  */
-export function corePieces({ w, o = 0, gap = 0, limbX = CORE.limbX, yokeY = CORE.yokeY }) {
+export function corePieces({ w, o = 0, gap = 0, limbX = CORE.limbX, yokeY = CORE.yokeY, holes = true, holeSeg = 20 }) {
   const [x1, x2, x3] = limbX;
   const [y1, y2] = yokeY;
   const ox = x1 - w / 2;
@@ -166,11 +179,23 @@ export function corePieces({ w, o = 0, gap = 0, limbX = CORE.limbX, yokeY = CORE
     { id: 'yoke-b', dir: 'x', poly: bottom },
     { id: 'yoke-t', dir: 'x', poly: top },
   ];
+  // bolt holes in each yoke, centred between neighbouring limbs
+  const holeXs = [(x1 + x2) / 2, (x2 + x3) / 2];
+  const holeFor = (id) => {
+    if (!holes || !id.startsWith('yoke')) return [];
+    const y = id === 'yoke-b' ? y1 : y2;
+    return holeXs.map((x) => circle(x, y, CORE.holeR, holeSeg));
+  };
   return pieces.map((p) => {
     let poly = dedupe(p.poly);
     if (gap > 0) poly = inset(poly, gap / 2);
-    return { ...p, poly: translate(poly, ox, oy) };
+    return { ...p, poly: translate(poly, ox, oy), holes: holeFor(p.id) };
   });
+}
+
+/** Holes that sit wholly on the kept side of a clip line x <= c (for cropped corner views). */
+export function holesLeftOf(holes = [], c) {
+  return holes.filter((h) => h.every(([x]) => x < c));
 }
 
 /** Outline of the core (outer boundary + the two windows) for the widest packet. */

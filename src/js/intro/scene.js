@@ -17,7 +17,7 @@
 import * as THREE from 'three';
 import {
   CORE, corePieces, coreOutline, cruciform, stepOffsets, eShape, iShape, stripShape,
-  clipHalfPlane, clamp, smooth, seg, lerp,
+  clipHalfPlane, holesLeftOf, clamp, smooth, seg, lerp,
 } from '../lamination/geometry.js';
 import {
   extrudeLaminations, createSteelUniforms, createSteelMaterial, studioEnvironment,
@@ -231,7 +231,7 @@ export function createIntroScene(canvas, { mobile = false, light = false } = {})
   const upend = new THREE.Group();
   turn.add(upend);
   scene.add(turn);
-  const PIVOT_Z = 2.15;
+  const PIVOT_Z = (CORE.yokeY[1] + 0.475) / 2; // half the core height
   turn.position.set(0, 0, PIVOT_Z);
 
   // Soft contact shadows (light theme): ground the coil and the core on the table
@@ -270,7 +270,7 @@ export function createIntroScene(canvas, { mobile = false, light = false } = {})
       const o = offsets[layerIndex % offsets.length];
       const z = pk.z0 + k * t + stackHalf;
       for (const piece of corePieces({ w: pk.w, o, gap: 0.014 })) {
-        (byPiece[piece.id] ||= []).push({ poly: piece.poly, z, t: t * 0.8, layer: layerIndex, dir: piece.dir });
+        (byPiece[piece.id] ||= []).push({ poly: piece.poly, holes: piece.holes, z, t: t * 0.8, layer: layerIndex, dir: piece.dir });
       }
       layerIndex++;
     }
@@ -301,7 +301,7 @@ export function createIntroScene(canvas, { mobile = false, light = false } = {})
       const items = [];
       for (const pc of corePieces({ w, o, gap: 0.016 })) {
         if (pc.id === 'limb-l') items.push({ poly: clipHalfPlane(pc.poly, 0, 1, 1.95), z: 0, t: DEMO_T, dir: 'y' });
-        if (pc.id === 'yoke-b') items.push({ poly: clipHalfPlane(pc.poly, 1, 0, -0.62), z: 0, t: DEMO_T, dir: 'x' });
+        if (pc.id === 'yoke-b') items.push({ poly: clipHalfPlane(pc.poly, 1, 0, -0.62), holes: holesLeftOf(pc.holes, -0.62), z: 0, t: DEMO_T, dir: 'x' });
       }
       plate.add(new THREE.Mesh(extrudeLaminations(items), demoMat));
       // joint marker: a thin glowing bar along this layer's 45° joint
@@ -344,12 +344,12 @@ export function createIntroScene(canvas, { mobile = false, light = false } = {})
     [0.37, [1.0, 7.8, 7.2], [0.4, 0, 0.2]],
     [0.445, [2.9, 4.3, 5.6], [1.5, 0, 1.9]],
     [0.505, [0.3, 5.6, 9.4], [0.1, 0, 2.4]],
-    [0.58, [-0.45, 3.9, 4.75], [-2.0, 1.35, 1.4]],
-    [0.64, [-0.6, 3.7, 4.45], [-2.05, 1.25, 1.4]],
-    [0.7, [0.4, 4.8, 6.6], [-1.2, 0.5, 0.6]],
-    [0.8, [0.6, 3.0, 13.2], [0, 2.1, 2.3]],
-    [0.88, [0, 2.6, 13.6], [0, 2.15, 2.3]],
-    [1.0, [0, 2.4, 15.5], [0, 2.15, 2.3]],
+    [0.58, [-0.1, 3.9, 4.6], [-1.66, 1.35, 1.25]],
+    [0.64, [-0.25, 3.7, 4.3], [-1.7, 1.25, 1.25]],
+    [0.7, [0.4, 4.6, 6.2], [-1.0, 0.5, 0.5]],
+    [0.8, [0.5, 2.8, 12.0], [0, 1.95, 2.15]],
+    [0.88, [0, 2.45, 12.4], [0, 2.0, 2.15]],
+    [1.0, [0, 2.3, 14.2], [0, 2.0, 2.15]],
   ];
   const tmpP = new THREE.Vector3(), tmpT = new THREE.Vector3();
   function cameraAt(p) {
@@ -369,7 +369,15 @@ export function createIntroScene(canvas, { mobile = false, light = false } = {})
 
   /* ---------------------------------------------------------------- state */
   const size = { w: 1, h: 1 };
-  const labels = { dim: { x: 0, y: 0, o: 0 }, e: { x: 0, y: 0, o: 0 }, i: { x: 0, y: 0, o: 0 }, strip: { x: 0, y: 0, o: 0 }, mitre: { x: 0, y: 0, o: 0 } };
+  const labels = {};
+  for (const k of ['dim', 'e', 'i', 'strip', 'mitre', 'cMitre', 'cDiamond', 'cVnotch']) labels[k] = { x: 0, y: 0, o: 0 };
+  // the client's names for the core's features, pinned to the upright core
+  const zFront = stackHalf * 2 + 0.02;
+  const corePins = {
+    cMitre: new THREE.Vector3(CORE.limbX[2], CORE.yokeY[1], zFront),
+    cDiamond: new THREE.Vector3(CORE.limbX[1], CORE.yokeY[1] - 0.3, zFront),
+    cVnotch: new THREE.Vector3(CORE.limbX[1] + 0.24, CORE.yokeY[0] + 0.24, zFront),
+  };
   const v3 = new THREE.Vector3();
   function project(obj, local, out, opacity) {
     v3.copy(local);
@@ -502,8 +510,8 @@ export function createIntroScene(canvas, { mobile = false, light = false } = {})
       // flat footprint → upright footprint as the core is stood up
       const built = smooth(seg(p, 0.65, 0.7));
       coreShadow.visible = built > 0;
-      coreShadow.position.set(0, 0.003, lerp(-2.15, 0.45, up));
-      coreShadow.scale.set(lerp(6.4, 6.8, up), lerp(5.6, 2.0, up), 1);
+      coreShadow.position.set(0, 0.003, lerp(-PIVOT_Z, 0.45, up));
+      coreShadow.scale.set(lerp(5.8, 6.0, up), lerp(5.2, 2.0, up), 1);
       coreShadow.material.opacity = built * lerp(0.45, 0.85, up) * (1 - smooth(seg(p, 0.88, 0.95)));
     }
     turn.rotation.y = lerp(0, -0.42, smooth(seg(p, 0.7, 0.8))) + lerp(0, 0.42, smooth(seg(p, 0.79, 0.9)));
@@ -528,6 +536,8 @@ export function createIntroScene(canvas, { mobile = false, light = false } = {})
     const profLabel = profIn * (1 - profOut);
     profileItems.forEach((it) => project(it.mesh, it.anchor, labels[it.id], profLabel));
     project(stripRows[0].userData.lam, new THREE.Vector3(0, W0 / 2 + 0.25, 0.1), labels.mitre, profLabel);
+    const pinOn = smooth(seg(p, 0.795, 0.815)) * (1 - smooth(seg(p, 0.845, 0.86)));
+    for (const [k, v] of Object.entries(corePins)) project(upend, v, labels[k], pinOn);
 
     renderer.render(scene, camera);
     return labels;

@@ -31,7 +31,7 @@
       "materials": ["CRGO"],
       "customisation": [
         { "title": "Lamination dimensions", "text": "Width and length of every limb and yoke lamination, as drawn." },
-        { "title": "Mitre geometry", "text": "45° outer corners and centre-limb V-joint, cut to your core design." },
+        { "title": "Mitre geometry", "text": "45° mitre corners, a diamond-tip centre limb and V-notch yokes, cut to your core design." },
         { "title": "Step-lap arrangement", "text": "Step sequence and step offset to your design, with laminations sorted for stacking." },
         { "title": "Holes", "text": "Holes punched where your drawing specifies them." },
         { "title": "Material, thickness, grade", "text": "CRGO thickness and grade to your specification, subject to availability." },

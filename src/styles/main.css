@@ -801,3 +801,12 @@ html.js:not(.rm)[data-theme='light'] .beat {
 @media (max-width: 899px) {
   html[data-theme='light'] .intro__captions::before { display: none; }
 }
+.diagram-fig--wide { max-width: 1040px; }
+
+/* pinned labels on the upright core (Mitre / Diamond / V-notch) */
+.ipin { position: absolute; left: 0; top: 0; width: 0; height: 0; opacity: 0; will-change: transform, opacity; }
+.ipin i { position: absolute; left: -5px; top: -5px; width: 10px; height: 10px; border-radius: 50%; background: var(--blue-hi); box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.55); }
+.ipin b { position: absolute; left: 16px; top: -44px; padding: 4px 10px; font: 500 0.9375rem var(--f-mono); color: var(--text); background: rgba(0, 0, 0, 0.72); border: 1px solid var(--line-2); white-space: nowrap; }
+.ipin b::before { content: ''; position: absolute; left: -12px; bottom: -14px; width: 16px; height: 1px; background: var(--line-2); transform: rotate(-50deg); transform-origin: right; }
+html[data-theme='light'] .ipin i { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85); }
+html[data-theme='light'] .ipin b { background: rgba(255, 255, 255, 0.92); }

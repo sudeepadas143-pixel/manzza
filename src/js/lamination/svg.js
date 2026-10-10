@@ -5,7 +5,7 @@
  * function returns an SVG string.
  */
 import {
-  CORE, corePieces, coreOutline, stepOffsets, eShape, iShape, stripShape, bounds,
+  CORE, corePieces, coreOutline, stepOffsets, eShape, iShape, stripShape, bounds, holesLeftOf,
 } from './geometry.js';
 
 const f = (n) => Math.round(n * 100) / 100;
@@ -16,6 +16,11 @@ export function pathD(poly, map) {
     const [x, y] = map(p);
     return `${i ? 'L' : 'M'}${f(x)} ${f(y)}`;
   }).join('') + 'Z';
+}
+
+/** Path data for a lamination with its punched holes (use with fill-rule="evenodd"). */
+export function piecePathD(poly, holes = [], map) {
+  return pathD(poly, map) + holes.map((h) => pathD(h, map)).join('');
 }
 
 /** Map core units into an SVG box (y flipped so +y is up). */
@@ -88,7 +93,7 @@ export function stepLapFaceSVG({ id = 'face', compact = false } = {}) {
   <marker id="${id}-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="d-arrowhead"/></marker></defs>
   <g clip-path="url(#${clipId})">
     <path d="${pathD(limb.poly, map)}" class="d-steel"/>
-    <path d="${pathD(yoke.poly, map)}" class="d-steel"/>
+    <path d="${piecePathD(yoke.poly, yoke.holes, map)}" class="d-steel" fill-rule="evenodd"/>
     ${dashed}
     <line x1="${f(jx1)}" y1="${f(jy1)}" x2="${f(jx2)}" y2="${f(jy2)}" class="d-accent"/>
   </g>
@@ -175,7 +180,7 @@ export function coreFace({ box = { x: 0, y: 0, w: 800, h: 520 }, layer = 2, cls 
     const o = coreOutline({ w });
     return [o.outer, ...o.windows].map((p) => `<path d="${pathD(p, map)}" class="${cls}"/>`).join('');
   }
-  return pieces.map((p) => `<path d="${pathD(p.poly, map)}" class="${cls}"/>`).join('');
+  return pieces.map((p) => `<path d="${piecePathD(p.poly, p.holes, map)}" class="${cls}" fill-rule="evenodd"/>`).join('');
 }
 
 /* ------------------------------------------------------------------------ */
@@ -229,10 +234,70 @@ export function fallbackFrames() {
     const b2 = map([ox + w, oy + w + o]);
     joints += `<line x1="${f(a[0])}" y1="${f(a[1])}" x2="${f(b2[0])}" y2="${f(b2[1])}" class="${i === STEPS - 1 ? 'f-cut' : 'f-hidden'}"/>`;
   });
-  frames.push(`<svg ${V}><defs><clipPath id="fb-c"><rect x="160" y="20" width="480" height="480"/></clipPath></defs><g clip-path="url(#fb-c)">${top.map((p) => `<path d="${pathD(p.poly, map)}" class="f-steel"/>`).join('')}${joints}</g></svg>`);
+  frames.push(`<svg ${V}><defs><clipPath id="fb-c"><rect x="160" y="20" width="480" height="480"/></clipPath></defs><g clip-path="url(#fb-c)">${top.map((p) => `<path d="${piecePathD(p.poly, p.holes, map)}" class="f-steel" fill-rule="evenodd"/>`).join('')}${joints}</g></svg>`);
   // 6 – full core
   frames.push(`<svg ${V}>${coreFace({ box: { x: 80, y: 20, w: 640, h: 480 } })}</svg>`);
   // 7 – outline only (logo resolves over it)
   frames.push(`<svg ${V}>${coreFace({ box: { x: 80, y: 20, w: 640, h: 480 }, outlineOnly: true, cls: 'f-outline' })}</svg>`);
   return frames;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Core anatomy (mitre-core page): the client's own terms                    */
+/* ------------------------------------------------------------------------ */
+
+/** Labelled face view of a three-limb core: yokes, limbs, mitre, diamond tip, V-notch, bolt holes. */
+export function coreAnatomySVG({ id = 'anatomy', compact = false } = {}) {
+  const w = 0.95;
+  const pieces = corePieces({ w, o: 0, gap: 0.03 });
+  const b = bounds(pieces.map((p) => p.poly));
+  const W = compact ? 560 : 960, H = compact ? 520 : 600;
+  const box = compact ? { x: 20, y: 20, w: 520, h: 480 } : { x: 260, y: 40, w: 440, h: 520 };
+  const { map } = mapper(b, box, 0);
+  const P = (x, y) => map([x, y]).map(f);
+  const [x1, x2, x3] = CORE.limbX;
+  const [y1, y2] = CORE.yokeY;
+  const hx = (x2 + x3) / 2;
+
+  const steel = pieces.map((p) => `<path d="${piecePathD(p.poly, p.holes, map)}" class="d-steel" fill-rule="evenodd"/>`).join('');
+  const pts = {
+    yokeT: P(x1 + w * 0.55, y2 + w * 0.22), yokeB: P(x1 + w * 0.55, y1 - w * 0.22),
+    limbs: [P(x1, (y1 + y2) / 2), P(x2, (y1 + y2) / 2), P(x3, (y1 + y2) / 2)],
+    mitre: P(x1, y2), diamond: P(x2, y2 - w * 0.28), vnotch: P(x2 + w * 0.25, y1 + w * 0.25), hole: P(hx, y1),
+  };
+  const dot = ([x, y]) => `<circle cx="${x}" cy="${y}" r="4" class="d-dot"/>`;
+  let n = 0;
+  const marker = ([x, y]) => { n++; return `<g class="d-marker"><circle cx="${x}" cy="${y}" r="17" class="d-mark"/><text x="${x}" y="${y + 8}" class="d-mark-n" text-anchor="middle">${n}</text></g>`; };
+
+  let notes = '';
+  if (compact) {
+    notes = [P(x3 - w * 1.45, y2 + w * 0.12), pts.limbs[2], pts.mitre, pts.diamond, pts.vnotch, pts.hole].map(marker).join('');
+  } else {
+    const label = (x, y, title, sub, anchor = 'start') => `<text x="${x}" y="${y}" class="d-label d-strong" text-anchor="${anchor}">${title}</text><text x="${x}" y="${y + 22}" class="d-label" text-anchor="${anchor}">${sub}</text>`;
+    const L = 225, R = 735;
+    // Yoke: bracket to top and bottom yokes
+    notes += `<polyline points="${L - 10},${(pts.yokeT[1] + pts.yokeB[1]) / 2} ${L},${(pts.yokeT[1] + pts.yokeB[1]) / 2}" class="d-leader"/>`;
+    notes += `<polyline points="${pts.yokeT[0]},${pts.yokeT[1]} ${L},${pts.yokeT[1]} ${L},${pts.yokeB[1]} ${pts.yokeB[0]},${pts.yokeB[1]}" class="d-leader"/>${dot(pts.yokeT)}${dot(pts.yokeB)}`;
+    notes += label(L - 18, (pts.yokeT[1] + pts.yokeB[1]) / 2 - 4, 'Yokes', 'Top and bottom', 'end');
+    // Mitre corner
+    notes += `<polyline points="${pts.mitre[0]},${pts.mitre[1]} ${L - 30},${pts.mitre[1] - 40} ${L - 40},${pts.mitre[1] - 40}" class="d-leader"/>${dot(pts.mitre)}`;
+    notes += label(L - 50, pts.mitre[1] - 44, 'Mitre corner', '45° joint', 'end');
+    // Limbs: one line through all three, like a drawing callout
+    notes += `<polyline points="${pts.limbs[0][0]},${pts.limbs[0][1]} ${R},${pts.limbs[0][1]}" class="d-leader"/>${pts.limbs.map(dot).join('')}`;
+    notes += label(R + 14, pts.limbs[0][1] - 4, 'Limbs', 'Two outer, one centre');
+    // Diamond tip
+    notes += `<polyline points="${pts.diamond[0]},${pts.diamond[1]} ${R - 20},${pts.diamond[1] - 70} ${R},${pts.diamond[1] - 70}" class="d-leader"/>${dot(pts.diamond)}`;
+    notes += label(R + 14, pts.diamond[1] - 74, 'Diamond tip', 'Pointed centre limb');
+    // V-notch
+    notes += `<polyline points="${pts.vnotch[0]},${pts.vnotch[1]} ${R - 20},${pts.vnotch[1] - 60} ${R},${pts.vnotch[1] - 60}" class="d-leader"/>${dot(pts.vnotch)}`;
+    notes += label(R + 14, pts.vnotch[1] - 64, 'V-notch', 'Seats the diamond tip');
+    // Bolt holes
+    notes += `<polyline points="${pts.hole[0]},${pts.hole[1]} ${R - 20},${pts.hole[1] + 50} ${R},${pts.hole[1] + 50}" class="d-leader"/>${dot(pts.hole)}`;
+    notes += label(R + 14, pts.hole[1] + 46, 'Bolt holes', 'Punched to drawing');
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="${id}-t ${id}-d" class="diagram${compact ? ' diagram--compact' : ' diagram--full'}">
+  <title id="${id}-t">Parts of a three-limb mitre core</title>
+  <desc id="${id}-d">Face view of one lamination layer: top and bottom yokes, two outer limbs and a centre limb, 45 degree mitre corners, a diamond-pointed centre limb seated in a V-notch in each yoke, and bolt holes punched in the yokes.</desc>
+  ${steel}${notes}
+</svg>`;
 }

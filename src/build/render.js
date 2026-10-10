@@ -9,8 +9,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { stepLapFaceSVG, stepLapSectionSVG, pathD, coreFace } from '../js/lamination/svg.js';
-import { eShape, iShape, stripShape, corePieces, stepOffsets, clipHalfPlane, bounds } from '../js/lamination/geometry.js';
+import { stepLapFaceSVG, stepLapSectionSVG, pathD, piecePathD, coreFace, coreAnatomySVG } from '../js/lamination/svg.js';
+import { eShape, iShape, stripShape, corePieces, stepOffsets, clipHalfPlane, holesLeftOf, bounds } from '../js/lamination/geometry.js';
 
 /* ------------------------------------------------------------------ data */
 
@@ -103,7 +103,9 @@ function miniSVG(type) {
     const offs = stepOffsets(5, 0.07);
     const top = corePieces({ w: 0.95, o: offs[4], gap: 0.014 });
     const limb = clipHalfPlane(top.find((p) => p.id === 'limb-l').poly, 0, 1, 1.9);
-    const yoke = clipHalfPlane(top.find((p) => p.id === 'yoke-b').poly, 1, 0, -0.7);
+    const yokePc = top.find((p) => p.id === 'yoke-b');
+    const yoke = clipHalfPlane(yokePc.poly, 1, 0, -0.7);
+    const yokeHoles = holesLeftOf(yokePc.holes, -0.7);
     const b = bounds([limb, yoke]);
     const k = 440 / Math.max(b.w, b.h);
     const map = ([x, y]) => [180 + (x - b.x0) * k, 520 - (y - b.y0) * k];
@@ -113,7 +115,7 @@ function miniSVG(type) {
       const c = map([ox + 0.95, 0.95 + o]);
       return `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${c[0].toFixed(1)}" y2="${c[1].toFixed(1)}" class="f-hidden"/>`;
     }).join('');
-    return V('0 0 800 600', `<path d="${pathD(limb, map)}" class="f-steel"/><path d="${pathD(yoke, map)}" class="f-steel"/>${joints}`);
+    return V('0 0 800 600', `<path d="${pathD(limb, map)}" class="f-steel"/><path d="${piecePathD(yoke, yokeHoles, map)}" class="f-steel" fill-rule="evenodd"/>${joints}`);
   }
   if (type === 'ei') {
     const map = (dx, dy) => ([x, y]) => [250 + (x + dx) * 100, 470 - (y + dy) * 100];
@@ -332,6 +334,9 @@ function intro(d) {
       <span data-label="e" class="ilabel">E</span>
       <span data-label="i" class="ilabel">I</span>
       <span data-label="strip" class="ilabel">Strip</span>
+      <span data-label="cMitre" class="ipin"><i></i><b>Mitre</b></span>
+      <span data-label="cDiamond" class="ipin"><i></i><b>Diamond</b></span>
+      <span data-label="cVnotch" class="ipin"><i></i><b>V-notch</b></span>
     </div>
     <div class="intro__final container">
       <img class="intro__logo" src="/brand/manzza-logo.webp" alt="MANZZA" width="930" height="205" fetchpriority="low">
@@ -479,6 +484,19 @@ function productPage(d, a) {
   const quoteHref = `/quote?product=${p.slug}`;
   const facts = p.facts.map((f) => `<div class="fact"><dt>${esc(f.label)}</dt><dd>${esc(f.value)}${f.note ? `<span class="fact__note">${esc(f.note)}</span>` : ''}</dd></div>`).join('');
   const diagram = p.diagram ? `
+  <section class="section" aria-labelledby="anatomy-h">
+    <div class="container">
+      <div class="section__head">
+        ${eyebrow('', 'Core geometry')}
+        <h2 id="anatomy-h" class="h2">Mitre corners, a diamond tip and V-notch yokes.</h2>
+        <p class="lead">Every lamination in a three-limb core is one of five shapes, all cut to your drawing: two yokes, two outer limbs and a centre limb.</p>
+      </div>
+      <figure class="diagram-fig diagram-fig--wide">${coreAnatomySVG({ id: 'core-anatomy' })}${coreAnatomySVG({ id: 'core-anatomy-c', compact: true })}
+        <ol class="diagram-legend"><li>Yokes, top and bottom</li><li>Limbs: two outer and one centre</li><li>Mitre corner, a 45° joint</li><li>Diamond tip of the centre limb</li><li>V-notch in the yoke, which seats the diamond tip</li><li>Bolt holes, punched to drawing</li></ol>
+        <figcaption><strong>One layer, face view.</strong> Proportions, holes and joint details follow your design.</figcaption>
+      </figure>
+    </div>
+  </section>
   <section class="section section--navy" aria-labelledby="joint-h">
     <div class="container">
       <div class="section__head">

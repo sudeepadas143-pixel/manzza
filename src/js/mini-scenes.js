@@ -5,7 +5,7 @@
  */
 import * as THREE from 'three';
 import {
-  corePieces, cruciform, stepOffsets, eShape, iShape, stripShape, clipHalfPlane, CORE,
+  corePieces, cruciform, stepOffsets, eShape, iShape, stripShape, clipHalfPlane, holesLeftOf, CORE,
 } from './lamination/geometry.js';
 import {
   extrudeLaminations, createSteelUniforms, createSteelMaterial, studioEnvironment, addLights,
@@ -25,7 +25,7 @@ function buildCore(mat) {
     const t = (pk.z1 - pk.z0) / n;
     for (let k = 0; k < n; k++) {
       const o = offsets[layer % 5];
-      for (const p of corePieces({ w: pk.w, o, gap: 0.012 })) items.push({ poly: p.poly, z: pk.z0 + k * t, t: t * 0.8, layer, dir: p.dir });
+      for (const p of corePieces({ w: pk.w, o, gap: 0.012 })) items.push({ poly: p.poly, holes: p.holes, z: pk.z0 + k * t, t: t * 0.8, layer, dir: p.dir });
       layer++;
     }
   }
@@ -44,7 +44,7 @@ function buildMitreCorner(mat) {
     const o = offsets[k % 5];
     for (const p of corePieces({ w: 0.95, o, gap: 0.014 })) {
       if (p.id === 'limb-l') items.push({ poly: clipHalfPlane(p.poly, 0, 1, 1.9), z: k * t, t: t * 0.78, layer: k, dir: 'y' });
-      if (p.id === 'yoke-b') items.push({ poly: clipHalfPlane(p.poly, 1, 0, -0.7), z: k * t, t: t * 0.78, layer: k, dir: 'x' });
+      if (p.id === 'yoke-b') items.push({ poly: clipHalfPlane(p.poly, 1, 0, -0.7), holes: holesLeftOf(p.holes, -0.7), z: k * t, t: t * 0.78, layer: k, dir: 'x' });
     }
   }
   const m = new THREE.Mesh(extrudeLaminations(items), mat);
