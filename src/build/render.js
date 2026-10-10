@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { stepLapFaceSVG, stepLapSectionSVG, pathD, piecePathD, coreFace, coreAnatomySVG } from '../js/lamination/svg.js';
-import { eShape, iShape, stripShape, corePieces, stepOffsets, clipHalfPlane, holesLeftOf, bounds } from '../js/lamination/geometry.js';
+import { CORE, eShape, iShape, stripShape, corePieces, stepOffsets, clipHalfPlane, holesLeftOf, bounds } from '../js/lamination/geometry.js';
 
 /* ------------------------------------------------------------------ data */
 
@@ -109,7 +109,7 @@ function miniSVG(type) {
     const b = bounds([limb, yoke]);
     const k = 440 / Math.max(b.w, b.h);
     const map = ([x, y]) => [180 + (x - b.x0) * k, 520 - (y - b.y0) * k];
-    const ox = -2.525;
+    const ox = CORE.limbX[0] - 0.95 / 2;
     const joints = offs.slice(0, 4).map((o) => {
       const a = map([ox + Math.max(0, -o), Math.max(0, -o) + o]);
       const c = map([ox + 0.95, 0.95 + o]);
@@ -196,7 +196,7 @@ function head(d, a) {
   }
   return `<meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <script>(function(d){d.classList.add('js');if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)d.classList.add('rm');var t=new URLSearchParams(location.search).get('theme');if(t==='light')d.dataset.theme='light'})(document.documentElement)</script>
+  <script>(function(d){d.classList.add('js');if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)d.classList.add('rm')})(document.documentElement)</script>
   <title>${esc(title)}</title>
   <meta name="description" content="${esc(description)}">
   ${base ? `<link rel="canonical" href="${esc(abs(pathName))}">` : ''}
@@ -269,7 +269,7 @@ function header(d, a) {
 function footer(d) {
   const c = d.config;
   const wa = whatsappHref(d, 'Hello MANZZA, I would like to discuss a lamination requirement.');
-  return `<footer class="site-footer">
+  return `<footer class="site-footer on-dark">
   <div class="container">
     <div class="footer__grid">
       <div class="footer__brand">
@@ -307,49 +307,31 @@ function footer(d) {
 /* ------------------------------------------------------------- home page */
 
 function intro(d) {
-  const ix = d.company.intro;
-  const c = d.config;
-  const beats = ix.beats.map((b, i) => `<li class="beat" data-beat="${i + 1}">
-      <p class="beat__head"><span class="beat__n">${pad2(i + 1)}</span><span class="beat__step">${esc(b.step)}</span></p>
-      <p class="beat__caption">${esc(b.caption)}</p>
-      <p class="beat__detail">${esc(b.detail)}</p>
-    </li>`).join('');
-  return `<section id="intro" class="intro" aria-label="How a transformer core is built">
+  // Pure animation: no captions or labels. The canvas is decorative; the page's
+  // headline lives in the hero section right after it.
+  return `<section id="intro" class="intro" aria-label="Animation: a transformer core assembling from a coil of electrical steel">
   <div class="intro__stage">
-    <div class="intro__still" aria-hidden="true"><svg viewBox="0 0 800 520">${coreFace({ box: { x: 80, y: 20, w: 640, h: 480 }, outlineOnly: true, cls: 'f-outline' })}</svg></div>
     <canvas class="intro__canvas" aria-hidden="true"></canvas>
     <div class="intro__frames" aria-hidden="true"></div>
-    <div class="intro__scrim" aria-hidden="true"></div>
-    <div class="intro__opening container">
-      <p class="intro__line">${esc(ix.opening)}</p>
-      <p class="intro__kicker">${esc(c.company.shortName)} makes transformer core laminations in ${esc(c.company.city)}.</p>
+    <div class="intro__night" aria-hidden="true"></div>
+    <div class="intro__final">
+      <img class="intro__logo" src="/brand/manzza-logo-lockup.webp" alt="MANZZA – Engineered for Power" width="950" height="290" fetchpriority="low">
     </div>
-    <div class="intro__captions container">
-      <ol class="intro__beats">${beats}</ol>
+  </div>
+</section>`;
+}
+
+function hero(d) {
+  const ix = d.company.intro;
+  return `<section class="hero" aria-labelledby="hero-h">
+  <div class="container hero__inner">
+    ${eyebrow('', `${d.config.company.legalName.replace(/\.$/, '')} · ${d.config.company.city}`)}
+    <h1 id="hero-h" class="h1 hero__h1">${esc(ix.headline)}</h1>
+    <p class="lead hero__lede">${esc(ix.lede)}</p>
+    <div class="btn-row">
+      <a class="btn btn--primary btn--lg" href="/quote">Request a Quote ${icon.arrow}</a>
+      <a class="btn btn--ghost btn--lg" href="#products">See our products</a>
     </div>
-    <ol class="intro__rail" aria-hidden="true">${ix.beats.map((b) => `<li><span>${esc(b.step)}</span></li>`).join('')}</ol>
-    <div class="intro__labels" aria-hidden="true">
-      <span data-label="dim" class="ilabel ilabel--dim">45°</span>
-      <span data-label="mitre" class="ilabel">Mitre</span>
-      <span data-label="e" class="ilabel">E</span>
-      <span data-label="i" class="ilabel">I</span>
-      <span data-label="strip" class="ilabel">Strip</span>
-      <span data-label="cMitre" class="ipin"><i></i><b>Mitre</b></span>
-      <span data-label="cDiamond" class="ipin"><i></i><b>Diamond</b></span>
-      <span data-label="cVnotch" class="ipin"><i></i><b>V-notch</b></span>
-    </div>
-    <div class="intro__final container">
-      <img class="intro__logo" src="/brand/manzza-logo.webp" alt="MANZZA" width="930" height="205" fetchpriority="low">
-      <p class="intro__tagline">${esc(c.company.tagline)}</p>
-      <h1 class="intro__h1">${esc(ix.headline)}</h1>
-      <p class="intro__lede">${esc(ix.lede)}</p>
-      <div class="btn-row btn-row--center">
-        <a class="btn btn--primary" href="/quote">Request a Quote ${icon.arrow}</a>
-        <a class="btn btn--ghost" href="#products">See our products</a>
-      </div>
-    </div>
-    <a class="intro__skip" href="#products">Skip intro ${icon.chevron}</a>
-    <p class="intro__cue" aria-hidden="true"><span>Scroll</span><i></i></p>
   </div>
 </section>`;
 }
@@ -457,7 +439,7 @@ function customers(d) {
 
 function cta(d, a) {
   const wa = whatsappHref(d, 'Hello MANZZA, I would like to send a drawing for a quotation.');
-  return `<section class="cta" aria-labelledby="cta-h">
+  return `<section class="cta on-dark" aria-labelledby="cta-h">
   <div class="container cta__inner">
     <div class="cta__layers" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
     <div class="cta__copy">
@@ -749,7 +731,7 @@ function contactCard(d) {
 /* ------------------------------------------------------------- dispatch */
 
 const PARTIALS = {
-  head, header, footer, intro, cta, productPage, quoteForm, contactCard,
+  head, header, footer, intro, hero, cta, productPage, quoteForm, contactCard,
   productCards: (d) => productCards(d),
   compareTable: (d) => compareTable(d),
   specTable: (d, a) => specTable(d, a.materials ? a.materials.split(',') : null),

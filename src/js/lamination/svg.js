@@ -218,12 +218,13 @@ export function fallbackFrames() {
   const sMap = (p) => [120 + p[0] * 70, 420 - p[1] * 70];
   const sPath = pathD(s.outer, sMap) + s.holes.map((h) => pathD(h, sMap)).join('');
   frames.push(`<svg ${V}><path d="${trap}" class="f-steel"/><line x1="530" y1="160" x2="450" y2="240" class="f-cut"/>
-    <path d="M520 170 L520 120" class="f-dim"/><path d="M520 130 A40 40 0 0 0 491.7 141.7" class="f-dim"/><text x="530" y="128" class="f-text">45°</text>
+    <path d="M520 170 L520 120" class="f-dim"/><path d="M520 130 A40 40 0 0 0 491.7 141.7" class="f-dim"/>
     <path d="${ePath}" class="f-steel"/><path d="${iPath}" class="f-steel"/><path d="${sPath}" class="f-steel" fill-rule="evenodd"/></svg>`);
   // 5 – step-lap: corner face with stepped joints
   const offs = stepOffsets(STEPS, STEP);
   const w = 0.95;
-  const view = { x0: -2.65, y0: -0.12, x1: -0.75, y1: 1.78 };
+  const cx0 = CORE.limbX[0] - 0.95 / 2;
+  const view = { x0: cx0 - 0.12, y0: -0.12, x1: cx0 + 1.78, y1: 1.78 };
   view.w = view.x1 - view.x0; view.h = view.y1 - view.y0;
   const { map } = mapper(view, { x: 160, y: 20, w: 480, h: 480 }, 0);
   const top = corePieces({ w, o: offs[STEPS - 1], gap: 0.012 }).filter((p) => p.id === 'limb-l' || p.id === 'yoke-b');

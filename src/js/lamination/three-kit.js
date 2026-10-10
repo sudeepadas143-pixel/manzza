@@ -9,7 +9,7 @@ import { ccw, signedArea } from './geometry.js';
 export const BRAND = {
   blue: new THREE.Color('#2f6bea'),
   blueGlow: new THREE.Color('#5b8fff'),
-  steel: new THREE.Color('#a9b2be'),
+  steel: new THREE.Color('#b7bec8'),
 };
 
 /* ------------------------------------------------------------------------ */
@@ -132,12 +132,18 @@ export function createSteelUniforms() {
 
 /** Dark brushed electrical steel, with optional electric-blue light on cut edges. */
 export function createSteelMaterial(uniforms, opts = {}) {
-  const m = new THREE.MeshStandardMaterial({
+  // Physically based electrical steel: brushed along the rolling direction
+  // (anisotropic highlights follow UV u, which the extruder aligns with each
+  // lamination's grain) under the faint sheen of its insulation coating.
+  const m = new THREE.MeshPhysicalMaterial({
     color: opts.color || BRAND.steel,
-    metalness: 0.78,
-    roughness: opts.roughness ?? 0.4,
+    metalness: 0.88,
+    roughness: opts.roughness ?? 0.3,
     roughnessMap: brushedTexture(),
-    envMapIntensity: opts.envMapIntensity ?? 0.9,
+    anisotropy: opts.anisotropy ?? 0.65,
+    clearcoat: opts.clearcoat ?? 0.3,
+    clearcoatRoughness: 0.3,
+    envMapIntensity: opts.envMapIntensity ?? 1,
     side: THREE.FrontSide,
   });
   m.onBeforeCompile = (shader) => {
@@ -168,39 +174,59 @@ export function createSteelMaterial(uniforms, opts = {}) {
 /* Lighting                                                                  */
 /* ------------------------------------------------------------------------ */
 
-/** Neutral studio environment for metal reflections, generated procedurally. */
-export function studioEnvironment(renderer, { light = false } = {}) {
+/**
+ * Product-photography studio for reflections: a mid-grey room with a few large,
+ * soft-edged softboxes. Polished steel reads by the bands of light and dark it
+ * reflects, so the room is deliberately not uniformly bright.
+ */
+export function studioEnvironment(renderer) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   const env = new THREE.Scene();
-  const box = new THREE.BoxGeometry(1, 1, 1);
-  const room = new THREE.Mesh(box, new THREE.MeshBasicMaterial({ color: light ? 0x535a66 : 0x15181f, side: THREE.BackSide }));
-  room.scale.set(20, 12, 20);
+  const disposables = [];
+  const room = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0x59606b, side: THREE.BackSide }));
+  room.scale.set(30, 16, 30);
   env.add(room);
-  const panel = (w, h, x, y, z, ry, c) => {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide }));
-    m.position.set(x, y, z); m.rotation.y = ry; m.lookAt(0, 0, 0); env.add(m);
+  disposables.push(room);
+  // floor slightly darker, ceiling slightly lighter: a gentle vertical gradient
+  const band = (y, h, c) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(60, h), new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide }));
+    m.position.set(0, y, 0); m.rotation.x = Math.PI / 2; env.add(m); disposables.push(m);
   };
-  // light theme: a softer overhead so highlights don't bleach into the white page
-  panel(12, 4, 0, 5.5, 0, 0, light ? 0x9aa2ae : 0xe4e8f0); //  soft overhead light
-  panel(5, 7, -9, 1, 2, 0, 0x8c95a8); //    neutral side fill
-  panel(4, 6, 9, 1, -3, 0, 0x5d6b8c); //    cool bounce
-  panel(8, 2, 2, -2, 8, 0, 0x4a4f5a); //    front floor bounce
-  panel(9, 5, -2, 3, 9, 0, 0x8a93a5); //    soft front light, so faces turned to the viewer read as steel
-  const rt = pmrem.fromScene(env, 0.035);
+  band(-7.9, 60, 0x2c3139);
+  band(7.9, 60, 0x737a86);
+  // soft-edged softbox texture
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  const gr = g.createRadialGradient(128, 128, 30, 128, 128, 128);
+  gr.addColorStop(0, '#fff'); gr.addColorStop(0.6, '#fff'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+  const soft = new THREE.CanvasTexture(c);
+  const box = (w, h, pos, look, gain) => {
+    const mat = new THREE.MeshBasicMaterial({ map: soft, transparent: true, side: THREE.DoubleSide });
+    mat.color.setScalar(gain); // > 1: brighter than white (the env is rendered in half float)
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    m.position.set(...pos); m.lookAt(...look); env.add(m); disposables.push(m);
+  };
+  // seen from above, flat steel reflects what is high and behind it, so the
+  // main light is a large softbox up and behind the subject
+  box(26, 9, [0, 6.5, -12], [0, 0, 0], 3.6); //  main: large, high, behind
+  box(14, 6, [0, 7.8, 0], [0, 0, 0], 2.2); //    overhead
+  box(5, 12, [-13, 2, 3], [0, 0, 0], 2.0); //    tall strip, left
+  box(4, 10, [13, 3, -4], [0, 0, 0], 2.6); //    rim strip, right
+  box(16, 4, [0, 1, 13], [0, 0, 0], 1.1); //     front fill, for faces turned to the viewer
+  const rt = pmrem.fromScene(env, 0.02);
   pmrem.dispose();
-  box.dispose();
-  env.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+  soft.dispose();
+  disposables.forEach((m) => { m.geometry.dispose(); m.material.dispose(); });
   return rt.texture;
 }
 
 export function addLights(scene) {
-  const key = new THREE.DirectionalLight(0xffffff, 2.1);
+  const key = new THREE.DirectionalLight(0xffffff, 1.6);
   key.position.set(4, 8, 6);
-  const rim = new THREE.DirectionalLight(0x9db8ff, 0.4);
-  rim.position.set(-5, 3, -4);
-  const fill = new THREE.HemisphereLight(0xdfe5f2, 0x0a0d14, 0.55);
-  scene.add(key, rim, fill);
-  return { key, rim, fill };
+  const fill = new THREE.HemisphereLight(0xffffff, 0xd3d8e0, 0.5);
+  scene.add(key, fill);
+  return { key, fill };
 }
 
 /** Dispose everything under an object. */

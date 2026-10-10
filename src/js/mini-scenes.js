@@ -48,7 +48,7 @@ function buildMitreCorner(mat) {
     }
   }
   const m = new THREE.Mesh(extrudeLaminations(items), mat);
-  m.position.set(2.525 - 0.9, -0.95, -layers * t / 2);
+  m.position.set(0, 0, -layers * t / 2); // recentred by its bounding box
   g.add(m);
   return { group: g, tilt: 0.6, spin: 0.25, swing: 0.35 };
 }

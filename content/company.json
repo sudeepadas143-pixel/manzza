@@ -1,42 +1,64 @@
 {
   "_readme": "Company copy used on the home page and elsewhere. Edit text freely; keep the keys. Do not add certifications, figures or client names that MANZZA cannot back up.",
-
   "about": "MANZZA Industry Pvt. Ltd. is a Bengaluru manufacturer of transformer core laminations. We cut, punch and prepare CRGO and CRNO electrical steel to our customers' drawings: mitre step-lap laminations, E&I laminations and strip laminations. We supply transformer manufacturers across Karnataka, Andhra Pradesh, Telangana and Tamil Nadu, and we keep to one job: transformer core laminations, made to drawing.",
-
   "intro": {
-    "opening": "Every transformer starts as a sheet of steel.",
-    "beats": [
-      { "step": "Coil", "caption": "Electrical steel coil, CRGO or CRNO.", "detail": "Grain-oriented steel for transformer cores." },
-      { "step": "Cut", "caption": "0.27 mm CRGO, cut to drawing.", "detail": "Automated CNC cutting to the dimensions on your drawing." },
-      { "step": "Mitre", "caption": "45° mitre ends.", "detail": "Also punched as E, I and strip profiles." },
-      { "step": "Step-lap", "caption": "Each layer's joint steps along from the one below.", "detail": "So no two neighbouring joints line up." },
-      { "step": "Core", "caption": "Three-limb mitre core.", "detail": "For distribution and power transformers." }
-    ],
     "headline": "Transformer core laminations, cut to your drawing in Bengaluru.",
-    "lede": "Mitre step-lap, E&I and strip laminations in CRGO and CRNO electrical steel."
+    "lede": "Mitre step-lap, E&I and strip laminations in CRGO and CRNO electrical steel, for transformer manufacturers across Karnataka, Andhra Pradesh, Telangana and Tamil Nadu."
   },
-
   "process": [
-    { "step": "Cut", "text": "Automated CNC cutting to the dimensions and angles on your drawing, with shearing and supporting operations." },
-    { "step": "Punch", "text": "Punching and hole processing for holes, slots and E&I profiles." },
-    { "step": "Step-lap", "text": "Mitre laminations prepared in step-lap sequence, so the joint moves along with each layer." },
-    { "step": "Stack", "text": "Core stacking support: laminations sorted and packets built to your design." }
+    {
+      "step": "Cut",
+      "text": "Automated CNC cutting to the dimensions and angles on your drawing, with shearing and supporting operations."
+    },
+    {
+      "step": "Punch",
+      "text": "Punching and hole processing for holes, slots and E&I profiles."
+    },
+    {
+      "step": "Step-lap",
+      "text": "Mitre laminations prepared in step-lap sequence, so the joint moves along with each layer."
+    },
+    {
+      "step": "Stack",
+      "text": "Core stacking support: laminations sorted and packets built to your design."
+    }
   ],
-
   "quality": [
-    { "title": "Dimensional accuracy", "text": "Laminations cut accurately to the dimensions on your drawing." },
-    { "title": "Repeatability", "text": "Repeat orders cut to the same drawing, the same way." },
-    { "title": "Mitre geometry", "text": "Attention to the 45° corners and the step-lap arrangement." },
-    { "title": "Traceability", "text": "Material traceability where applicable." },
-    { "title": "Technical collaboration", "text": "We work through drawings and feasibility with your engineers before cutting." }
+    {
+      "title": "Dimensional accuracy",
+      "text": "Laminations cut accurately to the dimensions on your drawing."
+    },
+    {
+      "title": "Repeatability",
+      "text": "Repeat orders cut to the same drawing, the same way."
+    },
+    {
+      "title": "Mitre geometry",
+      "text": "Attention to the 45° corners and the step-lap arrangement."
+    },
+    {
+      "title": "Traceability",
+      "text": "Material traceability where applicable."
+    },
+    {
+      "title": "Technical collaboration",
+      "text": "We work through drawings and feasibility with your engineers before cutting."
+    }
   ],
-
   "customers": [
-    { "title": "Transformer manufacturers", "text": "Distribution and power transformer makers who need core laminations cut to their own designs." },
-    { "title": "Core assembly and fabrication businesses", "text": "Shops that stack and build cores and need laminations prepared in the right sequence." },
-    { "title": "OEM procurement and engineering teams", "text": "Buyers and design engineers who want to discuss a drawing directly with the people cutting it." }
+    {
+      "title": "Transformer manufacturers",
+      "text": "Distribution and power transformer makers who need core laminations cut to their own designs."
+    },
+    {
+      "title": "Core assembly and fabrication businesses",
+      "text": "Shops that stack and build cores and need laminations prepared in the right sequence."
+    },
+    {
+      "title": "OEM procurement and engineering teams",
+      "text": "Buyers and design engineers who want to discuss a drawing directly with the people cutting it."
+    }
   ],
-
   "pages": {
     "home": {
       "title": "Transformer Lamination Manufacturer in Bengaluru | MANZZA",
