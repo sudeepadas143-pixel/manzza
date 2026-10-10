@@ -48,6 +48,8 @@ export async function initIntro(section) {
   }
 
   const mobile = window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;
+  // ?capture: deterministic scrubbing for recording a video of the intro
+  const capture = new URLSearchParams(location.search).has('capture');
   const useGL = webglAvailable() && !new URLSearchParams(location.search).has('nogl');
   section.classList.add('intro--live', useGL ? 'intro--gl' : 'intro--frames');
 
@@ -65,7 +67,7 @@ export async function initIntro(section) {
   gsap.registerPlugin(ScrollTrigger);
 
   let lenis = null;
-  if (!mobile) {
+  if (!mobile && !capture) {
     const { default: Lenis } = await import('lenis');
     lenis = new Lenis({ lerp: 0.12, wheelMultiplier: 0.9, anchors: { offset: -72 } });
     lenis.on('scroll', ScrollTrigger.update);
@@ -86,13 +88,16 @@ export async function initIntro(section) {
   };
 
   function apply(p) {
+    window.__introP = p;
+    window.__introReady = !!scene || frameEls.length > 0;
     // opening line
     opening.style.opacity = 1 - smooth(seg(p, OPENING[1] - 0.035, OPENING[1]));
     // captions
     let active = -1;
     beats.forEach((el, i) => {
       const [a, b] = BEATS[i];
-      const o = fade(p, a + 0.01, b - 0.005);
+      // sequential hand-over: the outgoing caption is gone before the next arrives
+      const o = smooth(seg(p, a + 0.004, a + 0.022)) * (1 - smooth(seg(p, b - 0.022, b - 0.004)));
       el.style.opacity = o;
       el.style.transform = `translateY(${(1 - o) * 10}px)`;
       el.setAttribute('aria-hidden', o < 0.5 ? 'true' : 'false');
@@ -187,7 +192,7 @@ export async function initIntro(section) {
       trigger: section,
       start: 'top top',
       end: 'bottom bottom',
-      scrub: lenis ? true : 0.35,
+      scrub: lenis || capture ? true : 0.35,
       invalidateOnRefresh: true,
     },
     onUpdate: request,

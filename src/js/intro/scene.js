@@ -31,7 +31,7 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
   /* ---------------------------------------------------------------- setup */
   const renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: !mobile,
+    antialias: true,
     alpha: true,
     powerPreference: 'high-performance',
   });
@@ -58,12 +58,12 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
 
   /* ----------------------------------------------------------------- coil */
   const coil = new THREE.Group();
-  const R = 1.25, r = 0.55, CW = W0 * 4; // coil radius, bore, width (= 4 strips)
+  const R = 1.0, r = 0.42, CW = W0 * 4; // coil radius, bore, width (= 4 strips)
   {
     const tex = brushedTexture().clone();
     tex.repeat.set(6, 1);
     tex.needsUpdate = true;
-    const outerMat = new THREE.MeshStandardMaterial({ color: 0xa9b2be, metalness: 0.8, roughness: 0.36, roughnessMap: tex });
+    const outerMat = new THREE.MeshStandardMaterial({ color: 0xb4bcc7, metalness: 0.62, roughness: 0.4, roughnessMap: tex });
     const outer = new THREE.Mesh(new THREE.CylinderGeometry(R, R, CW, 128, 1, true), outerMat);
     outer.rotation.x = Math.PI / 2;
     const bore = new THREE.Mesh(
@@ -76,7 +76,7 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
     c.width = c.height = mobile ? 512 : 1024;
     const g = c.getContext('2d');
     const S = c.width / 2;
-    g.fillStyle = '#8a93a1'; g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = '#9aa3b0'; g.fillRect(0, 0, c.width, c.height);
     const wraps = mobile ? 36 : 60;
     for (let i = 0; i <= wraps; i++) {
       const rr = (r / R + (1 - r / R) * (i / wraps)) * S;
@@ -87,7 +87,7 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
     }
     const ringTex = new THREE.CanvasTexture(c);
     ringTex.colorSpace = THREE.SRGBColorSpace;
-    const endMat = new THREE.MeshStandardMaterial({ map: ringTex, metalness: 0.75, roughness: 0.45 });
+    const endMat = new THREE.MeshStandardMaterial({ map: ringTex, metalness: 0.3, roughness: 0.6 });
     const endA = new THREE.Mesh(new THREE.RingGeometry(r, R, 128, 1), endMat);
     endA.position.z = CW / 2;
     const endB = endA.clone();
@@ -103,15 +103,15 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
   /* ---------------------------------------------- sheet → strips → laminations */
   // 2D layout: x along the strip (rolling direction), y across. Group is laid
   // flat on the table: (x, y, z) → world (x, z, -y).
-  const XS0 = -4.2; // where the sheet leaves the coil
-  const XS1 = 3.4; // end of the unrolled sheet
+  const XS0 = -4.2; // where the coil stops rolling (left end of the sheet)
+  const XS1 = 3.4; // where the coil starts (right end of the sheet)
   const XA = -1.6, XB = 1.6; // lamination cut centres
   const T_SHEET = 0.03;
   const strips = new THREE.Group();
   strips.rotation.x = -Math.PI / 2;
   scene.add(strips);
 
-  const clip = new THREE.Plane(new THREE.Vector3(-1, 0, 0), XS0); // keeps x <= constant
+  const clip = new THREE.Plane(new THREE.Vector3(1, 0, 0), -XS1); // keeps x >= the coil's position
   const sheetMat = createSteelMaterial(uniforms);
   sheetMat.clippingPlanes = [clip];
   const offcutMat = createSteelMaterial(uniforms);
@@ -177,16 +177,12 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
   // 45° dimension on the front lamination's right end
   const dim = new THREE.Group();
   {
-    const pts = [];
-    const rr = 0.5;
-    for (let k = 0; k <= 24; k++) {
-      const a = Math.PI - (Math.PI / 4) * (k / 24);
-      pts.push(new THREE.Vector3(Math.cos(a) * rr, Math.sin(a) * rr, 0));
-    }
-    const arc = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xc9d3e6, transparent: true, toneMapped: false }));
-    const ext = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(-0.75, 0, 0)]), arc.material);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xdfe6f3, transparent: true, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
+    const arc = new THREE.Mesh(new THREE.RingGeometry(0.47, 0.5, 40, 1, (3 * Math.PI) / 4, Math.PI / 4), mat);
+    const ext = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.014), mat);
+    ext.position.x = -0.4;
     dim.add(arc, ext);
-    dim.userData.mat = arc.material;
+    dim.userData.mat = mat;
     dim.position.set(XB + W0 / 2, -W0 / 2, T_SHEET + 0.004);
   }
   stripRows[0].add(dim);
@@ -314,17 +310,19 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
   /* ---------------------------------------------------------------- camera */
   // [p, position, target]
   const KEYS = [
-    [0.0, [0.4, 1.6, 10.5], [0, 1.25, 0]],
-    [0.1, [0.4, 1.6, 9.5], [0, 1.25, 0]],
-    [0.2, [2.6, 2.6, 7.6], [0, 1.15, 0]],
-    [0.25, [1.6, 5.0, 11.5], [-1.2, 0.4, 0.2]],
-    [0.3, [1.6, 6.6, 9.0], [0.2, 0, 0.3]],
-    [0.37, [1.2, 7.8, 7.2], [0.4, 0, 0.2]],
+    [0.0, [3.9, 1.6, 12.0], [3.4, 1.0, 0]],
+    [0.1, [3.9, 1.6, 10.6], [3.4, 1.0, 0]],
+    [0.2, [5.6, 2.6, 8.4], [3.3, 0.9, 0]],
+    // the roll: camera and coil share the same easing, so the coil drifts left
+    // across the frame while the sheet it lays fills the right
+    [0.22, [5.4, 2.8, 8.6], [3.1, 0.8, 0]],
+    [0.31, [0.6, 6.6, 9.4], [-0.2, 0, 0.3]],
+    [0.37, [1.0, 7.8, 7.2], [0.4, 0, 0.2]],
     [0.445, [2.9, 4.3, 5.6], [1.5, 0, 1.9]],
     [0.505, [0.3, 5.6, 9.4], [0.1, 0, 2.4]],
-    [0.585, [-0.45, 3.9, 4.75], [-2.0, 1.35, 1.4]],
-    [0.635, [-0.6, 3.7, 4.45], [-2.05, 1.25, 1.4]],
-    [0.69, [0.4, 4.8, 6.6], [-1.2, 0.5, 0.6]],
+    [0.58, [-0.45, 3.9, 4.75], [-2.0, 1.35, 1.4]],
+    [0.64, [-0.6, 3.7, 4.45], [-2.05, 1.25, 1.4]],
+    [0.7, [0.4, 4.8, 6.6], [-1.2, 0.5, 0.6]],
     [0.8, [0.6, 3.0, 13.2], [0, 2.1, 2.3]],
     [0.88, [0, 2.6, 13.6], [0, 2.15, 2.3]],
     [1.0, [0, 2.4, 15.5], [0, 2.15, 2.3]],
@@ -340,7 +338,7 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
     tmpT.set(lerp(b0[0], b1[0], t), lerp(b0[1], b1[1], t), lerp(b0[2], b1[2], t));
     // portrait screens: back off so the subject still fits
     const aspect = size.w / size.h;
-    if (aspect < 1.25) tmpP.sub(tmpT).multiplyScalar((1.25 / aspect) ** 0.8).add(tmpT);
+    if (aspect < 1.25) tmpP.sub(tmpT).multiplyScalar((1.25 / aspect) ** 0.92).add(tmpT);
     camera.position.copy(tmpP);
     camera.lookAt(tmpT);
   }
@@ -359,24 +357,26 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
   }
 
   function update(p) {
-    /* coil */
+    /* coil: appears on the right, rolls left laying the sheet, then rolls away */
     const coilIn = smooth(seg(p, 0.08, 0.16));
-    const coilMove = easeInOut(seg(p, 0.215, 0.27));
-    const unroll = easeInOut(seg(p, 0.265, 0.32));
-    const coilOut = smooth(seg(p, 0.42, 0.5));
-    coil.visible = coilIn > 0 && coilOut < 1;
-    coil.scale.setScalar(lerp(0.85, 1, coilIn) * (1 - coilOut * 0.15));
-    coil.position.set(lerp(0, XS0, coilMove), R + 0.02 - coilOut * 0.2, lerp(0, 0, coilMove));
-    coil.rotation.y = lerp(-0.75, 0, smooth(seg(p, 0.1, 0.24)));
-    coil.userData.spin.rotation.z = -seg(p, 0.1, 0.22) * 0.9 - unroll * ((XS1 - XS0) / R);
-    coil.traverse((o) => { if (o.material) { o.material.transparent = coilIn < 1 || coilOut > 0; o.material.opacity = coilIn * (1 - coilOut); } });
+    const roll = easeInOut(seg(p, 0.22, 0.31));
+    const away = easeInOut(seg(p, 0.355, 0.42));
+    const coilX = lerp(XS1, XS0, roll) - away * 3.2;
+    coil.visible = coilIn > 0 && away < 1;
+    coil.scale.setScalar(lerp(0.85, 1, coilIn));
+    coil.position.set(coilX, R + 0.02, 0);
+    coil.rotation.y = lerp(-0.75, 0, smooth(seg(p, 0.1, 0.215)));
+    // rolling without slipping: angle = distance / radius
+    coil.userData.spin.rotation.z = seg(p, 0.1, 0.21) * 0.6 + (XS1 - coilX) / R;
+    const coilFade = coilIn * (1 - smooth(seg(p, 0.375, 0.42)));
+    coil.traverse((o) => { if (o.material) { o.material.transparent = coilFade < 1; o.material.opacity = coilFade; } });
 
     /* sheet */
-    const sheetOn = unroll > 0;
-    const sheetGone = smooth(seg(p, 0.53, 0.58));
+    const sheetOn = roll > 0;
+    const sheetGone = smooth(seg(p, 0.515, 0.55));
     strips.visible = sheetOn && sheetGone < 1;
-    clip.constant = lerp(XS0, XS1 + 0.01, unroll);
-    const slit = seg(p, 0.31, 0.35);
+    clip.constant = -Math.min(coilX, XS1 - 0.001);
+    const slit = seg(p, 0.305, 0.35);
     const split = easeInOut(seg(p, 0.345, 0.38));
     slits.forEach((m, k) => {
       const t = clamp(slit * 1.25 - k * 0.12);
@@ -420,8 +420,8 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
     });
     offcutMat.opacity = 1 - fall;
     // laminations lift off towards the stacking table
-    const lift = easeInOut(seg(p, 0.52, 0.58));
-    stripRows.forEach((row, k) => { row.userData.lam.position.set(-lift * 1.5, lift * 0.6, lift * (1.2 + k * 0.25)); });
+    const lift = easeInOut(seg(p, 0.512, 0.55));
+    stripRows.forEach((row, k) => { row.userData.lam.position.set(lift * (3.2 + k * 0.4), 0, lift * 0.15); });
     sheetMat.transparent = sheetGone > 0;
     sheetMat.opacity = 1 - sheetGone;
 
@@ -431,15 +431,15 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
 
     /* profiles */
     const profIn = easeOut(seg(p, 0.478, 0.505));
-    const profOut = smooth(seg(p, 0.52, 0.56));
+    const profOut = smooth(seg(p, 0.512, 0.545));
     profiles.visible = profIn > 0 && profOut < 1;
     profileMat.opacity = profIn * (1 - profOut);
     profileItems.forEach((it, k) => { it.mesh.position.z = lerp(-0.4, 0.0, clamp(profIn * 1.4 - k * 0.15)) + profOut * 0.4; });
 
     /* step-lap demonstrator */
-    const fanIn = seg(p, 0.555, 0.605);
-    const press = easeInOut(seg(p, 0.635, 0.665));
-    const demoOut = smooth(seg(p, 0.668, 0.69));
+    const fanIn = seg(p, 0.548, 0.6);
+    const press = easeInOut(seg(p, 0.622, 0.645));
+    const demoOut = smooth(seg(p, 0.645, 0.66));
     demo.visible = fanIn > 0 && demoOut < 1;
     const zTop = stackHalf * 2;
     demoPlates.forEach((pl, k) => {
@@ -453,7 +453,7 @@ export function createIntroScene(canvas, { mobile = false } = {}) {
     demoLineMat.opacity = 1 - Math.max(press * 0.6, demoOut);
 
     /* core: stacking */
-    const stack = seg(p, 0.64, 0.695);
+    const stack = seg(p, 0.648, 0.7);
     const nP = packets.length;
     coreMeshes.forEach((m) => {
       const { pi, dir } = m.userData;

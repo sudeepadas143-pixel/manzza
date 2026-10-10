@@ -673,7 +673,7 @@ html.js:not(.rm) .intro__scrim { display: block; }
 .intro__lede { margin-top: 14px; font-size: clamp(1.0625rem, 1.4vw, 1.25rem); color: var(--text-2); max-width: 44ch; }
 
 /* --- live layout (JS on, motion allowed) */
-html.js:not(.rm) .intro { height: 560vh; }
+html.js:not(.rm) .intro { height: 600vh; }
 @media (max-width: 760px), (pointer: coarse) { html.js:not(.rm) .intro { height: 430vh; } }
 html.js:not(.rm) .intro__stage { position: sticky; top: 0; height: 100vh; height: 100svh; min-height: 0; padding: 0; display: block; }
 html.js:not(.rm) .intro__still { display: none; }
@@ -705,7 +705,7 @@ html.js:not(.rm) .beat__detail { font-size: 1.0625rem; color: var(--text-2); mar
 .intro__rail li.is-active::after { width: 40px; background: var(--blue); }
 
 .ilabel { position: absolute; left: 0; top: 0; padding: 4px 10px; font-family: var(--f-mono); font-size: 0.9375rem; font-weight: 500; color: var(--text); background: rgba(0, 0, 0, 0.7); border: 1px solid var(--line-2); white-space: nowrap; opacity: 0; will-change: transform, opacity; }
-.ilabel--dim { color: #fff; border-color: rgba(109, 155, 255, 0.6); }
+.ilabel--dim { color: #fff; font-size: 1.125rem; padding: 5px 12px; border-color: rgba(109, 155, 255, 0.6); }
 
 html.js:not(.rm) .intro__final { position: absolute; inset: 0; align-content: center; padding-top: var(--header-h); opacity: 0; pointer-events: none; }
 html.js:not(.rm) .intro__final.is-on { pointer-events: auto; }
