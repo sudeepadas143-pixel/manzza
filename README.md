@@ -1,6 +1,6 @@
 # MANZZA Industry – website
 
-Static website for **MANZZA Industry Pvt. Ltd.**, Bengaluru: transformer core laminations (mitre step-lap, E&I, strip) in CRGO and CRNO electrical steel.
+Static website for **MANZZA Industry Pvt. Ltd.**, Bengaluru: transformer core laminations (mitre step-lap, E&I, strip) in CRGO and CRNO electrical steel. Light theme throughout, with dark sections only for the closing call to action and the footer.
 
 Plain HTML, CSS and JavaScript, built with [Vite](https://vite.dev). The home page intro is a scroll-driven Three.js scene (GSAP ScrollTrigger + Lenis). Every lamination on the site (3D, SVG diagrams, fallbacks) is drawn from one geometry module, so the pictures always agree with each other.
 
@@ -47,7 +47,7 @@ The page files are short. Tags like `{{> productPage slug="mitre-core"}}` are fi
 | Indicative capacity figure and note | `site.config.js` → `capacity` (set `show: false` to hide it) |
 | Product text, applications, customisation, "what to send us", SEO titles | `content/products.json` |
 | Material names, thicknesses, grades, explanations | `content/materials.json` |
-| About text, intro captions, process steps, quality points, customer types, page titles | `content/company.json` |
+| About text, home headline, process steps, quality points, customer types, page titles | `content/company.json` |
 
 Rules for content, from the brief:
 
@@ -104,7 +104,8 @@ No factory photos exist yet, so the site shows clearly labelled dark slots ("Pho
 
 `public/brand/` holds the logo as supplied, cropped from the brand artwork:
 
-- `manzza-logo.webp` and `manzza-logo-nav.webp`: the wordmark with its black background made transparent. On black it renders identically to the original.
+- `manzza-logo.webp` and `manzza-logo-nav.webp`: the wordmark with its black background made transparent. On black it renders identically to the original. On the light pages the logo sits on a small black plate, because the metallic artwork is designed for black.
+- `manzza-logo-lockup.webp`: wordmark with tagline, transparent; used for the logo moment at the end of the intro.
 - `manzza-logo-lockup.png`: wordmark with tagline (Open Graph, JSON-LD).
 - `icon-512.png`, `apple-touch-icon.png`, `favicon.*`: the M mark.
 
@@ -121,17 +122,19 @@ Every push to the main branch redeploys automatically, so editing a JSON file an
 
 ## How the scroll intro works
 
-`src/js/intro/` holds the intro: `index.js` handles scrolling and captions, `scene.js` the 3D scene.
+`src/js/intro/` holds the intro: `index.js` handles scrolling, `scene.js` the 3D scene. The intro is **pure animation, with no text**. The page's headline sits in the hero section right after it.
 
-- A section about 560vh tall (430vh on phones) holds a sticky full-screen stage. GSAP ScrollTrigger maps scroll position to progress `p` from 0 to 1 (scrubbed). Lenis smooths wheel scrolling on desktop only.
+- A section about 600vh tall (440vh on phones) holds a sticky full-screen stage. GSAP ScrollTrigger maps scroll position to progress `p` from 0 to 1 (scrubbed). Lenis smooths wheel scrolling on desktop only.
 - `scene.update(p)` sets every object from scratch for a given `p`, so scrolling back plays the story in reverse exactly. The scene renders only when `p` changes.
-- Beats: opening line → coil → slitting into strips → 45° mitre cuts (plus E, I and strip profiles) → step-lap (an exploded view of one step cycle at a corner, then the core is stacked flat as on a stacking table) → the core is upended and turns → it resolves to its outline and the logo takes over.
-- Geometry is procedural: `src/js/lamination/geometry.js` builds the three-limb core with 45° outer mitres, a pointed centre limb in V-notched yokes, step-lap joint offsets and a stepped (cruciform) limb section. Only the 45° mitre edges get the electric-blue edge light.
-- Performance: pixel ratio capped (1.75 desktop, 1.5 phone), fewer layers on phones, Three.js loaded only after first paint, and the WebGL context released when the section is well off-screen (rebuilt on return).
-- Without WebGL, SVG frames built from the same geometry crossfade on scroll. Add `?nogl` to the URL to preview this.
-- With **prefers-reduced-motion**, nothing is pinned or animated: the page shows the final frame (logo, headline, buttons) and all captions as a static list.
+- Story: a coil turns in a light studio → it rolls out a sheet → slitting into strips → 45° mitre cuts (plus E, I and strip profiles) → step-lap (an exploded view of one step cycle at a corner, then the core is stacked) → the core is stood up and turns → the studio goes dark, the core resolves to its outline and the logo appears on black.
+- Rendering: physically based brushed steel (anisotropic highlights along each lamination's rolling direction, a clear-coat sheen for the insulation coating), a softbox studio environment for reflections, one soft shadow-casting key light on a seamless floor, neutral tone mapping, pixel ratio up to 2. Only the 45° mitre edges and cut lines use electric blue.
+- Geometry is procedural and follows MANZZA's own cores: `src/js/lamination/geometry.js` builds the three-limb core with 45° mitre corners, a diamond-pointed centre limb in V-notched yokes, yoke bolt holes, step-lap joint offsets and a stepped (cruciform) limb section.
+- Performance: phones get fewer layers, a lower pixel ratio and cheaper shadows. Three.js loads only after first paint, and the WebGL context is released when the section is well off-screen.
+- Without WebGL, SVG frames built from the same geometry crossfade on scroll (add `?nogl` to preview). With **prefers-reduced-motion**, nothing is pinned or animated: the page shows the logo frame.
 
-The small rotating product visuals (`src/js/minis.js`, `src/js/mini-scenes.js`) share one offscreen WebGL renderer, animate only while visible, and fall back to static SVG drawings.
+**Recording a film of the intro.** Open `/?capture` in a browser: scrubbing becomes exact, quality is maxed and the site header is hidden, so a screen recorder (or a headless browser stepping through scroll positions) captures the animation alone.
+
+The small rotating product visuals (`src/js/minis.js`, `src/js/mini-scenes.js`) share one offscreen WebGL renderer, use the same steel material and studio lighting, animate only while visible, and fall back to static SVG drawings.
 
 ## Project layout
 
@@ -143,7 +146,7 @@ src/build/render.js     build-time templating ({{> partial}} tags)
 src/js/lamination/      geometry.js (pure maths), svg.js (diagrams), three-kit.js (3D)
 src/js/intro/           scroll intro
 src/js/                 main.js (nav), quote.js (form), minis.js (product visuals)
-src/styles/main.css     all styles; brand colours as CSS variables at the top
+src/styles/main.css     all styles; brand colours and light/dark tokens as CSS variables at the top
 api/quote.js            optional Vercel function for the form
 public/                 logo, icons, Open Graph image, photo slots
 ```
