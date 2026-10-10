@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+  {{> head page="home" path="/"}}
+  <link rel="stylesheet" href="/src/styles/main.css">
+  <script type="module" src="/src/js/home.js"></script>
+</head>
+<body class="page-home">
+  {{> header active="home"}}
+
+  <main id="main">
+    {{> intro}}
+
+    <section id="products" class="section" aria-labelledby="products-h">
+      <div class="container">
+        <div class="section__head section__head--row">
+          <div>
+            {{> eyebrow n="01" label="What we make"}}
+            <h2 id="products-h" class="h2">Transformer core laminations.<br><span class="h2__muted">Nothing else.</span></h2>
+          </div>
+          <p class="lead section__aside">Three lamination types, each cut to the customer's drawing and specification.</p>
+        </div>
+        {{> productCards}}
+      </div>
+    </section>
+
+    <section id="materials" class="section section--navy" aria-labelledby="materials-h">
+      <div class="container">
+        <div class="section__head section__head--row">
+          <div>
+            {{> eyebrow n="02" label="Materials"}}
+            <h2 id="materials-h" class="h2">CRGO and CRNO electrical steel.</h2>
+          </div>
+          <a class="textlink" href="/materials">Full materials guide {{> icon name="arrow"}}</a>
+        </div>
+        <div class="mat-home">
+          {{> compareTable}}
+          <div class="mat-home__scale">
+            <p class="label-sm">Thickness, mm</p>
+            {{> thicknessScale}}
+            <p class="note">Grades and thicknesses depend on specification and availability.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="process" class="section" aria-labelledby="process-h">
+      <div class="container">
+        <div class="section__head section__head--row">
+          <div>
+            {{> eyebrow n="03" label="How we work"}}
+            <h2 id="process-h" class="h2">From coil to core-ready laminations.</h2>
+          </div>
+          <p class="lead section__aside">Automated CNC cutting, punching and hole processing, step-lap processing and core stacking support, all to the drawing you send.</p>
+        </div>
+        {{> process}}
+        <div class="process-foot">
+          {{> photo id="factory-cnc-line" label="CNC cutting line, Bengaluru" ratio="16/10"}}
+          <div class="process-foot__side">
+            {{> capacity}}
+            <div class="quality">
+              <h3 class="h3">How we hold quality</h3>
+              {{> quality}}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="about" class="section section--navy" aria-labelledby="who-h">
+      <div class="container">
+        <div class="about">
+          <div class="about__copy">
+            {{> eyebrow n="04" label="Who we supply"}}
+            <h2 id="who-h" class="h2">Close to the transformer makers of South India.</h2>
+            {{> about}}
+            <p class="regions"><span class="label-sm">Serving</span> {{> regions}}</p>
+          </div>
+          {{> customers}}
+        </div>
+      </div>
+    </section>
+
+    {{> cta}}
+  </main>
+
+  {{> footer}}
+</body>
+</html>

@@ -1,0 +1,171 @@
+/**
+ * One offscreen WebGL renderer draws every small product visual on the page
+ * and copies each frame into that visual's 2D canvas. Only visible visuals
+ * animate, at a gentle frame rate; with reduced motion they render once.
+ */
+import * as THREE from 'three';
+import {
+  corePieces, cruciform, stepOffsets, eShape, iShape, stripShape, clipHalfPlane, CORE,
+} from './lamination/geometry.js';
+import {
+  extrudeLaminations, createSteelUniforms, createSteelMaterial, studioEnvironment, addLights,
+} from './lamination/three-kit.js';
+
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function buildCore(mat) {
+  const g = new THREE.Group();
+  const packets = cruciform(CORE.D, [0.95, 0.7]);
+  const offsets = stepOffsets(5, 0.05);
+  const half = packets[packets.length - 1].z1;
+  let layer = 0;
+  const items = [];
+  for (const pk of packets) {
+    const n = Math.max(1, Math.round((pk.z1 - pk.z0) / 0.045));
+    const t = (pk.z1 - pk.z0) / n;
+    for (let k = 0; k < n; k++) {
+      const o = offsets[layer % 5];
+      for (const p of corePieces({ w: pk.w, o, gap: 0.012 })) items.push({ poly: p.poly, z: pk.z0 + k * t, t: t * 0.8, layer, dir: p.dir });
+      layer++;
+    }
+  }
+  const m = new THREE.Mesh(extrudeLaminations(items), mat);
+  m.position.set(0, -2.15, 0);
+  g.add(m);
+  return { group: g, tilt: 0.32, spin: 0.22, swing: 0.45, half };
+}
+
+function buildMitreCorner(mat) {
+  const g = new THREE.Group();
+  const offsets = stepOffsets(5, 0.07);
+  const items = [];
+  const layers = 12, t = 0.05;
+  for (let k = 0; k < layers; k++) {
+    const o = offsets[k % 5];
+    for (const p of corePieces({ w: 0.95, o, gap: 0.014 })) {
+      if (p.id === 'limb-l') items.push({ poly: clipHalfPlane(p.poly, 0, 1, 1.9), z: k * t, t: t * 0.78, layer: k, dir: 'y' });
+      if (p.id === 'yoke-b') items.push({ poly: clipHalfPlane(p.poly, 1, 0, -0.7), z: k * t, t: t * 0.78, layer: k, dir: 'x' });
+    }
+  }
+  const m = new THREE.Mesh(extrudeLaminations(items), mat);
+  m.position.set(2.525 - 0.9, -0.95, -layers * t / 2);
+  g.add(m);
+  return { group: g, tilt: 0.6, spin: 0.25, swing: 0.35 };
+}
+
+function buildEI(mat) {
+  const g = new THREE.Group();
+  const a = 1;
+  const items = [];
+  const layers = 14, t = 0.045;
+  for (let k = 0; k < layers; k++) {
+    items.push({ poly: eShape(a), z: k * t, t: t * 0.8, layer: k, dir: 'x' });
+  }
+  const iItems = [];
+  for (let k = 0; k < layers; k++) iItems.push({ poly: iShape(a), z: k * t, t: t * 0.8, layer: k, dir: 'x' });
+  const e = new THREE.Mesh(extrudeLaminations(items), mat);
+  const i = new THREE.Mesh(extrudeLaminations(iItems), mat);
+  e.position.set(-1.5, -1.25, -layers * t / 2);
+  i.position.set(-1.5, 0.95, -layers * t / 2);
+  g.add(e, i);
+  return { group: g, tilt: 0.35, spin: 0.3, swing: 0.35 };
+}
+
+function buildStrip(mat) {
+  const g = new THREE.Group();
+  const s = stripShape({ length: 4.2, width: 0.62, holes: 3, holeR: 0.085 });
+  const items = [];
+  const layers = 8, t = 0.05;
+  for (let k = 0; k < layers; k++) items.push({ poly: s.outer, holes: s.holes, z: k * t, t: t * 0.8, layer: k, dir: 'x' });
+  const m = new THREE.Mesh(extrudeLaminations(items), mat);
+  m.position.set(-2.1, -0.31, -layers * t / 2);
+  g.add(m);
+  return { group: g, tilt: 0.75, spin: 0.2, swing: 0.35 };
+}
+
+const BUILDERS = { core: buildCore, 'mitre-corner': buildMitreCorner, ei: buildEI, strip: buildStrip };
+
+export function startMinis(canvases) {
+  const glCanvas = document.createElement('canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: true, alpha: true, preserveDrawingBuffer: false });
+  renderer.setPixelRatio(1);
+  renderer.setClearColor(0x000000, 0);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  const env = studioEnvironment(renderer);
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+  const views = canvases.map((canvas) => {
+    const scene = new THREE.Scene();
+    scene.environment = env;
+    addLights(scene);
+    const uniforms = createSteelUniforms();
+    uniforms.uEdge.value = 0.14;
+    const mat = createSteelMaterial(uniforms);
+    const build = (BUILDERS[canvas.dataset.mini] || buildCore)(mat);
+    const pivot = new THREE.Group();
+    pivot.add(build.group);
+    const centre = new THREE.Box3().setFromObject(build.group).getCenter(new THREE.Vector3());
+    build.group.position.sub(centre);
+    scene.add(pivot);
+    const box = new THREE.Box3().setFromObject(pivot);
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 100);
+    const view = { canvas, ctx: canvas.getContext('2d'), scene, camera, pivot, build, sphere, visible: false, w: 0, h: 0, phase: Math.random() * 6 };
+    canvas.closest('.mini')?.classList.add('is-live');
+    return view;
+  });
+
+  function fit(v) {
+    const rect = v.canvas.getBoundingClientRect();
+    const w = Math.max(1, Math.round(rect.width * dpr));
+    const h = Math.max(1, Math.round(rect.height * dpr));
+    if (w !== v.w || h !== v.h) {
+      v.w = w; v.h = h;
+      v.canvas.width = w; v.canvas.height = h;
+      v.camera.aspect = w / h;
+      const fov = THREE.MathUtils.degToRad(v.camera.fov);
+      const fitH = v.sphere.radius / Math.sin(fov / 2);
+      const fitW = fitH / Math.min(1, v.camera.aspect);
+      const d = Math.max(fitH, fitW) * 1.08;
+      v.camera.position.set(0, d * 0.18, d);
+      v.camera.lookAt(0, 0, 0);
+      v.camera.updateProjectionMatrix();
+    }
+  }
+
+  function draw(v, time) {
+    fit(v);
+    const t = reduced ? 0.6 : time * 0.001 + v.phase;
+    v.pivot.rotation.set(-v.build.tilt, Math.sin(t * v.build.spin) * v.build.swing - 0.3, 0);
+    const W = glCanvas.width, H = glCanvas.height;
+    if (v.w > W || v.h > H) renderer.setSize(Math.max(W, v.w), Math.max(H, v.h), false);
+    renderer.setViewport(0, 0, v.w, v.h);
+    renderer.setScissor(0, 0, v.w, v.h);
+    renderer.setScissorTest(true);
+    renderer.render(v.scene, v.camera);
+    v.ctx.clearRect(0, 0, v.w, v.h);
+    v.ctx.drawImage(glCanvas, 0, glCanvas.height - v.h, v.w, v.h, 0, 0, v.w, v.h);
+  }
+
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      const v = views.find((x) => x.canvas === e.target);
+      if (v) { v.visible = e.isIntersecting; if (v.visible) draw(v, performance.now()); }
+    }
+  });
+  views.forEach((v) => io.observe(v.canvas));
+
+  window.addEventListener('resize', () => views.forEach((v) => v.visible && draw(v, performance.now())));
+  if (reduced) return;
+
+  let last = 0;
+  function loop(now) {
+    requestAnimationFrame(loop);
+    if (document.hidden || now - last < 33) return; // ~30 fps is plenty for a slow turn
+    last = now;
+    for (const v of views) if (v.visible) draw(v, now);
+  }
+  requestAnimationFrame(loop);
+}

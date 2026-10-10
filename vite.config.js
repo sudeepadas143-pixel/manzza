@@ -1,0 +1,91 @@
+import { defineConfig } from 'vite';
+import path from 'node:path';
+import fs from 'node:fs';
+import { loadData, renderHTML, listPlaceholders, isTodo } from './src/build/render.js';
+
+const root = path.resolve(import.meta.dirname);
+
+// Every page of the site. Clean URLs: /products/mitre-core → products/mitre-core/index.html
+const PAGES = {
+  home: 'index.html',
+  materials: 'materials/index.html',
+  quote: 'quote/index.html',
+  'mitre-core': 'products/mitre-core/index.html',
+  'ei-laminations': 'products/ei-laminations/index.html',
+  'strip-laminations': 'products/strip-laminations/index.html',
+  notFound: '404.html',
+};
+
+const ROUTES = ['/', '/products/mitre-core', '/products/ei-laminations', '/products/strip-laminations', '/materials', '/quote'];
+
+/** Serve /materials as /materials/ locally, like Vercel's cleanUrls does in production. */
+function cleanUrls(baseDir) {
+  return (req, _res, next) => {
+    const [pathname, query = ''] = req.url.split('?');
+    if (pathname !== '/' && !path.extname(pathname) && !pathname.endsWith('/')) {
+      if (fs.existsSync(path.join(baseDir, pathname, 'index.html'))) req.url = `${pathname}/${query ? `?${query}` : ''}`;
+    }
+    next();
+  };
+}
+
+function manzzaContent() {
+  let warned = false;
+  return {
+    name: 'manzza-content',
+    transformIndexHtml: {
+      order: 'pre',
+      async handler(html) {
+        const data = await loadData(root);
+        return renderHTML(html, data);
+      },
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(cleanUrls(path.join(root, 'dist')));
+    },
+    configureServer(server) {
+      server.middlewares.use(cleanUrls(root));
+      const watched = [path.join(root, 'content'), path.join(root, 'site.config.js'), path.join(root, 'src/build'), path.join(root, 'public/images')];
+      server.watcher.add(watched);
+      server.watcher.on('all', (_evt, file) => {
+        if (watched.some((w) => file.startsWith(w))) server.ws.send({ type: 'full-reload' });
+      });
+    },
+    async generateBundle() {
+      const data = await loadData(root);
+      const base = isTodo(data.config.siteUrl) ? 'https://YOUR-DOMAIN' : String(data.config.siteUrl).replace(/\/$/, '');
+      const today = new Date().toISOString().slice(0, 10);
+      const urls = ROUTES.map((r) => `  <url><loc>${base}${r === '/' ? '/' : r}</loc><lastmod>${today}</lastmod></url>`).join('\n');
+      this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n` });
+      this.emitFile({ type: 'asset', fileName: 'robots.txt', source: `User-agent: *\nAllow: /\n\nSitemap: ${base}/sitemap.xml\n` });
+      if (!warned) {
+        warned = true;
+        const open = listPlaceholders(data.config);
+        if (open.length) {
+          const lines = open.map(([k, note]) => `   • ${k.padEnd(22)} ${note}`).join('\n');
+          this.warn(`\n\n  MANZZA: ${open.length} placeholder(s) in site.config.js still to fill:\n${lines}\n`);
+        }
+      }
+    },
+  };
+}
+
+export default defineConfig({
+  appType: 'mpa',
+  plugins: [manzzaContent()],
+  build: {
+    target: 'es2020',
+    rollupOptions: {
+      input: Object.fromEntries(Object.entries(PAGES).map(([k, f]) => [k, path.join(root, f)])),
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/three')) return 'three';
+          if (id.includes('node_modules/gsap') || id.includes('node_modules/lenis')) return 'scroll';
+        },
+      },
+    },
+    chunkSizeWarningLimit: 800,
+  },
+  server: { host: true },
+  preview: { host: true },
+});
