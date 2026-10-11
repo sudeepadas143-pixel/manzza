@@ -308,15 +308,19 @@ function footer(d) {
 /* ------------------------------------------------------------- home page */
 
 function intro(d) {
-  // Pure animation: no captions or labels. The canvas is decorative; the page's
-  // headline lives in the hero section right after it.
-  return `<section id="intro" class="intro" aria-label="Animation: a transformer core assembling from a coil of electrical steel">
+  // Pure animation: no captions or labels. It opens on the logo; the M is a
+  // separate, sharper image laid exactly over the M of the lockup, because it
+  // grows to fill the centre of the screen. The page's headline lives in the
+  // hero section right after the animation.
+  return `<section id="intro" class="intro" aria-label="Animation: the MANZZA mark becomes a coil of electrical steel, which is cut into laminations and assembled into a clamped transformer core">
   <div class="intro__stage">
     <canvas class="intro__canvas" aria-hidden="true"></canvas>
     <div class="intro__frames" aria-hidden="true"></div>
-    <div class="intro__night" aria-hidden="true"></div>
-    <div class="intro__final">
-      <img class="intro__logo" src="/brand/manzza-logo-lockup.webp" alt="MANZZA – Engineered for Power" width="950" height="290" fetchpriority="low">
+    <div class="intro__brand">
+      <div class="intro__lockup">
+        <img class="intro__word" src="/brand/manzza-logo-lockup.webp" alt="MANZZA – Engineered for Power" width="950" height="290" fetchpriority="high">
+      </div>
+      <img class="intro__m" src="/brand/manzza-m.webp" alt="" width="430" height="360" fetchpriority="high">
     </div>
   </div>
 </section>`;

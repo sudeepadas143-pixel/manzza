@@ -2,15 +2,22 @@
  * Home-page scroll intro: mode selection and scroll scrubbing.
  * The intro is pure animation, with no captions or labels.
  *
- *  - WebGL:          Three.js scene (./scene.js), loaded lazily.
+ * It opens on the MANZZA logo. On scroll the wordmark leaves, the M takes the
+ * centre of the screen and dissolves into the end face of a coil of steel,
+ * and the 3D scene (./scene.js) takes over.
+ *
+ *  - WebGL:          Three.js scene, loaded lazily.
  *  - No WebGL:       SVG frames that crossfade on scroll.
- *  - Reduced motion: no pinning, no animation: the final logo frame.
+ *  - Reduced motion: no pinning, no animation: the logo.
  */
-import { smooth, seg } from '../lamination/geometry.js';
+import { smooth, seg, lerp } from '../lamination/geometry.js';
 import { fallbackFrames } from '../lamination/svg.js';
 
-// frame windows for the SVG fallback: empty, coil, cut, mitre, step-lap, core, logo
-const FRAME_WINDOWS = [[0.0, 0.1], [0.1, 0.22], [0.22, 0.38], [0.38, 0.52], [0.52, 0.7], [0.7, 0.86], [0.86, 1.01]];
+// frame windows for the SVG fallback: empty, coil, cut, mitre, step-lap (unused), core, outline (unused)
+const FRAME_WINDOWS = [[0, 0.1], [0.1, 0.22], [0.22, 0.38], [0.38, 0.52], [2, 2], [0.52, 1.01], [2, 2]];
+
+// The M in the lockup image, as fractions of the lockup box (measured from the artwork).
+const M_BOX = { left: 0.0235, top: 0.1597, width: 0.2299, height: 0.6306 };
 
 const prefersReduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -26,8 +33,9 @@ const fade = (p, a, b, edge = 0.025) => smooth(seg(p, a - edge, a + edge)) * (1 
 export async function initIntro(section) {
   if (!section) return;
   const stage = section.querySelector('.intro__stage');
-  const night = section.querySelector('.intro__night');
-  const final = section.querySelector('.intro__final');
+  const lockup = section.querySelector('.intro__lockup');
+  const word = section.querySelector('.intro__word');
+  const mark = section.querySelector('.intro__m');
   const framesEl = section.querySelector('.intro__frames');
 
   if (prefersReduced()) {
@@ -36,10 +44,11 @@ export async function initIntro(section) {
   }
 
   // ?capture: deterministic scrubbing at full quality, header hidden, for recording a film of the intro
-  const capture = new URLSearchParams(location.search).has('capture');
+  const params = new URLSearchParams(location.search);
+  const capture = params.has('capture');
   if (capture) document.documentElement.classList.add('capture');
   const mobile = !capture && window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;
-  const useGL = webglAvailable() && !new URLSearchParams(location.search).has('nogl');
+  const useGL = webglAvailable() && !params.has('nogl');
   section.classList.add('intro--live', useGL ? 'intro--gl' : 'intro--frames');
 
   let frameEls = [];
@@ -56,7 +65,7 @@ export async function initIntro(section) {
   let lenis = null;
   if (!mobile && !capture) {
     const { default: Lenis } = await import('lenis');
-    lenis = new Lenis({ lerp: 0.1, wheelMultiplier: 0.85, anchors: { offset: -72 } });
+    lenis = new Lenis({ lerp: 0.085, wheelMultiplier: 0.8, anchors: { offset: -72 } });
     lenis.on('scroll', ScrollTrigger.update);
     gsap.ticker.add((t) => lenis.raf(t * 1000));
     gsap.ticker.lagSmoothing(0);
@@ -65,33 +74,91 @@ export async function initIntro(section) {
   const state = { p: 0 };
   let scene = null;
   let canvas = section.querySelector('.intro__canvas');
-  let pending = false;
   let size = { w: stage.clientWidth, h: stage.clientHeight };
 
-  const request = () => {
-    if (pending) return;
-    pending = true;
-    requestAnimationFrame(() => { pending = false; apply(state.p); });
-  };
+  /* ----------------------------------------------- logo → M → coil geometry */
+  // Measured once per resize (never during the scroll): where the M sits inside
+  // the lockup, and where it has to go to line up with the coil's end face.
+  let geo = null;
+  function measure() {
+    const sr = stage.getBoundingClientRect(), lr = lockup.getBoundingClientRect();
+    const lw = lr.width, lh = lr.height;
+    const lx = lr.left - sr.left, ly = lr.top - sr.top;
+    const m = { x: lx + M_BOX.left * lw, y: ly + M_BOX.top * lh, w: M_BOX.width * lw, h: M_BOX.height * lh };
+    // target: the M centred on the coil face, its height a little under the face's diameter
+    const face = scene ? scene.coilFace(0.1) : { x: size.w / 2, y: size.h / 2, r: size.h * 0.2 };
+    const k = (face.r * 2 * 0.86) / m.h;
+    geo = {
+      dx: face.x - (m.x + m.w / 2),
+      dy: face.y - (m.y + m.h / 2),
+      k,
+    };
+    mark.style.left = `${m.x}px`;
+    mark.style.top = `${m.y}px`;
+    mark.style.width = `${m.w}px`;
+    mark.style.height = `${m.h}px`;
+    section.classList.add('is-split');
+  }
 
+  let dirty = true;
+  let lastP = -1;
   function apply(p) {
     window.__introP = p;
     window.__introReady = !!scene || frameEls.length > 0;
-    // logo reveal: the 3D studio has already gone dark; the logo fades up on black
-    const fo = smooth(seg(p, 0.925, 0.975));
-    final.style.opacity = fo;
-    final.style.transform = `scale(${(0.985 + fo * 0.015).toFixed(4)})`;
+    if (!geo) measure();
+
+    // the wordmark and tagline step aside; the M moves to the centre and grows
+    const go = smooth(seg(p, 0.018, 0.072));
+    const wordOut = smooth(seg(p, 0.012, 0.05));
+    word.style.opacity = (1 - wordOut).toFixed(3);
+    word.style.transform = `translate3d(${(wordOut * 3).toFixed(2)}%, 0, 0)`;
+    // then it dissolves into the coil as the studio lights come up
+    const dissolve = smooth(seg(p, 0.085, 0.13));
+    const s = lerp(1, geo.k, go) * (1 + dissolve * 0.06);
+    mark.style.transform = `translate3d(${(geo.dx * go).toFixed(1)}px, ${(geo.dy * go).toFixed(1)}px, 0) scale(${s.toFixed(4)})`;
+    mark.style.opacity = (1 - dissolve).toFixed(3);
+    const hidden = dissolve >= 1;
+    if (mark.hidden !== hidden) { mark.hidden = hidden; word.hidden = hidden; }
+
     if (scene) {
-      canvas.style.opacity = 1 - smooth(seg(p, 0.915, 0.96));
       scene.update(p);
     } else if (frameEls.length) {
-      night.style.opacity = smooth(seg(p, 0.86, 0.92));
       frameEls.forEach((el, i) => {
         const [a, b] = FRAME_WINDOWS[i];
         el.style.opacity = fade(p, a, b);
       });
     }
   }
+
+  /* -------------------------------------------- render loop + adaptive quality */
+  // Render in the same ticker frame the scroll value changes (after Lenis), so
+  // there is no extra frame of latency between the wheel and the picture.
+  const samples = [];
+  let lastFrameAt = 0;
+  function tick() {
+    if (!dirty && state.p === lastP) return;
+    dirty = false;
+    lastP = state.p;
+    const now = performance.now();
+    apply(state.p);
+    if (!scene || capture) return;
+    // While the scene renders frame after frame, watch the frame interval.
+    // If it stays long, the GPU is the bottleneck: drop the resolution a step.
+    const dt = now - lastFrameAt;
+    lastFrameAt = now;
+    if (dt > 0 && dt < 120) {
+      samples.push(dt);
+      if (samples.length >= 45) {
+        samples.sort((a, b) => a - b);
+        const median = samples[samples.length >> 1];
+        samples.length = 0;
+        const ratio = scene.pixelRatio();
+        const floor = mobile ? 0.75 : 1;
+        if (median > 24 && ratio > floor) scene.setPixelRatio(Math.max(floor, ratio - 0.25));
+      }
+    }
+  }
+  gsap.ticker.add(tick);
 
   /* ------------------------------------------------------------- 3D scene */
   let createScene = null;
@@ -109,14 +176,15 @@ export async function initIntro(section) {
       canvas.dataset.used = '1';
       scene = createScene(canvas, { mobile, capture });
       scene.resize(size.w, size.h);
+      geo = null;
       section.classList.add('is-ready');
-      apply(state.p);
+      dirty = true;
     } catch (err) {
       console.warn('[intro] WebGL scene failed, using fallback frames', err);
       section.classList.remove('intro--gl');
       section.classList.add('intro--frames');
       buildFrames();
-      apply(state.p);
+      dirty = true;
     }
   }
   function stopScene() {
@@ -139,7 +207,8 @@ export async function initIntro(section) {
     if (mobile && w === size.w && Math.abs(h - size.h) < 140) return;
     size = { w, h };
     if (scene) scene.resize(w, h);
-    request();
+    geo = null;
+    dirty = true;
   });
   ro.observe(stage);
 
@@ -151,12 +220,13 @@ export async function initIntro(section) {
       trigger: section,
       start: 'top top',
       end: 'bottom bottom',
-      scrub: lenis || capture ? true : 0.35,
+      // Lenis already smooths the wheel on desktop. On touch, a short catch-up
+      // turns uneven native scroll steps into continuous motion.
+      scrub: lenis || capture ? true : 0.6,
       invalidateOnRefresh: true,
     },
-    onUpdate: request,
   });
 
   apply(0);
-  window.addEventListener('pagehide', () => { stopScene(); io.disconnect(); ro.disconnect(); });
+  window.addEventListener('pagehide', () => { stopScene(); io.disconnect(); ro.disconnect(); gsap.ticker.remove(tick); });
 }

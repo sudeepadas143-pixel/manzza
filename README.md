@@ -1,6 +1,6 @@
 # MANZZA Industry – website
 
-Static website for **MANZZA Industry Pvt. Ltd.**, Bengaluru: transformer core laminations (mitre step-lap, E&I, strip) in CRGO and CRNO electrical steel. Light theme throughout, with dark sections only for the closing call to action and the footer.
+Static website for **MANZZA Industry Pvt. Ltd.**, Bengaluru: transformer core laminations (mitre step-lap, E&I, strip) in CRGO and CRNO electrical steel. Dark theme throughout: black pages, deep-navy surfaces, electric blue as the single accent.
 
 Plain HTML, CSS and JavaScript, built with [Vite](https://vite.dev). The home page intro is a scroll-driven Three.js scene (GSAP ScrollTrigger + Lenis). Every lamination on the site (3D, SVG diagrams, fallbacks) is drawn from one geometry module, so the pictures always agree with each other.
 
@@ -104,8 +104,8 @@ No factory photos exist yet, so the site shows clearly labelled dark slots ("Pho
 
 `public/brand/` holds the logo as supplied, cropped from the brand artwork:
 
-- `manzza-logo.webp` and `manzza-logo-nav.webp`: the wordmark with its black background made transparent. On black it renders identically to the original. On the light pages the logo sits on a small black plate, because the metallic artwork is designed for black.
-- `manzza-logo-lockup.webp`: wordmark with tagline, transparent; used for the logo moment at the end of the intro.
+- `manzza-logo.webp` and `manzza-logo-nav.webp`: the wordmark with its black background made transparent. On black it renders identically to the original. 
+- `manzza-logo-lockup.webp`: wordmark with tagline, transparent; the opening frame of the intro.
 - `manzza-logo-lockup.png`: wordmark with tagline (Open Graph, JSON-LD).
 - `icon-512.png`, `apple-touch-icon.png`, `favicon.*`: the M mark.
 
@@ -122,15 +122,16 @@ Every push to the main branch redeploys automatically, so editing a JSON file an
 
 ## How the scroll intro works
 
-`src/js/intro/` holds the intro: `index.js` handles scrolling, `scene.js` the 3D scene. The intro is **pure animation, with no text**. The page's headline sits in the hero section right after it.
+`src/js/intro/` holds the intro: `index.js` handles scrolling and the logo layers, `scene.js` the 3D scene, `frame.js` the clamping frame. The intro is **pure animation, with no text**. The page's headline sits in the hero section right after it.
 
-- A section about 600vh tall (440vh on phones) holds a sticky full-screen stage. GSAP ScrollTrigger maps scroll position to progress `p` from 0 to 1 (scrubbed). Lenis smooths wheel scrolling on desktop only.
+- A section about 600vh tall (460vh on phones) holds a sticky full-screen stage. GSAP ScrollTrigger maps scroll position to progress `p` from 0 to 1 (scrubbed). Lenis smooths wheel scrolling on desktop only.
 - `scene.update(p)` sets every object from scratch for a given `p`, so scrolling back plays the story in reverse exactly. The scene renders only when `p` changes.
-- Story: a coil turns in a light studio → it rolls out a sheet → slitting into strips → 45° mitre cuts (plus E, I and strip profiles) → step-lap (an exploded view of one step cycle at a corner, then the core is stacked) → the core is stood up and turns → the studio goes dark, the core resolves to its outline and the logo appears on black.
-- Rendering: physically based brushed steel (anisotropic highlights along each lamination's rolling direction, a clear-coat sheen for the insulation coating), a softbox studio environment for reflections, one soft shadow-casting key light on a seamless floor, neutral tone mapping, pixel ratio up to 2. Only the 45° mitre edges and cut lines use electric blue.
+- Story: it opens on the MANZZA logo → the wordmark leaves and the M takes the centre → the M dissolves into the end face of a coil as the studio lights come up → the coil rolls out a sheet → slitting into strips → 45° mitre cuts → the four laminations glide into place as the yokes and outer limbs while the packets stack beneath them → the core is stood up and raised onto its feet → the clamping frame assembles (channel clamps, yoke through-bolts, end tie bars, tie rods, nuts, lifting lug) → the finished core turns under the lights.
+- The M is its own, sharper image (`public/brand/manzza-m.webp`, cropped from the icon), laid exactly over the M of the lockup; both layers use `mix-blend-mode: screen` so their black backgrounds drop out over the 3D scene.
+- Rendering: a dark studio. Physically based brushed steel (anisotropic highlights along each lamination's rolling direction, a clear-coat sheen for the insulation coating) reflecting soft boxes in a black room, a soft shadow-casting key light that sweeps slowly across the finished core, a rim light, a pool of light on the floor, ACES tone mapping. The frame is painted steel with zinc-plated threaded rods and hex nuts. The camera follows a Catmull-Rom path through its keyframes, so it glides instead of stopping at each one. Only the 45° mitre edges and cut lines use electric blue.
 - Geometry is procedural and follows MANZZA's own cores: `src/js/lamination/geometry.js` builds the three-limb core with 45° mitre corners, a diamond-pointed centre limb in V-notched yokes, yoke bolt holes, step-lap joint offsets and a stepped (cruciform) limb section.
-- Performance: phones get fewer layers, a lower pixel ratio and cheaper shadows. Three.js loads only after first paint, and the WebGL context is released when the section is well off-screen.
-- Without WebGL, SVG frames built from the same geometry crossfade on scroll (add `?nogl` to preview). With **prefers-reduced-motion**, nothing is pinned or animated: the page shows the logo frame.
+- Performance: the frame is drawn in the same GSAP tick as the scroll update (no extra frame of latency); every shader, including the shadow passes, is compiled up front so nothing stalls when it first appears; shadows use filtered PCF (no blur passes); the pixel ratio is capped at 1.5 and steps down automatically if frames run long. Phones get fewer layers and smaller shadow maps. Three.js loads only after first paint, and the WebGL context is released when the section is well off-screen.
+- Without WebGL, SVG frames built from the same geometry crossfade on scroll (add `?nogl` to preview). With **prefers-reduced-motion**, nothing is pinned or animated: the page shows the logo.
 
 **Recording a film of the intro.** Open `/?capture` in a browser: scrubbing becomes exact, quality is maxed and the site header is hidden, so a screen recorder (or a headless browser stepping through scroll positions) captures the animation alone.
 
@@ -146,7 +147,7 @@ src/build/render.js     build-time templating ({{> partial}} tags)
 src/js/lamination/      geometry.js (pure maths), svg.js (diagrams), three-kit.js (3D)
 src/js/intro/           scroll intro
 src/js/                 main.js (nav), quote.js (form), minis.js (product visuals)
-src/styles/main.css     all styles; brand colours and light/dark tokens as CSS variables at the top
+src/styles/main.css     all styles; brand colours and theme tokens as CSS variables at the top
 api/quote.js            optional Vercel function for the form
 public/                 logo, icons, Open Graph image, photo slots
 ```

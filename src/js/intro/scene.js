@@ -1,75 +1,99 @@
 /**
- * Scroll intro: a transformer core assembling itself from a coil of steel.
+ * Scroll intro: from the MANZZA mark to a clamped transformer core.
  * Pure animation, no text: the story is told by the steel alone.
  *
  * Everything is a pure function of scroll progress p ∈ [0, 1]: update(p)
  * places every object from scratch, so scrubbing backwards reverses exactly.
  * The scene renders on demand (only when p or the size changes).
  *
- * Look: a light, seamless studio. Physically based brushed steel (the grain
- * follows each lamination's rolling direction, with the faint sheen of its
- * insulation coating), a studio environment for reflections, and one soft
- * shadow-casting key light. At the end the studio goes dark for the logo.
+ * Look: a dark studio. Physically based brushed steel (the grain follows each
+ * lamination's rolling direction) reflecting large soft boxes, one soft
+ * shadow-casting key light, a cool rim light to draw edges out of the black,
+ * and a pool of light on the floor under the subject.
  *
  * Beats (keep in sync with ./index.js):
- *   0.00–0.22  coil, turning slowly in the studio
+ *   0.00–0.075 the logo (HTML): the wordmark leaves, the M takes the centre
+ *   0.075–0.13 the M becomes the end face of a coil as the lights come up
+ *   0.13–0.22  the camera comes round to the coil
  *   0.22–0.38  the coil rolls out a sheet; slitting into strips
- *   0.38–0.52  45° mitre cuts; E, I and strip profiles
- *   0.52–0.70  step-lap: exploded corner (one step cycle), packets stacked
- *   0.70–0.86  the core is stood up and turns
- *   0.86–1.00  lights down: the core resolves to its outline, logo (HTML)
+ *   0.38–0.50  45° mitre cuts
+ *   0.50–0.62  the four laminations take their places in the core; the packets stack
+ *   0.62–0.70  the core is stood up and raised onto its feet
+ *   0.70–0.92  the clamping frame assembles: clamps, bolts, tie rods, nuts, lug
+ *   0.92–1.00  the finished core, turning under the lights
  */
 import * as THREE from 'three';
 import {
-  CORE, corePieces, coreOutline, cruciform, stepOffsets, eShape, iShape, stripShape,
-  clipHalfPlane, holesLeftOf, clamp, smooth, seg, lerp,
+  CORE, corePieces, cruciform, stepOffsets, clamp, smooth, seg, lerp,
 } from '../lamination/geometry.js';
 import {
   extrudeLaminations, createSteelUniforms, createSteelMaterial, studioEnvironment,
   brushedTexture, disposeTree, releaseShared, BRAND,
 } from '../lamination/three-kit.js';
+import { buildFrame, FRAME } from './frame.js';
 
 const easeOut = (t) => 1 - (1 - t) ** 3;
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
-export const STUDIO = new THREE.Color('#eef1f5'); // matches --stage in main.css
-const NIGHT = new THREE.Color('#000000');
+export const STUDIO = new THREE.Color('#000000'); // matches --stage in main.css
 
 export function createIntroScene(canvas, { mobile = false, capture = false } = {}) {
   /* ---------------------------------------------------------------- setup */
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, capture ? 3 : mobile ? 1.5 : 2));
+  // Pixel ratio is capped: a 2× full-screen buffer of physically based steel is
+  // the single biggest cost per frame. index.js lowers it further if frames run long.
+  const maxRatio = capture ? 2 : 1.5;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxRatio));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
   renderer.localClippingEnabled = true;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = mobile ? THREE.PCFShadowMap : THREE.VSMShadowMap;
+  // PCF with a radius: soft shadows from 5 hardware-filtered taps, no blur passes (VSM needed two per frame)
+  renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const scene = new THREE.Scene();
   scene.background = STUDIO.clone();
   const camera = new THREE.PerspectiveCamera(32, 1, 0.05, 80);
-  const envTex = studioEnvironment(renderer);
+  const envTex = studioEnvironment(renderer, { dark: true });
   scene.environment = envTex;
-  scene.environmentIntensity = 0.9;
   scene.environmentRotation.set(0, -0.6, 0);
 
-  // One soft key light that casts shadows, following the subject; a gentle fill.
-  const key = new THREE.DirectionalLight(0xffffff, 2.6);
+  const key = new THREE.DirectionalLight(0xffffff, 0);
   key.castShadow = true;
   key.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048);
   key.shadow.bias = -0.0004;
   key.shadow.normalBias = 0.02;
-  key.shadow.radius = mobile ? 3 : 9;
-  key.shadow.blurSamples = 16;
+  key.shadow.radius = mobile ? 3 : 5;
   key.shadow.camera.near = 0.5;
   key.shadow.camera.far = 40;
   scene.add(key, key.target);
-  const fill = new THREE.HemisphereLight(0xffffff, 0xd3d8e0, 0.55);
+  // cool rim from behind: draws the edges out of the black
+  const rim = new THREE.DirectionalLight(0xffffff, 0);
+  scene.add(rim, rim.target);
+  // electric-blue light, only for the moment the M becomes the coil
+  const spark = new THREE.PointLight(BRAND.blueGlow, 0, 9, 1.4);
+  scene.add(spark);
+  const fill = new THREE.HemisphereLight(0xffffff, 0x000000, 0);
   scene.add(fill);
 
-  // Seamless floor: invisible except for the shadows it receives.
-  const floorMat = new THREE.ShadowMaterial({ color: 0x0a1532, opacity: 0.2 });
+  const LIGHT = { key: 3.4, rim: 2.6, fill: 0.2, env: 1.0 };
+
+  // Floor: a soft pool of light under the subject, plus the shadow it receives.
+  const poolTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 256;
+    const g = c.getContext('2d');
+    const gr = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  })();
+  const poolMat = new THREE.MeshBasicMaterial({ map: poolTex, color: 0x1c2230, transparent: true, depthWrite: false, toneMapped: false });
+  const pool = new THREE.Mesh(new THREE.PlaneGeometry(22, 22), poolMat);
+  pool.rotation.x = -Math.PI / 2;
+  pool.position.y = -0.002;
+  scene.add(pool);
+  const floorMat = new THREE.ShadowMaterial({ color: 0x000000, opacity: 0.6 });
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), floorMat);
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
@@ -78,7 +102,9 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   const shadowed = (m, receive = true) => { m.castShadow = true; m.receiveShadow = receive; return m; };
 
   const uniforms = createSteelUniforms();
-  const steel = createSteelMaterial(uniforms);
+  // a touch darker than raw steel: the insulation coating, and contrast with the painted frame
+  const STEEL = { color: new THREE.Color(0x9ba2ab) };
+  const steel = createSteelMaterial(uniforms, STEEL);
 
   const W0 = 0.95; // widest lamination = strip width
   const blueLine = (opacity = 1) => new THREE.MeshBasicMaterial({
@@ -88,6 +114,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   /* ----------------------------------------------------------------- coil */
   const coil = new THREE.Group();
   const R = 1.0, r = 0.42, CW = W0 * 4; // coil radius, bore, width (= 4 strips)
+  const coilMats = [];
   {
     const tex = brushedTexture().clone();
     tex.repeat.set(6, 1);
@@ -96,12 +123,10 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
       color: 0xb3bac4, metalness: 0.9, roughness: 0.32, roughnessMap: tex,
       anisotropy: 0.7, clearcoat: 0.3, clearcoatRoughness: 0.3,
     });
-    const outer = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(R, R, CW, 160, 1, true), outerMat));
+    const outer = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(R, R, CW, mobile ? 96 : 160, 1, true), outerMat));
     outer.rotation.x = Math.PI / 2;
-    const bore = new THREE.Mesh(
-      new THREE.CylinderGeometry(r, r, CW, 64, 1, true),
-      new THREE.MeshStandardMaterial({ color: 0x3a414c, metalness: 0.6, roughness: 0.55, side: THREE.BackSide }),
-    );
+    const boreMat = new THREE.MeshStandardMaterial({ color: 0x3a414c, metalness: 0.6, roughness: 0.55, side: THREE.BackSide });
+    const bore = new THREE.Mesh(new THREE.CylinderGeometry(r, r, CW, 64, 1, true), boreMat);
     bore.rotation.x = Math.PI / 2;
     // end faces: the wraps of strip, as fine concentric rings
     const c = document.createElement('canvas');
@@ -121,7 +146,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     ringTex.colorSpace = THREE.SRGBColorSpace;
     ringTex.anisotropy = 8;
     const endMat = new THREE.MeshPhysicalMaterial({ map: ringTex, metalness: 0.55, roughness: 0.42, clearcoat: 0.2, clearcoatRoughness: 0.4 });
-    const endA = shadowed(new THREE.Mesh(new THREE.RingGeometry(r, R, 160, 1), endMat));
+    const endA = shadowed(new THREE.Mesh(new THREE.RingGeometry(r, R, mobile ? 96 : 160, 1), endMat));
     endA.position.z = CW / 2;
     const endB = endA.clone();
     endB.rotation.y = Math.PI;
@@ -130,6 +155,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     spin.add(outer, bore, endA, endB);
     coil.add(spin);
     coil.userData.spin = spin;
+    coilMats.push(outerMat, boreMat, endMat);
   }
   scene.add(coil);
 
@@ -146,10 +172,10 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   scene.add(strips);
 
   const clip = new THREE.Plane(new THREE.Vector3(1, 0, 0), -XS1); // keeps x >= the coil's position
-  const sheetMat = createSteelMaterial(uniforms);
+  const sheetMat = createSteelMaterial(uniforms, STEEL);
   sheetMat.clippingPlanes = [clip];
   sheetMat.clipShadows = true;
-  const offcutMat = createSteelMaterial(uniforms);
+  const offcutMat = createSteelMaterial(uniforms, STEEL);
   offcutMat.clippingPlanes = [clip];
   offcutMat.clipShadows = true;
   offcutMat.transparent = true;
@@ -221,36 +247,8 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   }
   stripRows[0].add(dim);
 
-  /* ---------------------------------------------------- E, I, strip profiles */
-  const profiles = new THREE.Group();
-  profiles.rotation.x = -Math.PI / 2;
-  scene.add(profiles);
-  const profileMat = createSteelMaterial(uniforms);
-  profileMat.transparent = true;
-  const profileItems = [];
-  {
-    const a = 0.5;
-    const stack = (poly, holes, n = 5) => Array.from({ length: n }, (_, k) => ({ poly, holes, z: k * 0.035, t: 0.028, dir: 'x', layer: 0 }));
-    const e = shadowed(new THREE.Mesh(extrudeLaminations(stack(eShape(a))), profileMat));
-    const i = shadowed(new THREE.Mesh(extrudeLaminations(stack(iShape(a))), profileMat));
-    const s = stripShape({ length: 2.2, width: 0.36, holes: 3, holeR: 0.06 });
-    const st = shadowed(new THREE.Mesh(extrudeLaminations(stack(s.outer, s.holes)), profileMat));
-    // in front of the laminations (nearer the camera); tighter on narrow screens
-    if (mobile) {
-      e.position.set(-1.7, -3.95, 0);
-      i.position.set(0.3, -3.5, 0);
-      st.position.set(-1.1, -4.8, 0);
-    } else {
-      e.position.set(0.0, -4.0, 0);
-      i.position.set(1.9, -3.55, 0);
-      st.position.set(-2.7, -3.65, 0);
-    }
-    profiles.add(e, i, st);
-    profileItems.push(e, i, st);
-  }
-
   /* ------------------------------------------------------------------ core */
-  // turn (about vertical) → upend (about the bottom edge) → packets
+  // turn (about vertical) → upend (about the bottom edge) → packets + frame
   const turn = new THREE.Group();
   const upend = new THREE.Group();
   turn.add(upend);
@@ -261,6 +259,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   const widths = mobile ? [0.95, 0.7] : [0.95, 0.85, 0.7, 0.5];
   const packets = cruciform(CORE.D, widths);
   const stackHalf = packets[packets.length - 1].z1;
+  const zTop = stackHalf * 2;
   const layerT = mobile ? 0.034 : 0.0175;
   const offsets = stepOffsets(5, 0.05);
   const coreMeshes = [];
@@ -281,96 +280,80 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
       const mesh = shadowed(new THREE.Mesh(extrudeLaminations(items), steel));
       const dir = { 'limb-l': [-1, 0], 'limb-r': [1, 0], 'limb-c': [0, 1], 'yoke-b': [0, -1], 'yoke-t': [0, 1] }[id];
       mesh.userData = { pi, id, dir };
-      mesh.visible = false;
       upend.add(mesh);
       coreMeshes.push(mesh);
     }
   });
   uniforms.uLayerMid.value = layerIndex / 2;
 
-  // Step-lap demonstrator: one cycle of corner laminations, fanned apart so
-  // each layer's joint position can be seen, then pressed onto the core.
-  const demo = new THREE.Group();
-  const DEMO_T = 0.03;
-  const demoPlates = [];
-  const demoMat = createSteelMaterial(uniforms);
-  demoMat.transparent = true;
-  const demoLineMat = blueLine(1);
-  {
-    const w = W0;
-    const ox = CORE.limbX[0] - w / 2, oy = CORE.yokeY[0] - w / 2;
-    stepOffsets(5, 0.075).forEach((o, k) => {
-      const plate = new THREE.Group();
-      const items = [];
-      for (const pc of corePieces({ w, o, gap: 0.016, holeSeg: 32 })) {
-        if (pc.id === 'limb-l') items.push({ poly: clipHalfPlane(pc.poly, 0, 1, 1.95), z: 0, t: DEMO_T, dir: 'y' });
-        if (pc.id === 'yoke-b') items.push({ poly: clipHalfPlane(pc.poly, 1, 0, -0.62), holes: holesLeftOf(pc.holes, -0.62), z: 0, t: DEMO_T, dir: 'x' });
-      }
-      plate.add(shadowed(new THREE.Mesh(extrudeLaminations(items), demoMat)));
-      // this layer's 45° joint, picked out in electric blue
-      const ax = ox + Math.max(0, -o), ay = oy + Math.max(0, -o) + o;
-      const bx = ox + w, by = oy + w + o;
-      const bar = new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(bx - ax, by - ay), 0.022, 0.003), demoLineMat);
-      bar.position.set((ax + bx) / 2, (ay + by) / 2, DEMO_T + 0.003);
-      bar.rotation.z = Math.PI / 4;
-      plate.add(bar);
-      plate.visible = false;
-      demo.add(plate);
-      demoPlates.push(plate);
-    });
-  }
-  upend.add(demo);
+  // Where each of the four cut laminations goes in the core (strips-local
+  // coordinates; the core lies flat under the strips with its bottom yoke
+  // nearest the camera): two yokes, two outer limbs.
+  const [cy1, cy2] = CORE.yokeY;
+  const LAM_TARGETS = [
+    { x: 0, y: cy1 - PIVOT_Z, rot: 0, len: (CORE.limbX[2] - CORE.limbX[0] + W0) / (XB - XA + W0) },
+    { x: CORE.limbX[0], y: 0, rot: -Math.PI / 2, len: (cy2 - cy1 + W0) / (XB - XA + W0) },
+    { x: CORE.limbX[2], y: 0, rot: Math.PI / 2, len: (cy2 - cy1 + W0) / (XB - XA + W0) },
+    { x: 0, y: cy2 - PIVOT_Z, rot: Math.PI, len: (CORE.limbX[2] - CORE.limbX[0] + W0) / (XB - XA + W0) },
+  ];
 
-  // Core outline (front face), drawn in light for the logo moment
-  const outlineMat = new THREE.LineBasicMaterial({ color: BRAND.blueGlow, transparent: true, opacity: 0, toneMapped: false, depthTest: false });
-  {
-    const o = coreOutline({ w: W0 });
-    for (const loop of [o.outer, ...o.windows]) {
-      const pts = loop.map(([x, y]) => new THREE.Vector3(x, y, stackHalf * 2 + 0.01));
-      const line = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), outlineMat);
-      line.renderOrder = 10;
-      upend.add(line);
-    }
-  }
+  /* ---------------------------------------------------------- clamp frame */
+  const frame = buildFrame({ zT: zTop, mobile });
+  upend.add(frame.group);
 
   /* ---------------------------------------------------------------- camera */
-  // [p, position, target]
+  // [p, position, target]. A Catmull-Rom path runs through the keys, so the
+  // camera glides through each one instead of stopping at it.
   const KEYS = [
-    [0.0, [2.6, 1.9, 10.4], [3.4, 1.0, 0]],
-    [0.1, [3.6, 2.0, 9.2], [3.4, 1.0, 0]],
-    [0.2, [5.4, 2.4, 8.0], [3.4, 0.95, 0]],
-    // the roll: camera and coil share the same easing, so the coil drifts left
-    // across the frame while the sheet it lays fills the right
-    [0.22, [5.3, 2.7, 8.4], [3.1, 0.8, 0]],
+    [0.0, [3.4, 1.0, 10.6], [3.4, 1.0, 0]],
+    [0.12, [3.4, 1.0, 10.6], [3.4, 1.0, 0]],
+    [0.215, [5.4, 2.4, 8.0], [3.4, 0.95, 0]],
     [0.31, [0.9, 6.4, 9.6], [0.1, 0, 0.3]],
     [0.37, [1.2, 7.6, 7.4], [0.6, 0, 0.2]],
     [0.445, [3.1, 3.9, 5.4], [1.7, 0, 1.9]],
-    [0.505, [0.4, 5.6, 9.6], [0.2, 0, 2.4]],
-    [0.58, [-0.3, 3.8, 4.5], [-1.5, 1.3, 1.25]],
-    [0.64, [-0.45, 3.6, 4.2], [-1.55, 1.2, 1.25]],
-    [0.7, [0.4, 4.6, 6.4], [-0.6, 0.5, 0.4]],
-    [0.8, [0.6, 2.7, 11.4], [0, 1.95, 2.15]],
-    [0.88, [0, 2.4, 11.6], [0, 2.0, 2.15]],
-    [1.0, [0, 2.3, 13.2], [0, 2.0, 2.15]],
+    [0.505, [0.5, 6.6, 8.8], [0.2, 0, 1.2]],
+    [0.57, [0.2, 10.4, 4.0], [0, 0, 0.1]],
+    [0.63, [4.6, 4.8, 8.6], [0, 0.6, 0.8]],
+    [0.71, [5.8, 3.4, 11.6], [0, 2.1, 2.0]],
+    [0.8, [3.0, 3.7, 12.6], [0, 2.45, 2.0]],
+    [0.9, [-3.6, 3.9, 12.8], [0, 2.4, 2.0]],
+    [1.0, [-5.2, 4.1, 11.2], [0, 2.3, 2.0]],
   ];
-  const tmpP = new THREE.Vector3(), tmpT = new THREE.Vector3();
-  function cameraAt(p) {
+  const holdEnd = 1; // keys[0..1] are a hold: keep that stretch still
+  const camPath = new THREE.CatmullRomCurve3(KEYS.slice(holdEnd).map((k) => new THREE.Vector3(...k[1])), false, 'centripetal');
+  const tgtPath = new THREE.CatmullRomCurve3(KEYS.slice(holdEnd).map((k) => new THREE.Vector3(...k[2])), false, 'centripetal');
+  const tmpP = new THREE.Vector3(), tmpT = new THREE.Vector3(), tmpL = new THREE.Vector3();
+
+  function placeCamera(p) {
+    const ks = KEYS.slice(holdEnd);
     let i = 0;
-    while (i < KEYS.length - 2 && p > KEYS[i + 1][0]) i++;
-    const [p0, a0, b0] = KEYS[i];
-    const [p1, a1, b1] = KEYS[i + 1];
-    const t = easeInOut(clamp((p - p0) / (p1 - p0)));
-    tmpP.set(lerp(a0[0], a1[0], t), lerp(a0[1], a1[1], t), lerp(a0[2], a1[2], t));
-    tmpT.set(lerp(b0[0], b1[0], t), lerp(b0[1], b1[1], t), lerp(b0[2], b1[2], t));
+    while (i < ks.length - 2 && p > ks[i + 1][0]) i++;
+    const local = clamp((p - ks[i][0]) / (ks[i + 1][0] - ks[i][0]));
+    // ease only the first and last legs (start and end of the move); glide through the rest
+    const t = i === 0 ? smooth(local) * 0.5 + local * 0.5 : i === ks.length - 2 ? 1 - (1 - local) ** 2 : local;
+    const u = (i + t) / (ks.length - 1);
+    camPath.getPoint(u, tmpP);
+    tgtPath.getPoint(u, tmpT);
     // portrait screens: back off so the subject still fits
     const aspect = size.w / size.h;
-    if (aspect < 1.25) tmpP.sub(tmpT).multiplyScalar((1.25 / aspect) ** 0.72).add(tmpT);
+    if (aspect < 1.25) tmpP.sub(tmpT).multiplyScalar((1.25 / aspect) ** 0.8).add(tmpT);
     camera.position.copy(tmpP);
     camera.lookAt(tmpT);
-    // key light travels with the subject so its soft shadow stays in frame
+    // portrait screens: sit the subject a little lower, nearer the visual centre
+    if (size.w < size.h) camera.setViewOffset(size.w, size.h, 0, -size.h * 0.08, size.w, size.h);
+    else camera.clearViewOffset();
+    camera.updateMatrixWorld();
+
+    // lights travel with the subject so the soft shadow and the rim stay in frame
     const dist = tmpP.distanceTo(tmpT);
-    key.target.position.copy(tmpT).setY(0);
-    key.position.copy(key.target.position).add(new THREE.Vector3(3.2, 9, 4.6));
+    tmpL.copy(tmpT).setY(0);
+    key.target.position.copy(tmpL);
+    // a slow sweep of the key across the finished core, for a highlight that glides
+    const sweep = smooth(seg(p, 0.86, 1)) * 1.1;
+    key.position.set(tmpL.x - 3.6 * Math.cos(sweep) + 4.6 * Math.sin(sweep), 9, tmpL.z + 5.2 * Math.cos(sweep) + 3.6 * Math.sin(sweep));
+    rim.target.position.copy(tmpL);
+    rim.position.set(tmpL.x - 5, 7, tmpL.z - 8);
+    pool.position.set(tmpL.x, -0.002, tmpL.z);
     const half = THREE.MathUtils.clamp(dist * 0.6, 3.5, 9);
     const sc = key.shadow.camera;
     if (sc.right !== half) { sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half; sc.updateProjectionMatrix(); }
@@ -379,26 +362,41 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   /* ---------------------------------------------------------------- state */
   const size = { w: 1, h: 1 };
   const v3 = new THREE.Vector3();
-  const bg = new THREE.Color();
+  let coilFadeLast = -1;
+
+  function setLights(level) {
+    key.intensity = LIGHT.key * level;
+    rim.intensity = LIGHT.rim * level;
+    fill.intensity = LIGHT.fill * level;
+    scene.environmentIntensity = LIGHT.env * level;
+    poolMat.opacity = level;
+    floorMat.opacity = 0.6 * level;
+  }
 
   function update(p) {
-    /* coil: appears on the right, rolls left laying the sheet, then rolls away */
-    const coilIn = 1; // on screen from the first frame: no empty studio
+    /* lights up: the M (HTML) dissolves into the coil's end face */
+    const lights = smooth(seg(p, 0.07, 0.14));
+    setLights(lights);
+    const sp = Math.sin(Math.PI * seg(p, 0.06, 0.135));
+    spark.intensity = 6 * sp * sp;
+    spark.position.set(XS1 + 1.5, R + 1.3, CW / 2 + 0.5);
+
+    /* coil: rolls left laying the sheet, then rolls away */
     const roll = easeInOut(seg(p, 0.22, 0.31));
     const away = easeInOut(seg(p, 0.355, 0.42));
     const coilX = lerp(XS1, XS0, roll) - away * 3.2;
-    coil.visible = coilIn > 0 && away < 1;
-    coil.scale.setScalar(lerp(0.9, 1, coilIn));
+    coil.visible = away < 1;
     coil.position.set(coilX, R + 0.002, 0);
-    coil.rotation.y = lerp(-0.95, 0, smooth(seg(p, 0.0, 0.215)));
-    // rolling without slipping: angle = distance / radius
+    // a slow turn while it waits; rolling without slipping: angle = distance / radius
     coil.userData.spin.rotation.z = seg(p, 0.0, 0.21) * 0.8 + (XS1 - coilX) / R;
-    const coilFade = coilIn * (1 - smooth(seg(p, 0.375, 0.42)));
-    coil.traverse((o) => { if (o.material) { o.material.transparent = coilFade < 1; o.material.opacity = coilFade; } });
+    const coilFade = 1 - smooth(seg(p, 0.375, 0.42));
+    if (coilFade !== coilFadeLast) {
+      coilFadeLast = coilFade;
+      for (const m of coilMats) { m.transparent = coilFade < 1; m.opacity = coilFade; }
+    }
 
     /* sheet */
-    const sheetGone = smooth(seg(p, 0.515, 0.55));
-    strips.visible = roll > 0 && sheetGone < 1;
+    strips.visible = roll > 0 && p < 0.64;
     clip.constant = -Math.min(coilX, XS1 - 0.001);
     const slit = seg(p, 0.305, 0.35);
     const split = easeInOut(seg(p, 0.345, 0.38));
@@ -439,43 +437,33 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     stripRows.forEach((row) => {
       row.userData.offL.position.set(-fall * 0.9, 0, 0);
       row.userData.offR.position.set(fall * 0.9, 0, 0);
+      row.userData.offL.visible = row.userData.offR.visible = fall < 1;
     });
     offcutMat.opacity = 1 - fall;
-    // laminations slide away towards the stacking table
-    const lift = easeInOut(seg(p, 0.512, 0.55));
-    stripRows.forEach((row, k) => { row.userData.lam.position.set(lift * (3.2 + k * 0.4), 0, lift * 0.15); });
-    sheetMat.transparent = sheetGone > 0;
-    sheetMat.opacity = 1 - sheetGone;
 
     const dimOn = smooth(seg(p, 0.43, 0.45)) * (1 - smooth(seg(p, 0.47, 0.49)));
     dim.visible = dimOn > 0;
     dim.userData.mat.opacity = dimOn;
 
-    /* profiles */
-    const profIn = easeOut(seg(p, 0.478, 0.505));
-    const profOut = smooth(seg(p, 0.512, 0.545));
-    profiles.visible = profIn > 0 && profOut < 1;
-    profileMat.opacity = profIn * (1 - profOut);
-    profileItems.forEach((m, k) => { m.position.z = lerp(-0.25, 0.0, clamp(profIn * 1.4 - k * 0.15)) + profOut * 0.4; });
-
-    /* step-lap demonstrator */
-    const fanIn = seg(p, 0.548, 0.6);
-    const press = easeInOut(seg(p, 0.622, 0.645));
-    const demoOut = smooth(seg(p, 0.645, 0.66));
-    demo.visible = fanIn > 0 && demoOut < 1;
-    const zTop = stackHalf * 2;
-    demoPlates.forEach((pl, k) => {
-      const t = easeOut(clamp(fanIn * 1.6 - k * 0.15));
-      pl.visible = t > 0;
-      const fanned = zTop + k * (DEMO_T + 0.26) + 0.12;
-      const pressed = zTop + k * DEMO_T;
-      pl.position.set(-(1 - t) * 0.9, -(1 - t) * 0.4, lerp(fanned + 1.4, lerp(fanned, pressed, press), t));
+    /* the four laminations become the first layer of the core: each glides,
+       turns and rises to its place, the packets stack in beneath them */
+    const form = easeInOut(seg(p, 0.5, 0.565));
+    const merge = smooth(seg(p, 0.6, 0.625));
+    stripRows.forEach((row, k) => {
+      const tg = LAM_TARGETS[k];
+      const lam = row.userData.lam;
+      const t = clamp(form * 1.25 - k * 0.08);
+      const e = easeInOut(t);
+      lam.position.set(tg.x * e, (tg.y - row.position.y) * e, (zTop + 0.012) * easeOut(clamp(form * 1.6 - k * 0.1)));
+      lam.rotation.z = tg.rot * e;
+      lam.scale.x = lerp(1, tg.len, e);
+      lam.visible = merge < 1;
     });
-    demoMat.opacity = 1 - demoOut;
-    demoLineMat.opacity = 1 - Math.max(press * 0.6, demoOut);
+    sheetMat.transparent = merge > 0;
+    sheetMat.opacity = 1 - merge;
 
     /* core: stacking */
-    const stack = seg(p, 0.648, 0.7);
+    const stack = seg(p, 0.54, 0.615);
     const nP = packets.length;
     coreMeshes.forEach((m) => {
       const { pi, dir } = m.userData;
@@ -484,30 +472,70 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
       const e = 1 - easeOut(t);
       m.position.set(dir[0] * e * 1.3, dir[1] * e * 1.3, e * 0.2);
     });
-    const demoGlow = smooth(seg(p, 0.57, 0.6)) * (1 - press);
 
-    /* core: stood up, then a slow turn */
-    const up = easeInOut(seg(p, 0.71, 0.8));
+    /* core: stood up, then raised onto its feet; a slow turn at the end */
+    const up = easeInOut(seg(p, 0.625, 0.695));
     upend.rotation.x = (-Math.PI / 2) * (1 - up);
-    turn.rotation.y = lerp(0, -0.42, smooth(seg(p, 0.7, 0.8))) + lerp(0, 0.42, smooth(seg(p, 0.79, 0.9)));
+    upend.position.z = -stackHalf * up; // turn about the middle of the stack once upright
+    turn.position.y = FRAME.lift * easeInOut(seg(p, 0.7, 0.745));
+    turn.rotation.y = lerp(0, 0.2, smooth(seg(p, 0.8, 1)));
 
-    /* lights down for the logo: studio → black, steel dims, outline glows */
-    const night = smooth(seg(p, 0.872, 0.9)); // a quick, clean lights-down
-    bg.copy(STUDIO).lerp(NIGHT, night);
-    scene.background.copy(bg);
-    floorMat.opacity = 0.2 * (1 - night);
-    key.intensity = 2.6 * (1 - night * 0.9);
-    fill.intensity = 0.55 * (1 - night * 0.9);
-    scene.environmentIntensity = 0.9 * (1 - night * 0.85);
-    uniforms.uDim.value = 1 - night * 0.75;
-    uniforms.uEdge.value = demoGlow * 0.9 + night * 0.6;
-    outlineMat.opacity = smooth(seg(p, 0.875, 0.91));
+    /* clamping frame */
+    const arrive = (g, t, from) => {
+      g.visible = t > 0;
+      if (!g.visible) return;
+      const e = easeOut(t);
+      const { home } = g.userData;
+      g.position.set(lerp(from.x, home.x, e), lerp(from.y, home.y, e), lerp(from.z, home.z, e));
+    };
+    frame.feet.forEach((g, i) => {
+      const { home } = g.userData;
+      arrive(g, clamp(seg(p, 0.715, 0.765) * 1.3 - i * 0.08), v3.set(home.x + Math.sign(home.x) * 7, home.y, home.z));
+    });
+    frame.beams.forEach((g) => {
+      const { home, which, front } = g.userData;
+      const t = which === 'bottom'
+        ? clamp(seg(p, 0.73, 0.785) * 1.2 - (front ? 0.2 : 0))
+        : clamp(seg(p, 0.765, 0.82) * 1.2 - (front ? 0.2 : 0));
+      // bottom clamps slide in from the sides, top clamps drop in from above
+      const from = which === 'bottom' ? v3.set(front ? -8 : 8, home.y, 0) : v3.set(0, home.y + 5.5, 0);
+      arrive(g, t, from);
+    });
+    frame.bolts.forEach((g, i) => {
+      const { home } = g.userData;
+      arrive(g, clamp(seg(p, 0.805, 0.845) * 1.3 - i * 0.07), v3.set(home.x, home.y, home.z + 1.4));
+    });
+    frame.ties.forEach((g, i) => {
+      const { home } = g.userData;
+      arrive(g, clamp(seg(p, 0.815, 0.855) * 1.3 - i * 0.07), v3.set(home.x, home.y, home.z + 1.4));
+    });
+    frame.rods.forEach((g) => {
+      const { home, nuts, k } = g.userData;
+      arrive(g, clamp(seg(p, 0.835, 0.885) * 1.5 - (k % 4) * 0.1 - (k >= 4 ? 0.12 : 0)), v3.set(home.x, home.y + 6, home.z));
+      // nuts run down the thread and seat
+      const tn = easeOut(clamp(seg(p, 0.875, 0.915) * 1.4 - (k % 4) * 0.08));
+      for (const nt of nuts) {
+        nt.n.position.y = nt.home + nt.dir * (1 - tn) * 0.22;
+        nt.n.rotation.y = (1 - tn) * 7;
+        nt.wsh.position.y = nt.wHome + nt.dir * (1 - tn) * 0.18;
+      }
+    });
+    arrive(frame.lug, seg(p, 0.89, 0.93), v3.set(0, 3.2, 0));
 
-    cameraAt(p);
-    // portrait screens: sit the subject a little lower, nearer the visual centre
-    if (size.w < size.h) camera.setViewOffset(size.w, size.h, 0, -size.h * 0.08, size.w, size.h);
-    else camera.clearViewOffset();
+    placeCamera(p);
     renderer.render(scene, camera);
+  }
+
+  /** Screen position and radius (CSS px) of the coil's end face at progress p, for lining up the M. */
+  function coilFace(p = 0.1) {
+    placeCamera(p);
+    const c = new THREE.Vector3(XS1, R, CW / 2).project(camera);
+    const e = new THREE.Vector3(XS1, R + R, CW / 2).project(camera);
+    return {
+      x: (c.x * 0.5 + 0.5) * size.w,
+      y: (-c.y * 0.5 + 0.5) * size.h,
+      r: Math.abs(e.y - c.y) * 0.5 * size.h,
+    };
   }
 
   function resize(w, h) {
@@ -517,9 +545,16 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     camera.updateProjectionMatrix();
   }
 
+  function setPixelRatio(ratio) {
+    renderer.setPixelRatio(ratio);
+    renderer.setSize(size.w, size.h, false);
+  }
+
   function dispose() {
     disposeTree(scene);
+    frame.dispose();
     glowTex.dispose();
+    poolTex.dispose();
     headMat.dispose();
     envTex.dispose();
     releaseShared();
@@ -527,5 +562,16 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     renderer.forceContextLoss();
   }
 
-  return { update, resize, dispose };
+  // Warm-up: compile every shader (including the shadow passes) now, with
+  // everything visible, so nothing stalls the first time it appears mid-scroll.
+  scene.traverse((o) => { o.visible = true; });
+  setLights(1);
+  for (const m of coilMats) { m.transparent = true; }
+  sheetMat.transparent = true;
+  placeCamera(0.6);
+  renderer.setSize(64, 64, false);
+  renderer.render(scene, camera);
+  coilFadeLast = -1;
+
+  return { update, resize, dispose, coilFace, setPixelRatio, pixelRatio: () => renderer.getPixelRatio() };
 }

@@ -179,11 +179,13 @@ export function createSteelMaterial(uniforms, opts = {}) {
  * soft-edged softboxes. Polished steel reads by the bands of light and dark it
  * reflects, so the room is deliberately not uniformly bright.
  */
-export function studioEnvironment(renderer) {
+export function studioEnvironment(renderer, { dark = false } = {}) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   const env = new THREE.Scene();
   const disposables = [];
-  const room = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0x59606b, side: THREE.BackSide }));
+  // dark: a black room, so steel reads as black with bright soft-box streaks
+  const tone = (light, black) => (dark ? black : light);
+  const room = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: tone(0x59606b, 0x0b0c0e), side: THREE.BackSide }));
   room.scale.set(30, 16, 30);
   env.add(room);
   disposables.push(room);
@@ -192,8 +194,8 @@ export function studioEnvironment(renderer) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(60, h), new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide }));
     m.position.set(0, y, 0); m.rotation.x = Math.PI / 2; env.add(m); disposables.push(m);
   };
-  band(-7.9, 60, 0x2c3139);
-  band(7.9, 60, 0x737a86);
+  band(-7.9, 60, tone(0x2c3139, 0x040405));
+  band(7.9, 60, tone(0x737a86, 0x16181b));
   // soft-edged softbox texture
   const c = document.createElement('canvas'); c.width = c.height = 256;
   const g = c.getContext('2d');
@@ -203,7 +205,7 @@ export function studioEnvironment(renderer) {
   const soft = new THREE.CanvasTexture(c);
   const box = (w, h, pos, look, gain) => {
     const mat = new THREE.MeshBasicMaterial({ map: soft, transparent: true, side: THREE.DoubleSide });
-    mat.color.setScalar(gain); // > 1: brighter than white (the env is rendered in half float)
+    mat.color.setScalar(gain * (dark ? 0.6 : 1)); // > 1: brighter than white (the env is rendered in half float)
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
     m.position.set(...pos); m.lookAt(...look); env.add(m); disposables.push(m);
   };
