@@ -66,6 +66,9 @@ function manzzaContent() {
       const today = new Date().toISOString().slice(0, 10);
       const urls = ROUTES.map((r) => `  <url><loc>${base}${r === '/' ? '/' : r}</loc><lastmod>${today}</lastmod></url>`).join('\n');
       this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n` });
+      // which build is live: https://<site>/version.txt
+      const commit = process.env.VERCEL_GIT_COMMIT_SHA || '';
+      this.emitFile({ type: 'asset', fileName: 'version.txt', source: `built ${new Date().toISOString()}${commit ? `\ncommit ${commit.slice(0, 7)}` : ''}\n` });
       this.emitFile({ type: 'asset', fileName: 'robots.txt', source: `User-agent: *\nAllow: /\n\nSitemap: ${base}/sitemap.xml\n` });
       if (!warned) {
         warned = true;
