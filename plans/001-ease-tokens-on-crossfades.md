@@ -1,6 +1,6 @@
 # 001 — Use the shared ease-out curve on the two remaining crossfades
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: 896967b
 - **Severity**: LOW
 - **Category**: Cohesion & tokens

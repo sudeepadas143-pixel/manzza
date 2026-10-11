@@ -1,6 +1,6 @@
 # 002 — Light the small product visuals like the intro's dark studio
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: 896967b
 - **Severity**: LOW
 - **Category**: Cohesion & tokens

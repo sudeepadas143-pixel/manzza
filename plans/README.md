@@ -15,8 +15,8 @@ self-contained; run them in order with any agent.
 | – | MEDIUM | Accessibility | `src/styles/main.css` | Hover motion and colour changes not gated: stuck after tap | DONE |
 | – | MEDIUM | Accessibility | `src/styles/main.css` | Reduced motion removed every transition, including fades | DONE: movement off, fades kept |
 | – | MEDIUM | Purpose | `src/styles/main.css` `.btn` | No press feedback | DONE: `scale(0.97)` on `:active` |
-| 001 | LOW | Cohesion | `src/styles/main.css` | Two crossfades on default `ease` | TODO |
-| 002 | LOW | Cohesion | `src/js/mini-scenes.js` | Product visuals lit by the old light studio | TODO |
+| 001 | LOW | Cohesion | `src/styles/main.css` | Two crossfades on default `ease` | DONE |
+| 002 | LOW | Cohesion | `src/js/mini-scenes.js` | Product visuals lit by the old light studio | DONE (feel-check intensity on a real screen) |
 
 ## Order
 

@@ -87,7 +87,7 @@ function addressHTML(d) {
 
 const icon = {
   chevron: '<svg class="i i-chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>',
-  arrow: '<svg class="i i-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>',
+  arrow: '<svg class="i i-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.25 10.75 8 6 12.75" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   phone: '<svg class="i" viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 2.5h3l1.2 4-2 1.3a10 10 0 0 0 4.5 4.5l1.3-2 4 1.2v3a1.5 1.5 0 0 1-1.6 1.5C9.4 15.6 4.4 10.6 4 4.1A1.5 1.5 0 0 1 5.5 2.5Z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
   mail: '<svg class="i" viewBox="0 0 20 20" aria-hidden="true"><path d="M2.5 4.5h15v11h-15zM2.5 5l7.5 6 7.5-6" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
   pin: '<svg class="i" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 18s5.5-5.2 5.5-9.5a5.5 5.5 0 0 0-11 0C4.5 12.8 10 18 10 18Z M10 10.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
@@ -97,7 +97,9 @@ const icon = {
 };
 
 /** Section eyebrow with the step-lap mark (four offset hairlines). */
-const eyebrow = (n, label) => `<p class="eyebrow"><span class="stackmark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>${n ? `<span class="eyebrow__n">${esc(n)}</span>` : ''}${esc(label)}</p>`;
+// Headings carry their own weight: no label above them. Kept as a no-op so
+// page templates that still pass one stay valid.
+const eyebrow = () => '';
 
 /* --------------------------------------------------------- static visuals */
 
@@ -144,7 +146,7 @@ function photo(d, { id, label, alt, ratio = '4/3' }) {
   const dir = path.join(d.root, 'public', 'images');
   const file = ['webp', 'jpg', 'jpeg', 'png'].map((ext) => `${id}.${ext}`).find((f) => fs.existsSync(path.join(dir, f)));
   if (file) {
-    return `<figure class="photo" style="aspect-ratio:${ratio}"><img src="/images/${file}" alt="${esc(alt || label)}" loading="lazy" decoding="async"><figcaption>${esc(label)}</figcaption></figure>`;
+    return `<figure class="photo" style="aspect-ratio:${ratio}"><img src="/images/${file}" alt="${esc(alt || label)}" width="1600" height="1000" loading="lazy" decoding="async"><figcaption>${esc(label)}</figcaption></figure>`;
   }
   return `<figure class="photo photo--slot" style="aspect-ratio:${ratio}" data-photo-slot="${esc(id)}">
     <div class="photo__hatch" aria-hidden="true"></div>
@@ -222,9 +224,6 @@ function head(d, a) {
   <link rel="icon" href="/favicon.ico" sizes="32x32">
   <link rel="icon" href="/favicon.png" type="image/png">
   <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
   <link rel="preload" as="image" href="/brand/manzza-logo-nav.webp" type="image/webp">
   <script type="application/ld+json">${JSON.stringify(ld.length === 1 ? ld[0] : ld).replace(/</g, '\\u003c')}</script>`;
 }
@@ -239,7 +238,7 @@ function header(d, a) {
   return `<a class="skip-link" href="#main">Skip to main content</a>
 <header class="site-header" data-header>
   <div class="container header__inner">
-    <a class="brand" href="/" aria-label="${esc(d.config.company.legalName)} – home">
+    <a class="brand" translate="no" href="/" aria-label="${esc(d.config.company.legalName)} – home">
       <img src="/brand/manzza-logo-nav.webp" alt="MANZZA" width="363" height="80">
     </a>
     <nav class="nav" aria-label="Main">
@@ -253,7 +252,7 @@ function header(d, a) {
         <li class="nav__item"><a class="nav__link" href="/materials"${cur('materials')}>Materials</a></li>
       </ul>
     </nav>
-    <a class="btn btn--primary btn--sm header__cta" href="/quote"${cur('quote')}>Request a Quote</a>
+    <a class="btn btn--primary btn--sm header__cta" href="/quote"${cur('quote')}>Request a quote</a>
     <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu"><span class="menu-toggle__bars" aria-hidden="true"><i></i><i></i></span><span class="menu-toggle__label">Menu</span></button>
   </div>
 </header>
@@ -265,7 +264,7 @@ function header(d, a) {
         <li><a href="/materials">Materials</a></li>
         <li><a href="/">Home</a></li>
       </ul>
-      <a class="btn btn--primary btn--block" href="/quote">Request a Quote</a>
+      <a class="btn btn--primary btn--block" href="/quote">Request a quote</a>
       <p class="mobile-menu__contact">${icon.phone} ${phoneLink(d)}</p>
     </div>
   </div>
@@ -289,7 +288,7 @@ function footer(d) {
       </nav>
       <nav class="footer__col" aria-label="Company">
         <p class="footer__h">Information</p>
-        <ul><li><a href="/materials">Materials: CRGO and CRNO</a></li><li><a href="/quote">Request a Quote</a></li><li><a href="/#about">About MANZZA</a></li></ul>
+        <ul><li><a href="/materials">Materials: CRGO and CRNO</a></li><li><a href="/quote">Request a quote</a></li><li><a href="/#about">About MANZZA</a></li></ul>
       </nav>
       <div class="footer__col footer__contact">
         <p class="footer__h">Contact</p>
@@ -333,31 +332,34 @@ function intro(d) {
 
 function hero(d) {
   const ix = d.company.intro;
+  // the headline in two parts: the product, then where and how
+  const cut = ix.headline.indexOf(',');
+  const [a, b] = cut > 0 ? [ix.headline.slice(0, cut) + '.', ix.headline.slice(cut + 1).trim()] : [ix.headline, ''];
   return `<section class="hero" aria-labelledby="hero-h">
   <div class="container hero__inner">
-    ${eyebrow('', `${d.config.company.legalName.replace(/\.$/, '')} · ${d.config.company.city}`)}
-    <h1 id="hero-h" class="h1 hero__h1">${esc(ix.headline)}</h1>
+    <h1 id="hero-h" class="h1 hero__h1"><span class="hero__h1-a">${esc(a)}</span>${b ? ` <span class="hero__h1-b">${esc(b.charAt(0).toUpperCase() + b.slice(1))}</span>` : ''}</h1>
     <p class="lead hero__lede">${esc(ix.lede)}</p>
-    <div class="btn-row">
-      <a class="btn btn--primary btn--lg" href="/quote">Request a Quote ${icon.arrow}</a>
-      <a class="btn btn--ghost btn--lg" href="#products">See our products</a>
+    <div class="btn-row btn-row--center">
+      <a class="btn btn--primary btn--lg" href="/quote">Request a quote</a>
+      <a class="textlink textlink--lg" href="#products">See the products ${icon.arrow}</a>
     </div>
   </div>
 </section>`;
 }
 
 function productCards(d) {
-  return `<div class="pgrid">${d.products.map((p, i) => `
+  return `<div class="pgrid">${d.products.map((p) => `
     <article class="pcard${p.flagship ? ' pcard--flagship' : ''}">
-      <a class="pcard__link" href="/products/${p.slug}">
-        ${mini(p.cardVisual, 'pcard__visual')}
-        <div class="pcard__body">
-          <p class="pcard__meta"><span class="pcard__n">${pad2(i + 1)}</span>${p.flagship ? '<span class="pcard__flag">Flagship</span>' : ''}</p>
-          <h3 class="pcard__title">${esc(p.name)}</h3>
-          <p class="pcard__line">${esc(p.cardLine)}</p>
-          <span class="pcard__more">View ${esc(p.name.toLowerCase().replace('e&i', 'E&I'))} ${icon.arrow}</span>
+      <a class="pcard__media" href="/products/${p.slug}" tabindex="-1" aria-hidden="true">${mini(p.cardVisual, 'pcard__visual')}</a>
+      <div class="pcard__body">
+        ${p.flagship ? '<p class="pcard__flag">Flagship</p>' : ''}
+        <h3 class="pcard__title"><a href="/products/${p.slug}">${esc(p.name)}</a></h3>
+        <p class="pcard__line">${esc(p.cardLine)}</p>
+        <div class="pcard__actions">
+          <a class="btn btn--primary btn--sm" href="/quote?product=${esc(p.slug)}">Request a quote</a>
+          <a class="textlink" href="/products/${p.slug}" aria-label="Learn more about ${esc(p.name.toLowerCase().replace('e&i', 'E&I'))}">Learn more ${icon.arrow}</a>
         </div>
-      </a>
+      </div>
     </article>`).join('')}
   </div>`;
 }
@@ -422,7 +424,7 @@ const STEP_ICONS = {
 function process(d) {
   const steps = d.company.process.map((s, i) => `<li class="step">
       <div class="step__icon">${STEP_ICONS[s.step] || ''}</div>
-      <p class="step__n">${pad2(i + 1)}</p>
+      <p class="step__n">${i + 1}</p>
       <h3 class="step__title">${esc(s.step)}</h3>
       <p class="step__text">${esc(s.text)}</p>
     </li>`).join('');
@@ -444,21 +446,20 @@ function quality(d) {
 }
 
 function customers(d) {
-  return `<ul class="who">${d.company.customers.map((c, i) => `<li><p class="who__n">${pad2(i + 1)}</p><h3>${esc(c.title)}</h3><p>${esc(c.text)}</p></li>`).join('')}</ul>`;
+  return `<ul class="who">${d.company.customers.map((c) => `<li><h3>${esc(c.title)}</h3><p>${esc(c.text)}</p></li>`).join('')}</ul>`;
 }
 
 function cta(d, a) {
   const wa = whatsappHref(d, 'Hello MANZZA, I would like to send a drawing for a quotation.');
   return `<section class="cta on-dark" aria-labelledby="cta-h">
   <div class="container cta__inner">
-    <div class="cta__layers" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
     <div class="cta__copy">
-      ${eyebrow('', 'Request a Quote')}
+      ${eyebrow('', 'Request a quote')}
       <h2 id="cta-h" class="cta__h">${esc(a.title || 'Send us your drawing.')}</h2>
       <p class="cta__p">${esc(a.text || 'Tell us the product, material, thickness and quantity. We will review the drawing and come back to you with a quotation.')}</p>
     </div>
     <div class="cta__actions">
-      <a class="btn btn--primary btn--lg" href="/quote${a.product ? `?product=${esc(a.product)}` : ''}">Request a Quote ${icon.arrow}</a>
+      <a class="btn btn--primary btn--lg" href="/quote${a.product ? `?product=${esc(a.product)}` : ''}">Request a quote</a>
       <div class="cta__alt">
         ${wa ? `<a class="btn btn--ghost" href="${esc(wa)}" target="_blank" rel="noopener">${icon.wa} WhatsApp</a>` : ''}
         <p class="cta__phone">${icon.phone} ${phoneLink(d)}</p>
@@ -515,7 +516,7 @@ function productPage(d, a) {
         <h1 class="h1">${esc(p.headline)}</h1>
         <p class="lead">${esc(p.intro)}</p>
         <div class="btn-row">
-          <a class="btn btn--primary" href="${quoteHref}">Request a Quote ${icon.arrow}</a>
+          <a class="btn btn--primary" href="${quoteHref}">Request a quote</a>
           <a class="btn btn--ghost" href="#send">What to send us</a>
         </div>
       </div>
@@ -566,7 +567,7 @@ function productPage(d, a) {
         ${eyebrow('', 'What to send us')}
         <h2 id="send-h" class="h2">What we need to quote.</h2>
         <p class="lead">Send what you have. If something is missing, we will ask.</p>
-        <a class="btn btn--primary" href="${quoteHref}">Request a Quote ${icon.arrow}</a>
+        <a class="btn btn--primary" href="${quoteHref}">Request a quote</a>
       </div>
       <ol class="sendlist">${p.send.map((s, i) => `<li><span class="sendlist__n">${pad2(i + 1)}</span><div><h3>${esc(s.title)}</h3><p>${esc(s.text)}</p></div></li>`).join('')}</ol>
     </div>
@@ -580,7 +581,7 @@ function productPage(d, a) {
   </section>
 
   ${cta(d, { product: p.slug })}
-  <div class="stickybar" data-stickybar><a class="btn btn--primary btn--block" href="${quoteHref}">Request a Quote for ${esc(p.name.replace(' laminations', ''))}</a></div>
+  <div class="stickybar" data-stickybar><a class="btn btn--primary btn--block" href="${quoteHref}">Request a quote for ${esc(p.name.replace(' laminations', ''))}</a></div>
 </main>`;
 }
 
@@ -648,7 +649,7 @@ function quoteForm(d) {
     <div class="fgrid">
       <div class="field"><label for="f-company">Company name <span class="req">required</span></label><input id="f-company" name="company" type="text" autocomplete="organization" required></div>
       <div class="field"><label for="f-name">Contact person <span class="req">required</span></label><input id="f-name" name="contact_person" type="text" autocomplete="name" required></div>
-      <div class="field"><label for="f-email">Business email <span class="req">required</span></label><input id="f-email" name="email" type="email" autocomplete="email" inputmode="email" required></div>
+      <div class="field"><label for="f-email">Business email <span class="req">required</span></label><input id="f-email" name="email" type="email" autocomplete="email" inputmode="email" spellcheck="false" required></div>
       <div class="field"><label for="f-phone">Phone <span class="req">required</span></label><input id="f-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required></div>
     </div>
   </fieldset>
@@ -701,7 +702,7 @@ function quoteForm(d) {
   </fieldset>
 
   <div class="qform__submit">
-    <button class="btn btn--primary btn--lg" type="submit"><span class="btn__label">Send request</span>${icon.arrow}</button>
+    <button class="btn btn--primary btn--lg" type="submit"><span class="btn__label">Send request</span></button>
     <p class="qform__fine">We use these details only to reply to your enquiry. No prices are shown online: every quotation is prepared for your drawing.</p>
   </div>
   <div class="qform__status" role="status" aria-live="polite" tabindex="-1"></div>

@@ -93,13 +93,13 @@ export function startMinis(canvases) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
-  const env = studioEnvironment(renderer);
+  const env = studioEnvironment(renderer, { dark: true }); // same black studio as the intro
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
   const views = canvases.map((canvas) => {
     const scene = new THREE.Scene();
     scene.environment = env;
-    scene.environmentIntensity = 1.25; // product shots: brighter than the intro studio
+    scene.environmentIntensity = 1.6; // product shots: a little brighter than the intro
     addLights(scene);
     const uniforms = createSteelUniforms();
     uniforms.uEdge.value = 0.14;
