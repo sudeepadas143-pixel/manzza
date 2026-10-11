@@ -3,6 +3,7 @@ name: MANZZA
 description: Transformer core laminations, presented with Apple's product-page grammar on black.
 colors:
   bg: "#000000"
+  bg-alt: "#070d20"
   surface: "#161617"
   surface-2: "#232325"
   text: "#f5f5f7"
@@ -67,7 +68,7 @@ components:
     height: "52px"
     padding: "0 30px"
   button-primary-sm:
-    height: "34px"
+    height: "36px"
     padding: "0 16px"
   button-secondary:
     backgroundColor: "transparent"
@@ -93,7 +94,7 @@ reserved for the things a visitor can act on. Sections open with a centred headl
 The home page begins with a WebGL scroll film; everything after it is calm by design.
 
 ## Colors
-Black page, graphite `surface` tiles, `surface-2` for fields and hover. Text steps from
+Black page with deep-navy `bg-alt` alternate chapters (materials, about), graphite `surface` tiles, `surface-2` for fields and hover. Text steps from
 `text` (headlines) to `text-2` (body) to `text-3` (notes, secondary headline halves).
 Electric blue `blue` fills the primary pill only; `blue-link` (lifted for contrast on
 black) colours chevron links, the secondary pill and small accents. No other hues.
@@ -105,7 +106,7 @@ Headlines are semibold with tight negative tracking; a two-tone headline sets it
 sentence in `text-3`. `text-wrap: balance` on headings, `pretty` on paragraphs.
 
 ## Layout
-Max content width 1180px. Section rhythm `section-y` top and bottom. Section heads are
+Max content width 1180px. Section rhythm `section-y` (clamp 72–128px) top and bottom. Section heads are
 centred; content below may be left-aligned when it is a table or prose. The product
 lineup is three equal columns of centred picture, name, line and actions.
 
@@ -118,7 +119,7 @@ Pills for buttons, 28px tiles (22px on phones), 18px small cards, 12px fields, r
 radio marks and status dots. No cut corners, no outlines around tiles.
 
 ## Components
-- Primary button: blue pill, white sentence-case label, 44px minimum target; hover
+- Primary button: blue pill, white sentence-case label in regular weight, 44px minimum target (the 36px small pill gets an invisible 44px hit area); hover
   lightens, press darkens and scales to 0.97; focus is a 4px blue ring.
 - Secondary button: outlined blue pill that fills on hover.
 - Chevron link: blue text with a drawn chevron that nudges 2px on hover; underline on hover.

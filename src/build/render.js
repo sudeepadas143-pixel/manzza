@@ -352,7 +352,6 @@ function productCards(d) {
     <article class="pcard${p.flagship ? ' pcard--flagship' : ''}">
       <a class="pcard__media" href="/products/${p.slug}" tabindex="-1" aria-hidden="true">${mini(p.cardVisual, 'pcard__visual')}</a>
       <div class="pcard__body">
-        ${p.flagship ? '<p class="pcard__flag">Flagship</p>' : ''}
         <h3 class="pcard__title"><a href="/products/${p.slug}">${esc(p.name)}</a></h3>
         <p class="pcard__line">${esc(p.cardLine)}</p>
         <div class="pcard__actions">
@@ -381,7 +380,7 @@ function thicknessScale(d) {
     const s = m.thicknessScale || {};
     let mark = '';
     if (s.from != null) mark += `<rect x="${x(s.from)}" y="${y - 6}" width="${x(s.to) - x(s.from)}" height="12" class="ts-bar"/>`;
-    (s.points || []).forEach((v) => { mark += `<rect x="${x(v) - 6}" y="${y - 6}" width="12" height="12" class="ts-pt" transform="rotate(45 ${x(v)} ${y})"/>`; });
+    (s.points || []).forEach((v) => { mark += `<rect x="${x(v) - 6}" y="${y - 6}" width="12" height="12" class="ts-pt" transform="rotate(45 ${x(v)} ${y})"/><text x="${x(v)}" y="${y - 14}" class="ts-ptval" text-anchor="middle">${v.toFixed(2)}</text>`; });
     return `<text x="0" y="${y + 6}" class="ts-name">${esc(m.code)}</text><line x1="${X0}" y1="${y}" x2="${X1}" y2="${y}" class="ts-track"/>${mark}`;
   }).join('');
   const axisY = 40 + d.materials.length * 52;
@@ -424,7 +423,6 @@ const STEP_ICONS = {
 function process(d) {
   const steps = d.company.process.map((s, i) => `<li class="step">
       <div class="step__icon">${STEP_ICONS[s.step] || ''}</div>
-      <p class="step__n">${i + 1}</p>
       <h3 class="step__title">${esc(s.step)}</h3>
       <p class="step__text">${esc(s.text)}</p>
     </li>`).join('');
@@ -435,7 +433,6 @@ function capacity(d) {
   const c = d.config.capacity;
   if (!c || !c.show) return '';
   return `<div class="capacity">
-    <p class="capacity__label">Indicative capacity</p>
     <p class="capacity__value"><span class="num">${esc(c.value)}</span> <span class="capacity__unit">${esc(c.unit)}</span></p>
     <p class="capacity__note">${esc(c.note)}</p>
   </div>`;

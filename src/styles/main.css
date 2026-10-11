@@ -21,7 +21,7 @@
 
   /* surfaces: black page, graphite tiles */
   --bg: #000000;
-  --bg-alt: #000000;
+  --bg-alt: #070d20; /* deep navy, from the brand navy: alternate chapters */
   --surface: #161617; /* tiles */
   --surface-2: #232325; /* fields, hover */
   --stage: #000000; /* the intro studio (matches STUDIO in intro/scene.js) */
@@ -47,7 +47,7 @@
   --gutter: 20px;
   --maxw: 1180px;
   --header-h: 52px;
-  --section-y: clamp(88px, 12vw, 160px);
+  --section-y: clamp(72px, 9vw, 128px);
 
   /* motion: strong curves (the built-in keywords are too weak to feel deliberate) */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -139,7 +139,7 @@ html.menu-open { overflow: hidden; }
 .btn {
   position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   min-height: 44px; padding: 0 22px; border: 0; border-radius: var(--r-pill);
-  font-family: var(--f-body); font-size: 1.0625rem; font-weight: 500; line-height: 1; letter-spacing: -0.011em;
+  font-family: var(--f-body); font-size: 1.0625rem; font-weight: 400; line-height: 1; letter-spacing: -0.011em;
   text-decoration: none; white-space: nowrap; cursor: pointer; color: #fff;
   transition: background-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.16s var(--ease-out);
 }
@@ -153,7 +153,8 @@ html.menu-open { overflow: hidden; }
 .btn--ghost { background: transparent; color: var(--blue-hi); box-shadow: inset 0 0 0 1px var(--blue-hi); }
 @media (hover: hover) and (pointer: fine) { .btn--ghost:hover { background: var(--blue-hi); color: #000; } }
 .btn--ghost:focus-visible { box-shadow: inset 0 0 0 1px var(--blue-hi), 0 0 0 4px rgba(110, 162, 255, 0.55); }
-.btn--sm { min-height: 34px; padding: 0 16px; font-size: 0.875rem; }
+.btn--sm { min-height: 36px; padding: 0 16px; font-size: 0.875rem; }
+.btn--sm::before { content: ''; position: absolute; inset: -4px -2px; } /* a 44px target around a 36px pill */
 .btn--lg { min-height: 52px; padding: 0 30px; font-size: 1.125rem; }
 .btn--block { width: 100%; }
 .btn--wa { background: var(--surface-2); color: var(--text); }
@@ -340,7 +341,8 @@ html.menu-open { overflow: hidden; }
 .ts-pt { fill: var(--steel); }
 .ts-axis, .ts-tick { stroke: var(--text-3); stroke-width: 1; }
 .ts-val { fill: var(--text-2); font: 400 15px var(--f-mono); }
-@media (max-width: 720px) { .ts-name { font-size: 22px; } .ts-val { font-size: 20px; } }
+.ts-ptval { fill: var(--text-2); font: 500 13px var(--f-mono); }
+@media (max-width: 720px) { .ts-name { font-size: 22px; } .ts-val { font-size: 20px; } .ts-ptval { font-size: 18px; } }
 
 /* home materials block */
 .mat-home { display: grid; gap: 48px; }
@@ -365,13 +367,16 @@ html.menu-open { overflow: hidden; }
 .step__text { color: var(--text-2); }
 
 .process-foot { display: grid; gap: 16px; margin-top: 16px; }
-@media (min-width: 1000px) { .process-foot { grid-template-columns: 1.3fr 1fr; } }
+@media (min-width: 1000px) {
+  .process-foot { grid-template-columns: 1.3fr 1fr; align-items: stretch; }
+  .process-foot > .photo { aspect-ratio: auto !important; height: 100%; min-height: 360px; }
+}
 .process-foot__side { display: grid; gap: 16px; align-content: start; }
 
 /* a single figure, Apple-size, with its unit and the honest note beneath */
 .capacity { padding: 34px 32px 32px; }
 .capacity__label { font-size: 1.0625rem; font-weight: 600; color: var(--text); }
-.capacity__value { margin: 14px 0 10px; color: var(--text); line-height: 1; }
+.capacity__value { margin: 0 0 10px; color: var(--text); line-height: 1; }
 .capacity__value .num { font-size: clamp(3rem, 6vw, 4.5rem); font-weight: 600; letter-spacing: -0.04em; }
 .capacity__unit { display: block; margin-top: 8px; font-size: 1.0625rem; color: var(--text-2); }
 .capacity__note { font-size: 0.875rem; color: var(--text-3); }
@@ -403,7 +408,7 @@ html.menu-open { overflow: hidden; }
 
 /* -------------------------------------------------------------- CTA */
 /* the close: centred, quiet, one action in blue */
-.cta { position: relative; background: #000; padding: clamp(110px, 14vw, 200px) 0; text-align: center; }
+.cta { position: relative; background: #000; padding: clamp(96px, 11vw, 160px) 0; text-align: center; }
 .cta__inner { display: grid; justify-items: center; gap: 36px; }
 .cta__copy { display: grid; justify-items: center; }
 .cta__h { font-size: clamp(2.6rem, 6.4vw, 5rem); font-weight: 600; line-height: 1.04; letter-spacing: -0.035em; max-width: 14ch; }
