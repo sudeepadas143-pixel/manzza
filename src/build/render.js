@@ -14,10 +14,15 @@ import { CORE, eShape, iShape, stripShape, corePieces, stepOffsets, clipHalfPlan
 
 /* ------------------------------------------------------------------ data */
 
-export async function loadData(root) {
+export async function loadData(root, { worst = false } = {}) {
   const read = (f) => JSON.parse(fs.readFileSync(path.join(root, 'content', f), 'utf8'));
   const cfgUrl = pathToFileURL(path.join(root, 'site.config.js')).href + `?t=${Date.now()}`;
-  const config = (await import(cfgUrl)).default;
+  let config = (await import(cfgUrl)).default;
+  if (worst) {
+    // dev only (?data=worst): overlay the worst-case fixture at the data boundary
+    const fx = (await import(pathToFileURL(path.join(root, 'fixtures/worst-case.js')).href + `?t=${Date.now()}`)).default;
+    config = { ...config, contact: { ...config.contact, ...fx.contact }, quoteForm: { ...config.quoteForm, ...fx.quoteForm }, capacity: { ...config.capacity, ...fx.capacity } };
+  }
   return {
     root,
     config,
@@ -195,7 +200,7 @@ function head(d, a) {
     });
   }
   return `<meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <script>(function(d){d.classList.add('js');if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)d.classList.add('rm')})(document.documentElement)</script>
   <title>${esc(title)}</title>
   <meta name="description" content="${esc(description)}">

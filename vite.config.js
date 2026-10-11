@@ -29,15 +29,25 @@ function cleanUrls(baseDir) {
   };
 }
 
+/** Dev-only segmented control: Demo data / Worst case. Plain chrome, not part of the design. */
+function dataToggle(mode) {
+  const seg = (m, label) => `<a href="?data=${m}" style="padding:6px 12px;border-radius:999px;text-decoration:none;color:#111;white-space:nowrap;${m === mode ? 'background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);' : ''}">${label}</a>`;
+  return `<div style="position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9999;display:flex;gap:2px;padding:3px;border-radius:999px;background:#d4d4d8;font:500 13px system-ui,sans-serif">${seg('demo', 'Demo data')}${seg('worst', 'Worst case')}</div>`;
+}
+
 function manzzaContent() {
   let warned = false;
   return {
     name: 'manzza-content',
     transformIndexHtml: {
       order: 'pre',
-      async handler(html) {
-        const data = await loadData(root);
-        return renderHTML(html, data);
+      async handler(html, ctx) {
+        // dev server only: ?data=worst renders the page with fixtures/worst-case.js
+        const dev = !!ctx.server;
+        const mode = dev && /[?&]data=worst\b/.test(ctx.originalUrl || '') ? 'worst' : 'demo';
+        const data = await loadData(root, { worst: mode === 'worst' });
+        const out = renderHTML(html, data);
+        return dev ? out.replace('</body>', `${dataToggle(mode)}</body>`) : out;
       },
     },
     configurePreviewServer(server) {
