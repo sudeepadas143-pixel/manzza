@@ -26,5 +26,6 @@ Plain, specific, confident. Engineering facts, not slogans. Sentence case.
 - The logo is used as supplied (metallic artwork on black).
 
 ## Brand commitments
-- Colours: black, deep navy, electric blue (#2f6bea).
+- Colours: steel and near-black for the interface (the client asked for no blue buttons);
+  electric blue (#2f6bea) stays in the logo and the intro film.
 - Visual direction (pinned by the client): Apple's product-page grammar, dark.

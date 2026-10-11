@@ -35,7 +35,7 @@ import { buildFrame, FRAME } from './frame.js';
 const easeOut = (t) => 1 - (1 - t) ** 3;
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
-export const STUDIO = new THREE.Color('#000000'); // matches --stage in main.css
+export const STUDIO = new THREE.Color('#0a0b0d'); // matches --stage (ink-950) in main.css
 
 export function createIntroScene(canvas, { mobile = false, capture = false } = {}) {
   /* ---------------------------------------------------------------- setup */

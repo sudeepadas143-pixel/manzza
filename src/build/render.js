@@ -280,7 +280,7 @@ function footer(d) {
       <div class="footer__brand">
         <a href="/" class="footer__logo" aria-label="MANZZA – home"><img src="/brand/manzza-logo.webp" alt="MANZZA" width="930" height="205" loading="lazy"></a>
         <p class="footer__tag">${esc(c.company.tagline)}</p>
-        <p class="footer__sub">Transformer core laminations, made to drawing in ${esc(c.company.city)}. Serving ${esc(c.company.serviceRegions.slice(0, -1).join(', '))} and ${esc(c.company.serviceRegions.slice(-1)[0])}.</p>
+        <p class="footer__sub">Transformer core laminations, made to drawing in ${esc(c.company.city)}.</p>
       </div>
       <nav class="footer__col" aria-label="Products">
         <p class="footer__h">Products</p>
@@ -380,7 +380,7 @@ function thicknessScale(d) {
     const s = m.thicknessScale || {};
     let mark = '';
     if (s.from != null) mark += `<rect x="${x(s.from)}" y="${y - 6}" width="${x(s.to) - x(s.from)}" height="12" class="ts-bar"/>`;
-    (s.points || []).forEach((v) => { mark += `<rect x="${x(v) - 6}" y="${y - 6}" width="12" height="12" class="ts-pt" transform="rotate(45 ${x(v)} ${y})"/><text x="${x(v)}" y="${y - 14}" class="ts-ptval" text-anchor="middle">${v.toFixed(2)}</text>`; });
+    (s.points || []).forEach((v) => { mark += `<rect x="${x(v) - 6}" y="${y - 6}" width="12" height="12" class="ts-pt" transform="rotate(45 ${x(v)} ${y})"/>`; });
     return `<text x="0" y="${y + 6}" class="ts-name">${esc(m.code)}</text><line x1="${X0}" y1="${y}" x2="${X1}" y2="${y}" class="ts-track"/>${mark}`;
   }).join('');
   const axisY = 40 + d.materials.length * 52;
@@ -497,7 +497,7 @@ function productPage(d, a) {
       <div class="diagrams">
         <figure class="diagram-fig">${stepLapFaceSVG({ id: 'sl-face' })}${stepLapFaceSVG({ id: 'sl-face-c', compact: true })}
           <ol class="diagram-legend"><li>Limb lamination: grain runs along the limb</li><li>Yoke lamination: grain runs along the yoke</li><li>Joint of the top layer, a 45° mitre cut</li><li>Joints of the layers below, each moved one step along</li></ol>
-          <figcaption><strong>Face view of one corner.</strong> The top layer's joint is shown in blue; the joints of the layers below are dashed.</figcaption></figure>
+          <figcaption><strong>Face view of one corner.</strong> The top layer's joint is the bright solid line; the joints of the layers below are dashed.</figcaption></figure>
         <figure class="diagram-fig">${stepLapSectionSVG({ id: 'sl-section' })}${stepLapSectionSVG({ id: 'sl-section-c', compact: true })}<figcaption><strong>Section through the joints.</strong> Laminations seen edge-on, thickness exaggerated.</figcaption></figure>
       </div>
       <p class="note">Step sequence and step offset are set by your core design. We cut and sort the laminations to match it.</p>

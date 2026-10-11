@@ -2,18 +2,18 @@
 name: MANZZA
 description: Transformer core laminations, presented with Apple's product-page grammar on black.
 colors:
-  bg: "#000000"
-  bg-alt: "#070d20"
-  surface: "#161617"
-  surface-2: "#232325"
-  text: "#f5f5f7"
-  text-2: "#a1a1a6"
-  text-3: "#86868b"
-  line: "rgba(255, 255, 255, 0.12)"
-  blue: "#2f6bea"
-  blue-hover: "#3b77f5"
-  blue-press: "#2458c9"
-  blue-link: "#6ea2ff"
+  ink-950: "#0a0b0d"
+  elev-1: "color-mix(in srgb, #fff 4%, #0a0b0d)"
+  elev-2: "color-mix(in srgb, #fff 7%, #0a0b0d)"
+  elev-3: "color-mix(in srgb, #fff 10%, #0a0b0d)"
+  elev-4: "color-mix(in srgb, #fff 13%, #0a0b0d)"
+  steel-50: "#f4f5f7"
+  steel-100: "#e4e7eb"
+  steel-200: "#cfd4da"
+  steel-300: "#aeb4bc"
+  steel-400: "#8b929b"
+  line: "rgba(255, 255, 255, 0.1)"
+  brand-blue: "#2f6bea"
 typography:
   display:
     fontFamily: "Geist Variable, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
@@ -55,15 +55,15 @@ spacing:
   gutter: "20px / 32px / 44px"
 components:
   button-primary:
-    backgroundColor: "{colors.blue}"
-    textColor: "#ffffff"
+    backgroundColor: "{colors.steel-100}"
+    textColor: "{colors.ink-950}"
     rounded: "{rounded.pill}"
     height: "44px"
     padding: "0 22px"
   button-primary-hover:
-    backgroundColor: "{colors.blue-hover}"
+    backgroundColor: "{colors.steel-50}"
   button-primary-active:
-    backgroundColor: "{colors.blue-press}"
+    backgroundColor: "{colors.steel-200}"
   button-primary-lg:
     height: "52px"
     padding: "0 30px"
@@ -72,32 +72,36 @@ components:
     padding: "0 16px"
   button-secondary:
     backgroundColor: "transparent"
-    textColor: "{colors.blue-link}"
+    textColor: "{colors.steel-100}"
     rounded: "{rounded.pill}"
   link-chevron:
-    textColor: "{colors.blue-link}"
+    textColor: "{colors.steel-100}"
   tile:
-    backgroundColor: "{colors.surface}"
+    backgroundColor: "{colors.elev-2}"
     rounded: "{rounded.tile}"
     padding: "32px 28px"
   field:
-    backgroundColor: "{colors.surface-2}"
-    textColor: "{colors.text}"
+    backgroundColor: "{colors.elev-3}"
+    textColor: "{colors.steel-100}"
     rounded: "{rounded.field}"
 ---
 
 ## Overview
 Apple's product-page grammar applied to an industrial component: the lamination is
 presented like a flagship product. Black ground, one neo-grotesk family set large and
-tight, quiet grey supporting copy, graphite tiles for grouped content, and electric blue
-reserved for the things a visitor can act on. Sections open with a centred headline.
+tight, quiet grey supporting copy, graphite tiles that lighten as they rise, and a light-steel
+accent for the things a visitor can act on. Sections open with a centred headline.
 The home page begins with a WebGL scroll film; everything after it is calm by design.
 
 ## Colors
-Black page with deep-navy `bg-alt` alternate chapters (materials, about), graphite `surface` tiles, `surface-2` for fields and hover. Text steps from
-`text` (headlines) to `text-2` (body) to `text-3` (notes, secondary headline halves).
-Electric blue `blue` fills the primary pill only; `blue-link` (lifted for contrast on
-black) colours chevron links, the secondary pill and small accents. No other hues.
+Steel, built in three tiers in `main.css` (primitives → semantic → component), following
+dark-mode-design-expert. The page is `ink-950`, a cool near-black (never #000). Raised
+surfaces get lighter, not shadowed: `elev-1` for alternate chapters and the footer,
+`elev-2` for tiles, `elev-3` for fields, hover and the dropdown, `elev-4` for pressed
+states. Text is off-white `steel-100` (15.9:1, inside the 12–16:1 comfort band, never
+pure white), `steel-300` for body (9:1) and `steel-400` for notes (6:1). The accent is
+light steel: the primary pill, links, marks and highlights. Electric blue `brand-blue` is
+kept for the logo's bolt and the intro film; it is not an interface colour.
 
 ## Typography
 Geist (self-hosted via @fontsource-variable/geist) for everything; figures use tabular
@@ -111,7 +115,7 @@ centred; content below may be left-aligned when it is a table or prose. The prod
 lineup is three equal columns of centred picture, name, line and actions.
 
 ## Elevation & Depth
-Flat. Depth comes from the graphite-on-black step, not shadows; only the translucent
+Flat. Depth is tonal (lighter surfaces rise), not shadows; only the translucent
 header and dropdown use blur (saturate 180%, blur 20px) and the dropdown a soft shadow.
 
 ## Shapes
@@ -119,17 +123,19 @@ Pills for buttons, 28px tiles (22px on phones), 18px small cards, 12px fields, r
 radio marks and status dots. No cut corners, no outlines around tiles.
 
 ## Components
-- Primary button: blue pill, white sentence-case label in regular weight, 44px minimum target (the 36px small pill gets an invisible 44px hit area); hover
-  lightens, press darkens and scales to 0.97; focus is a 4px blue ring.
-- Secondary button: outlined blue pill that fills on hover.
-- Chevron link: blue text with a drawn chevron that nudges 2px on hover; underline on hover.
+- Primary button: light-steel pill, near-black sentence-case label in regular weight, 44px minimum target (the 36px small pill gets an invisible 44px hit area); hover
+  lightens, press darkens and scales to 0.97; focus is a 2px steel ring offset from the pill.
+- Secondary button: steel-outlined pill; hover adds a faint fill.
+- Chevron link: off-white text with a drawn chevron that nudges 2px on hover; underline on hover.
 - Tile: graphite, 28px radius, no border.
-- Product lineup item: picture tile, optional "Flagship" note in `blue-link`, name,
+- Product lineup item: picture tile, name,
   one line, then "Request a quote" (small pill) and "Learn more ›".
 
 ## Do's and Don'ts
-- Do keep one filled blue action per view; everything else is a link or outline.
+- Do keep one filled steel action per view; everything else is a link or outline.
 - Do keep labels in sentence case and buttons free of arrows.
 - Don't add labels above headings or 01/02/03 numbering unless the content is a real sequence.
 - Don't use gradient text beyond the hero's product name.
 - Don't outline tiles or add shadows to them.
+- Don't use pure black (#000) or pure white (#fff) for surfaces or text.
+- Don't use blue for interface controls; it belongs to the logo and the film.
