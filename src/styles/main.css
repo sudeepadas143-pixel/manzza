@@ -617,8 +617,8 @@ html.menu-open { overflow: hidden; }
 @media (max-width: 559px) { .choices--3:has(> :nth-child(4)) { grid-template-columns: 1fr; } }
 .choice { position: relative; display: block; cursor: pointer; }
 .choice input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.choice__box { display: grid; gap: 2px; min-height: 76px; padding: 14px 16px 14px 48px; border: 1px solid transparent; border-radius: var(--r-field); background: var(--surface-2); position: relative; transition: border-color 0.15s, background-color 0.15s; }
-.choice__box::before { content: ''; position: absolute; left: 16px; top: 17px; width: 20px; height: 20px; border: 1.5px solid var(--text-3); border-radius: 50%; }
+.choice__box { display: grid; gap: 2px; min-height: 54px; align-content: center; padding: 14px 16px 14px 48px; border: 1px solid transparent; border-radius: var(--r-field); background: var(--surface-2); position: relative; transition: border-color 0.15s, background-color 0.15s; }
+.choice__box::before { content: ''; position: absolute; left: 16px; top: 50%; translate: 0 -50%; width: 20px; height: 20px; border: 1.5px solid var(--text-3); border-radius: 50%; }
 .choice__label { font-weight: 600; color: var(--text); }
 .choice__sub { font-size: 0.9375rem; color: var(--text-3); line-height: 1.35; }
 @media (hover: hover) and (pointer: fine) { .choice:hover .choice__box { border-color: var(--line-2); } }

@@ -280,7 +280,7 @@ function footer(d) {
       <div class="footer__brand">
         <a href="/" class="footer__logo" aria-label="MANZZA – home"><img src="/brand/manzza-logo.webp" alt="MANZZA" width="930" height="205" loading="lazy"></a>
         <p class="footer__tag">${esc(c.company.tagline)}</p>
-        <p class="footer__sub">Transformer core laminations, made to drawing in ${esc(c.company.city)}.</p>
+        <p class="footer__sub">A ${esc(c.company.city)}-based manufacturer of transformer laminations.</p>
       </div>
       <nav class="footer__col" aria-label="Products">
         <p class="footer__h">Products</p>
@@ -536,8 +536,8 @@ function productPage(d, a) {
         <h2 id="cust-h" class="h2">Customisation</h2>
       </div>
       <div class="custom-grid">
-        <ul class="cards">${p.customisation.map((c) => `<li class="card"><h3>${esc(c.title)}</h3><p>${esc(c.text)}</p></li>`).join('')}</ul>
-        ${photo(d, { id: `product-${p.slug}`, label: `${p.name} from our line`, ratio: '4/5' })}
+        <ul class="cards">${p.customisation.map((c) => `<li class="card"><h3>${esc(c.title)}</h3>${c.text ? `<p>${esc(c.text)}</p>` : ''}</li>`).join('')}</ul>
+        ${photo(d, { id: `product-${p.slug}`, label: p.name, ratio: '4/5' })}
       </div>
     </div>
   </section>
@@ -608,12 +608,11 @@ function matrix(d) {
 function quoteForm(d) {
   const maxMB = d.config.quoteForm.maxFileMB;
   const radio = (name, value, label, sub, req) => `<label class="choice"><input type="radio" name="${name}" value="${esc(value)}"${req ? ' required' : ''}><span class="choice__box"><span class="choice__label">${esc(label)}</span>${sub ? `<span class="choice__sub">${esc(sub)}</span>` : ''}</span></label>`;
-  const thicknessHint = d.materials.map((m) => `${m.code}: ${m.thickness}`).join(' · ');
   return `<form class="qform" id="quote-form" novalidate data-endpoint="${isTodo(d.config.quoteForm.endpoint) ? '' : esc(d.config.quoteForm.endpoint)}" data-max-mb="${maxMB}">
   <div class="qform__hp" aria-hidden="true"><label>Leave this field empty <input type="text" name="company_website" tabindex="-1" autocomplete="off"></label></div>
 
   <fieldset class="fs">
-    <legend class="fs__legend"><span class="fs__n">01</span>Your details</legend>
+    <legend class="sr-only">Contact details</legend>
     <div class="fgrid">
       <div class="field"><label for="f-company">Company name <span class="req">required</span></label><input id="f-company" name="company" type="text" autocomplete="organization" required></div>
       <div class="field"><label for="f-name">Contact person <span class="req">required</span></label><input id="f-name" name="contact_person" type="text" autocomplete="name" required></div>
@@ -623,28 +622,28 @@ function quoteForm(d) {
   </fieldset>
 
   <fieldset class="fs">
-    <legend class="fs__legend"><span class="fs__n">02</span>Product and material</legend>
+    <legend class="sr-only">Product and material</legend>
     <div class="field" role="radiogroup" aria-labelledby="lbl-product">
       <p class="label" id="lbl-product">Product <span class="req">required</span></p>
       <div class="choices choices--3">
-        ${d.products.map((p, i) => radio('product', p.slug, p.name.replace(' laminations', ''), p.flagship ? 'Step-lap' : p.slug === 'ei-laminations' ? 'Standard or custom' : 'Width, length, profile', i === 0)).join('')}
+        ${d.products.map((p, i) => radio('product', p.slug, p.name.replace(' laminations', ''), '', i === 0)).join('')}
       </div>
     </div>
     <div class="field" role="radiogroup" aria-labelledby="lbl-material">
       <p class="label" id="lbl-material">Material <span class="req">required</span></p>
       <div class="choices choices--3">
-        ${d.materials.map((m, i) => radio('material', m.code, m.code, m.name.replace(' electrical steel', ''), i === 0)).join('')}
+        ${d.materials.map((m, i) => radio('material', m.code, m.code, '', i === 0)).join('')}
       </div>
     </div>
     <div class="fgrid">
-      <div class="field"><label for="f-thk">Thickness (mm)</label><input id="f-thk" name="thickness" type="text" inputmode="decimal" aria-describedby="h-thk"><p class="hint" id="h-thk">${esc(thicknessHint)}</p></div>
+      <div class="field"><label for="f-thk">Thickness (mm)</label><input id="f-thk" name="thickness" type="text" inputmode="decimal"></div>
       <div class="field"><label for="f-grade">Grade</label><input id="f-grade" name="grade" type="text"></div>
       <div class="field field--wide"><label for="f-rating">Transformer rating or application <span class="opt">optional</span></label><input id="f-rating" name="rating_or_application" type="text"></div>
     </div>
   </fieldset>
 
   <fieldset class="fs">
-    <legend class="fs__legend"><span class="fs__n">03</span>Quantity</legend>
+    <legend class="sr-only">Quantity</legend>
     <div class="fgrid">
       <div class="field"><label for="f-qty">Estimated quantity <span class="req">required</span></label><input id="f-qty" name="quantity" type="text" required></div>
       <div class="field"><label for="f-freq">Order frequency</label>
@@ -654,7 +653,7 @@ function quoteForm(d) {
   </fieldset>
 
   <fieldset class="fs">
-    <legend class="fs__legend"><span class="fs__n">04</span>Drawing and notes</legend>
+    <legend class="sr-only">Drawing and notes</legend>
     <div class="field">
       <p class="label" id="lbl-file">Drawing or specification file</p>
       <label class="drop" for="f-file">

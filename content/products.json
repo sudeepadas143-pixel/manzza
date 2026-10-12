@@ -23,12 +23,8 @@
           "value": "CRGO or CRNO, to your specification"
         },
         {
-          "label": "Thickness",
-          "value": "Per the material and your specification"
-        },
-        {
           "label": "Transformer ratings",
-          "value": "Approx. 16 kVA to 16 MVA",
+          "value": "16 kVA to 16 MVA",
           "note": "Subject to design and customer requirements"
         },
         {
@@ -38,8 +34,7 @@
       ],
       "applications": [
         "Distribution transformer cores",
-        "Power transformer cores, subject to design",
-        "Three-limb mitre cores and other configurations to your drawing"
+        "Power transformer cores, subject to design"
       ],
       "materials": [
         "CRGO",
@@ -52,7 +47,7 @@
         },
         {
           "title": "Mitre, diamond tip and V-notch",
-          "text": "Cut to the customer's core design."
+          "text": ""
         },
         {
           "title": "Step-lap construction",
@@ -60,7 +55,7 @@
         },
         {
           "title": "Bolt holes",
-          "text": "Punched to drawing."
+          "text": ""
         },
         {
           "title": "Material, thickness, grade",
@@ -68,29 +63,7 @@
         },
         {
           "title": "Stacking support",
-          "text": "Step-lap processing and core stacking support."
-        }
-      ],
-      "send": [
-        {
-          "title": "Core drawing",
-          "text": "Lamination drawing or core layout, with dimensions (PDF, DWG or DXF)."
-        },
-        {
-          "title": "Material and grade",
-          "text": "CRGO or CRNO, and the grade."
-        },
-        {
-          "title": "Thickness",
-          "text": "Lamination thickness in mm."
-        },
-        {
-          "title": "Quantity",
-          "text": "Tonnes or number of core sets, and how often you order."
-        },
-        {
-          "title": "Transformer rating",
-          "text": "Optional, but it helps us understand the core."
+          "text": ""
         }
       ],
       "diagram": true
@@ -130,9 +103,7 @@
         }
       ],
       "applications": [
-        "Transformer core assemblies",
-        "Standard sizes for common requirements",
-        "Custom dimensions and tooling for specific applications"
+        "Transformer core assemblies"
       ],
       "materials": [
         "CRGO",
@@ -141,37 +112,19 @@
       "customisation": [
         {
           "title": "Standard sizes",
-          "text": "For common requirements."
+          "text": ""
         },
         {
           "title": "Custom dimensions",
-          "text": "For specific applications."
+          "text": ""
         },
         {
           "title": "Custom tooling",
-          "text": "For specific applications."
+          "text": ""
         },
         {
           "title": "Material, thickness, grade",
           "text": "CRGO or CRNO to specification, subject to availability."
-        }
-      ],
-      "send": [
-        {
-          "title": "Drawing or size",
-          "text": "A drawing with dimensions, or the standard size you use."
-        },
-        {
-          "title": "Material and grade",
-          "text": "CRGO or CRNO, and the grade."
-        },
-        {
-          "title": "Thickness",
-          "text": "Lamination thickness in mm."
-        },
-        {
-          "title": "Quantity",
-          "text": "Quantity and how often you order."
         }
       ],
       "diagram": false
@@ -212,8 +165,7 @@
       ],
       "applications": [
         "Industrial electrical applications that use strip-form laminations",
-        "Transformer-related applications",
-        "Made to your drawing, dimensions and tooling"
+        "Transformer-related applications"
       ],
       "materials": [
         "CRGO",
@@ -222,11 +174,11 @@
       "customisation": [
         {
           "title": "Width, length and profile",
-          "text": "To customer-specific requirements."
+          "text": ""
         },
         {
           "title": "Hole punching",
-          "text": "Custom hole punching where required."
+          "text": ""
         },
         {
           "title": "Drawing and tooling",
@@ -235,24 +187,6 @@
         {
           "title": "Material, thickness, grade",
           "text": "CRGO or CRNO to specification, subject to availability."
-        }
-      ],
-      "send": [
-        {
-          "title": "Drawing",
-          "text": "Strip drawing with width, length, profile and hole positions."
-        },
-        {
-          "title": "Material and grade",
-          "text": "CRGO or CRNO, and the grade."
-        },
-        {
-          "title": "Thickness",
-          "text": "Strip thickness in mm."
-        },
-        {
-          "title": "Quantity",
-          "text": "Quantity and how often you order."
         }
       ],
       "diagram": false
