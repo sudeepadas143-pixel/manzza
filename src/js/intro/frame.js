@@ -1,5 +1,5 @@
 /**
- * Clamping structure for the assembled core: painted channel clamps on both
+ * Clamping structure for the assembled core: galvanised steel channel clamps on both
  * yokes, front and back, vertical tie rods with nuts, through-bolts in the
  * yoke bolt holes, end tie bars, mounting feet and a lifting lug.
  *
@@ -8,6 +8,7 @@
  * Every part is returned with the data the scene needs to animate it in.
  */
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { CORE } from '../lamination/geometry.js';
 
 export const FRAME = {
@@ -19,6 +20,42 @@ export const FRAME = {
   rodR: 0.032,
   nutR: 0.07,
 };
+
+/**
+ * Hot-dip galvanising: a mottled crystalline "spangle". One canvas drives a
+ * roughness map (crystals reflect a little differently) and a faint colour map.
+ */
+function spangleTextures() {
+  const S = 512;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const g = c.getContext('2d');
+  g.fillStyle = '#b4b4b4'; g.fillRect(0, 0, S, S);
+  let seed = 3;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 2600; i++) {
+    const x = rnd() * S, y = rnd() * S, r = 3 + rnd() * 11;
+    const v = Math.round(150 + rnd() * 70);
+    g.fillStyle = `rgba(${v},${v},${v},${0.1 + rnd() * 0.18})`;
+    g.beginPath();
+    // crystals are faceted, not round
+    const n = 5 + Math.floor(rnd() * 3);
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * Math.PI * 2 + rnd() * 0.6, rr = r * (0.6 + rnd() * 0.5);
+      k ? g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr) : g.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+    }
+    g.closePath(); g.fill();
+  }
+  const rough = new THREE.CanvasTexture(c);
+  rough.wrapS = rough.wrapT = THREE.RepeatWrapping;
+  rough.colorSpace = THREE.NoColorSpace;
+  rough.repeat.set(5, 1.5);
+  rough.anisotropy = 8;
+  const col = rough.clone();
+  col.colorSpace = THREE.SRGBColorSpace;
+  col.needsUpdate = true;
+  return { rough, col };
+}
 
 function threadTexture() {
   const c = document.createElement('canvas');
@@ -57,10 +94,14 @@ export function buildFrame({ zT, mobile = false }) {
   const Lb = coreHalfW * 2 + 0.7; // beam length: overhangs the core at both ends
   const seg = mobile ? 16 : 28;
 
+  // Galvanised steel, not paint: fully metallic (blender-materials: metallic is a switch),
+  // light zinc reflectance, spangle roughness. Flat white paint on sharp boxes read as card.
+  const spangle = spangleTextures();
   const paint = new THREE.MeshPhysicalMaterial({
-    color: 0xf0f1f2, metalness: 0, roughness: 0.4, clearcoat: 0.5, clearcoatRoughness: 0.2,
+    color: new THREE.Color().setRGB(0.66, 0.67, 0.69), map: spangle.col,
+    metalness: 1, roughness: 0.42, roughnessMap: spangle.rough,
   });
-  const zinc = new THREE.MeshPhysicalMaterial({ color: 0xc9cdd3, metalness: 1, roughness: 0.3 });
+  const zinc = new THREE.MeshPhysicalMaterial({ color: new THREE.Color().setRGB(0.72, 0.73, 0.75), metalness: 1, roughness: 0.24 });
   const thread = threadTexture();
   const rodMat = zinc.clone();
   rodMat.bumpMap = thread;
@@ -70,7 +111,8 @@ export function buildFrame({ zT, mobile = false }) {
 
   const mats = [paint, zinc, rodMat, black];
   const shadowed = (m) => { m.castShadow = true; m.receiveShadow = true; return m; };
-  const box = (w, h, d, mat) => shadowed(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat));
+  // rolled and cut steel never has knife edges: a small radius catches a line of light
+  const box = (w, h, d, mat) => shadowed(new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 2, Math.min(0.012, Math.min(w, h, d) * 0.3)), mat));
   const nutGeo = new THREE.CylinderGeometry(F.nutR, F.nutR, 0.06, 6);
   const washerGeo = new THREE.CylinderGeometry(F.nutR * 1.25, F.nutR * 1.25, 0.012, seg);
   const nut = () => shadowed(new THREE.Mesh(nutGeo, zinc));
@@ -228,6 +270,6 @@ export function buildFrame({ zT, mobile = false }) {
 
   return {
     group, beams, bolts, ties, rods, feet, lug, mats,
-    dispose() { thread.dispose(); nutGeo.dispose(); washerGeo.dispose(); },
+    dispose() { thread.dispose(); spangle.rough.dispose(); spangle.col.dispose(); nutGeo.dispose(); washerGeo.dispose(); },
   };
 }

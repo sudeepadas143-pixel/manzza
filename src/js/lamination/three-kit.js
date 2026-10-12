@@ -166,7 +166,11 @@ export function createSteelMaterial(uniforms, opts = {}) {
       .replace('#include <common>', `#include <common>
         varying float vSide; uniform float uEdge; uniform vec3 uEdgeColor; uniform float uDim; uniform float uFade; uniform vec3 uFadeColor;`)
       .replace('#include <color_fragment>', `#include <color_fragment>
-        diffuseColor.rgb *= mix(1.0, 0.55, min(vSide, 1.0)) * uDim;`)
+        diffuseColor.rgb *= mix(1.0, 0.42, min(vSide, 1.0)) * uDim;`)
+      // the cut edge of a stack is hundreds of sheared sheet edges: darker and far less
+      // mirror-like than the rolled faces
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        roughnessFactor = min(1.0, roughnessFactor + 0.32 * min(vSide, 1.0));`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         totalEmissiveRadiance += uEdgeColor * uEdge * (vSide > 1.5 ? 1.0 : 0.12 * vSide);`)
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>

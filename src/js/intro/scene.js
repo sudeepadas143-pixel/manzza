@@ -421,6 +421,11 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
     /* lights up: the M (HTML) dissolves into the coil's end face */
     const lights = smooth(seg(p, 0.06, 0.13));
     setLights(lights);
+    // The studio turns with the story: a soft box faces the coil's end at the start; by the
+    // time the core stands, its polished faces see the darker side of the room (grey steel,
+    // not a white glare), and a slow drift at the close slides a highlight across the core.
+    scene.environmentRotation.y = STUDIO_HDRI.rotation
+      + 2.2 * smooth(seg(p, 0.45, 0.7)) - 0.3 * smooth(seg(p, 0.86, 1));
     // the M collapses into the bore as a flash of the brand's blue
     const sp = Math.sin(Math.PI * seg(p, 0.085, 0.16));
     spark.intensity = 4 * sp * sp;
