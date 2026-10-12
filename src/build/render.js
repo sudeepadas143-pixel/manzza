@@ -595,7 +595,6 @@ function materialsDetail(d) {
       <dl class="mat__specs">
         <div><dt>Thickness</dt><dd class="num">${esc(m.thickness)}</dd></div>
         <div><dt>Grades</dt><dd>${esc(m.grades)}</dd></div>
-        <div><dt>Used for</dt><dd>${esc(d.products.filter((p) => p.materials.includes(m.code)).map((p) => p.name).join(', '))}</dd></div>
       </dl>
     </article>`).join('')}</div>`;
 }
@@ -664,7 +663,6 @@ function quoteForm(d) {
       <p class="label" id="lbl-material">Material <span class="req">required</span></p>
       <div class="choices choices--3">
         ${d.materials.map((m, i) => radio('material', m.code, m.code, m.name.replace(' electrical steel', ''), i === 0)).join('')}
-        ${radio('material', 'Not sure', 'Not sure yet', 'We can advise', false)}
       </div>
     </div>
     <div class="fgrid">
@@ -730,7 +728,7 @@ function contactCard(d) {
       <h2 class="qside__h">What happens next</h2>
       <ol class="next">
         <li><span><strong>We read your drawing.</strong> We check feasibility, material and thickness.</span></li>
-        <li><span><strong>We ask if anything is unclear.</strong> An engineer may call or email you.</span></li>
+        <li><span><strong>We ask if anything is unclear.</strong> We may call or email you.</span></li>
         <li><span><strong>You receive a quotation.</strong> Prepared for your drawing and quantity.</span></li>
       </ol>
     </div>

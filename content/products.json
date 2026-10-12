@@ -10,39 +10,88 @@
       "flagship": true,
       "visual": "core",
       "cardVisual": "mitre-corner",
-      "cardLine": "45° mitre-cut CRGO laminations for step-lap transformer cores.",
+      "cardLine": "Mitre-cut electrical steel laminations for step-lap transformer cores.",
       "seo": {
         "title": "Mitre Core & Step-Lap Laminations | MANZZA, Bengaluru",
-        "description": "Mitre-cut CRGO step-lap laminations for distribution and power transformer cores, made to your drawing by MANZZA Industry in Bengaluru."
+        "description": "Mitre-cut step-lap laminations for distribution and power transformer cores, made to your drawing by MANZZA Industry in Bengaluru."
       },
       "headline": "Mitre core laminations, cut for step-lap.",
       "intro": "Electrical steel laminations with 45° mitre ends, cut to your drawing and supplied for step-lap stacking. From one layer to the next, the joint position moves by a small step, so neighbouring joints do not line up. This is our flagship product, made for distribution and power transformers.",
       "facts": [
-        { "label": "Material", "value": "CRGO" },
-        { "label": "Thickness", "value": "0.20 mm to 0.35 mm" },
-        { "label": "Transformer ratings", "value": "Approx. 16 kVA to 16 MVA", "note": "Subject to design and customer requirements" },
-        { "label": "Made to", "value": "Your drawing and specification" }
+        {
+          "label": "Material",
+          "value": "CRGO or CRNO, to your specification"
+        },
+        {
+          "label": "Thickness",
+          "value": "Per the material and your specification"
+        },
+        {
+          "label": "Transformer ratings",
+          "value": "Approx. 16 kVA to 16 MVA",
+          "note": "Subject to design and customer requirements"
+        },
+        {
+          "label": "Made to",
+          "value": "Your drawing and specification"
+        }
       ],
       "applications": [
         "Distribution transformer cores",
         "Power transformer cores, subject to design",
         "Three-limb mitre cores and other configurations to your drawing"
       ],
-      "materials": ["CRGO"],
+      "materials": [
+        "CRGO",
+        "CRNO"
+      ],
       "customisation": [
-        { "title": "Lamination dimensions", "text": "Width and length of every limb and yoke lamination, as drawn." },
-        { "title": "Mitre geometry", "text": "45° mitre corners, a diamond-tip centre limb and V-notch yokes, cut to your core design." },
-        { "title": "Step-lap arrangement", "text": "Step sequence and step offset to your design, with laminations sorted for stacking." },
-        { "title": "Holes", "text": "Holes punched where your drawing specifies them." },
-        { "title": "Material, thickness, grade", "text": "CRGO thickness and grade to your specification, subject to availability." },
-        { "title": "Stacking support", "text": "Core stacking support and packet building, by arrangement." }
+        {
+          "title": "Lamination dimensions",
+          "text": "Width and length of every limb and yoke lamination, as drawn."
+        },
+        {
+          "title": "Mitre geometry",
+          "text": "45° mitre corners, a diamond-tip centre limb and V-notch yokes, cut to your core design."
+        },
+        {
+          "title": "Step-lap arrangement",
+          "text": "Step sequence and step offset to your design, with laminations sorted for stacking."
+        },
+        {
+          "title": "Holes",
+          "text": "Holes punched where your drawing specifies them."
+        },
+        {
+          "title": "Material, thickness, grade",
+          "text": "To your specification, subject to availability."
+        },
+        {
+          "title": "Stacking support",
+          "text": "Core stacking support for step-lap core construction."
+        }
       ],
       "send": [
-        { "title": "Core drawing", "text": "Lamination drawing or core layout, with dimensions (PDF, DWG or DXF)." },
-        { "title": "Material and grade", "text": "CRGO grade, or the loss requirement you are designing to." },
-        { "title": "Thickness", "text": "Lamination thickness in mm." },
-        { "title": "Quantity", "text": "Tonnes or number of core sets, and how often you order." },
-        { "title": "Transformer rating", "text": "Optional, but it helps us understand the core." }
+        {
+          "title": "Core drawing",
+          "text": "Lamination drawing or core layout, with dimensions (PDF, DWG or DXF)."
+        },
+        {
+          "title": "Material and grade",
+          "text": "CRGO or CRNO, and the grade."
+        },
+        {
+          "title": "Thickness",
+          "text": "Lamination thickness in mm."
+        },
+        {
+          "title": "Quantity",
+          "text": "Tonnes or number of core sets, and how often you order."
+        },
+        {
+          "title": "Transformer rating",
+          "text": "Optional, but it helps us understand the core."
+        }
       ],
       "diagram": true
     },
@@ -63,29 +112,71 @@
       "headline": "E&I laminations, standard or to your drawing.",
       "intro": "E-shaped and I-shaped electrical steel laminations, punched to standard sizes or to your own dimensions. When a size is not standard, we work from your drawing and arrange the tooling for it.",
       "facts": [
-        { "label": "Material", "value": "CRGO or CRNO" },
-        { "label": "Sizes", "value": "Standard sizes and custom dimensions" },
-        { "label": "Tooling", "value": "Custom tooling for non-standard sizes" },
-        { "label": "Made to", "value": "Your drawing and specification" }
+        {
+          "label": "Material",
+          "value": "CRGO or CRNO"
+        },
+        {
+          "label": "Sizes",
+          "value": "Standard sizes and custom dimensions"
+        },
+        {
+          "label": "Tooling",
+          "value": "Custom tooling for non-standard sizes"
+        },
+        {
+          "label": "Made to",
+          "value": "Your drawing and specification"
+        }
       ],
       "applications": [
-        "Cores built from interleaved E and I laminations",
-        "Small and single-phase transformers",
-        "Other applications to your specification"
+        "Transformer core assemblies",
+        "Standard sizes for common requirements",
+        "Custom dimensions and tooling for specific applications"
       ],
-      "materials": ["CRGO", "CRNO"],
+      "materials": [
+        "CRGO",
+        "CRNO"
+      ],
       "customisation": [
-        { "title": "Standard sizes", "text": "Tell us the size you use and we will confirm it against your drawing." },
-        { "title": "Custom dimensions", "text": "Tongue width, window, leg and overall dimensions to your design." },
-        { "title": "Custom tooling", "text": "Tooling arranged for sizes that are not standard." },
-        { "title": "Holes and slots", "text": "Punched where your drawing specifies them." },
-        { "title": "Material, thickness, grade", "text": "CRGO or CRNO to your specification, subject to availability." }
+        {
+          "title": "Standard sizes",
+          "text": "Tell us the size you use and we will confirm it against your drawing."
+        },
+        {
+          "title": "Custom dimensions",
+          "text": "Dimensions to your design."
+        },
+        {
+          "title": "Custom tooling",
+          "text": "Tooling arranged for sizes that are not standard."
+        },
+        {
+          "title": "Holes and slots",
+          "text": "Punched where your drawing specifies them."
+        },
+        {
+          "title": "Material, thickness, grade",
+          "text": "CRGO or CRNO to your specification, subject to availability."
+        }
       ],
       "send": [
-        { "title": "Drawing or size", "text": "A drawing with dimensions, or the standard size you use." },
-        { "title": "Material and grade", "text": "CRGO or CRNO, and the grade." },
-        { "title": "Thickness", "text": "Lamination thickness in mm." },
-        { "title": "Quantity", "text": "Quantity and how often you order." }
+        {
+          "title": "Drawing or size",
+          "text": "A drawing with dimensions, or the standard size you use."
+        },
+        {
+          "title": "Material and grade",
+          "text": "CRGO or CRNO, and the grade."
+        },
+        {
+          "title": "Thickness",
+          "text": "Lamination thickness in mm."
+        },
+        {
+          "title": "Quantity",
+          "text": "Quantity and how often you order."
+        }
       ],
       "diagram": false
     },
@@ -104,30 +195,69 @@
         "description": "Custom electrical steel strip laminations in CRGO and CRNO, cut to width, length and profile with custom hole punching. MANZZA Industry, Bengaluru."
       },
       "headline": "Strip laminations, cut to width, length and profile.",
-      "intro": "Electrical steel strips cut to the width, length and end profile on your drawing, with holes punched wherever you need them.",
+      "intro": "Electrical steel strips cut to the width, length and profile on your drawing, with holes punched where required.",
       "facts": [
-        { "label": "Material", "value": "CRGO or CRNO" },
-        { "label": "Cut to", "value": "Your width, length and profile" },
-        { "label": "Holes", "value": "Custom hole punching" },
-        { "label": "Made to", "value": "Your drawing and specification" }
+        {
+          "label": "Material",
+          "value": "CRGO or CRNO"
+        },
+        {
+          "label": "Cut to",
+          "value": "Your width, length and profile"
+        },
+        {
+          "label": "Holes",
+          "value": "Custom hole punching"
+        },
+        {
+          "label": "Made to",
+          "value": "Your drawing and specification"
+        }
       ],
       "applications": [
-        "Transformer core building to your own design",
-        "Cores stacked from strips in your own facility",
-        "Other electrical applications in CRNO"
+        "Industrial electrical applications that use strip-form laminations",
+        "Transformer-related applications",
+        "Made to your drawing, dimensions and tooling"
       ],
-      "materials": ["CRGO", "CRNO"],
+      "materials": [
+        "CRGO",
+        "CRNO"
+      ],
       "customisation": [
-        { "title": "Width and length", "text": "Each strip cut to the width and length on your drawing." },
-        { "title": "End profile", "text": "Square, mitred or a profile of your own." },
-        { "title": "Hole punching", "text": "Hole positions and sizes as drawn." },
-        { "title": "Material, thickness, grade", "text": "CRGO or CRNO to your specification, subject to availability." }
+        {
+          "title": "Width and length",
+          "text": "Each strip cut to the width and length on your drawing."
+        },
+        {
+          "title": "Profile",
+          "text": "The profile on your drawing."
+        },
+        {
+          "title": "Hole punching",
+          "text": "Hole positions and sizes as drawn."
+        },
+        {
+          "title": "Material, thickness, grade",
+          "text": "CRGO or CRNO to your specification, subject to availability."
+        }
       ],
       "send": [
-        { "title": "Drawing", "text": "Strip drawing with width, length, profile and hole positions." },
-        { "title": "Material and grade", "text": "CRGO or CRNO, and the grade." },
-        { "title": "Thickness", "text": "Strip thickness in mm." },
-        { "title": "Quantity", "text": "Quantity and how often you order." }
+        {
+          "title": "Drawing",
+          "text": "Strip drawing with width, length, profile and hole positions."
+        },
+        {
+          "title": "Material and grade",
+          "text": "CRGO or CRNO, and the grade."
+        },
+        {
+          "title": "Thickness",
+          "text": "Strip thickness in mm."
+        },
+        {
+          "title": "Quantity",
+          "text": "Quantity and how often you order."
+        }
       ],
       "diagram": false
     }

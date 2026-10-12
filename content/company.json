@@ -1,6 +1,6 @@
 {
   "_readme": "Company copy used on the home page and elsewhere. Edit text freely; keep the keys. Do not add certifications, figures or client names that MANZZA cannot back up.",
-  "about": "MANZZA Industry Pvt. Ltd. is a Bengaluru manufacturer of transformer core laminations. We cut, punch and prepare CRGO and CRNO electrical steel to our customers' drawings: mitre step-lap laminations, E&I laminations and strip laminations. We supply transformer manufacturers across Karnataka, Andhra Pradesh, Telangana and Tamil Nadu, and we keep to one job: transformer core laminations, made to drawing.",
+  "about": "MANZZA Industry Pvt. Ltd. is a Bengaluru manufacturer of transformer core laminations. We cut, punch and prepare CRGO and CRNO electrical steel to our customers' drawings: mitre step-lap laminations, E&I laminations and strip laminations. We supply transformer manufacturers across Karnataka, Andhra Pradesh, Telangana and Tamil Nadu.",
   "intro": {
     "headline": "Transformer core laminations, cut to your drawing in Bengaluru.",
     "lede": "Mitre step-lap, E&I and strip laminations in CRGO and CRNO electrical steel, for transformer manufacturers across Karnataka, Andhra Pradesh, Telangana and Tamil Nadu."
@@ -20,29 +20,33 @@
     },
     {
       "step": "Stack",
-      "text": "Core stacking support: laminations sorted and packets built to your design."
+      "text": "Step-lap processing and core stacking support for mitre-core construction."
     }
   ],
   "quality": [
     {
       "title": "Dimensional accuracy",
-      "text": "Laminations cut accurately to the dimensions on your drawing."
+      "text": "Laminations manufactured to agreed drawings and specifications."
+    },
+    {
+      "title": "Material traceability",
+      "text": "Where applicable, material grades and batch information linked to incoming material documentation."
     },
     {
       "title": "Repeatability",
-      "text": "Repeat orders cut to the same drawing, the same way."
+      "text": "Consistent manufacturing for recurring customer orders."
     },
     {
-      "title": "Mitre geometry",
-      "text": "Attention to the 45° corners and the step-lap arrangement."
+      "title": "Core construction accuracy",
+      "text": "Particular attention to mitre geometry and step-lap arrangements."
     },
     {
-      "title": "Traceability",
-      "text": "Material traceability where applicable."
+      "title": "Specification-led production",
+      "text": "Material and component requirements set against customer drawings and agreed tolerances."
     },
     {
       "title": "Technical collaboration",
-      "text": "We work through drawings and feasibility with your engineers before cutting."
+      "text": "Working with customers to clarify drawings, dimensions, material specifications and manufacturing feasibility."
     }
   ],
   "customers": [

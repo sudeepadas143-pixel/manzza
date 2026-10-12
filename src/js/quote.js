@@ -29,7 +29,7 @@ if (form) {
     email: 'Please enter a valid email address, for example name@company.com.',
     phone: 'Please enter a phone number we can reach you on.',
     product: 'Please choose a product.',
-    material: 'Please choose a material, or "Not sure yet".',
+    material: 'Please choose CRGO or CRNO.',
     quantity: 'Please give an estimated quantity.',
   };
 
