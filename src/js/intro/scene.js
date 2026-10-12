@@ -189,6 +189,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
     coil.userData.outer = outer;
     coil.userData.endMat = endMat;
     coilMats.push(outerMat, boreMat, endMat);
+    for (const m of [outerMat, boreMat, endMat]) m.transparent = true; // fixed, so the fade-out needs no shader swap
   }
   scene.add(coil);
   // the strip being wound on: it feeds in over the top of the coil from the right
@@ -216,6 +217,9 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
   const sheetMat = createSteelMaterial(uniforms, SHEET);
   sheetMat.clippingPlanes = [clip];
   sheetMat.clipShadows = true;
+  // always transparent: toggling it swaps the shader variant (an opaque shader forces
+  // alpha to 1), which made the fade invisible and the sheets vanish in one frame
+  sheetMat.transparent = true;
   const offcutMat = createSteelMaterial(uniforms, SHEET);
   offcutMat.clippingPlanes = [clip];
   offcutMat.clipShadows = true;
@@ -450,7 +454,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
     const coilFade = 1 - smooth(seg(p, 0.375, 0.42));
     if (coilFade !== coilFadeLast) {
       coilFadeLast = coilFade;
-      for (const m of coilMats) { m.transparent = coilFade < 1; m.opacity = coilFade; }
+      for (const m of coilMats) m.opacity = coilFade;
     }
 
     /* sheet */
@@ -517,7 +521,6 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
       lam.scale.x = lerp(1, tg.len, e);
       lam.visible = merge < 1;
     });
-    sheetMat.transparent = merge > 0;
     sheetMat.opacity = 1 - merge;
 
     /* core: stacking */
@@ -625,8 +628,6 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
   // everything visible, so nothing stalls the first time it appears mid-scroll.
   scene.traverse((o) => { o.visible = true; });
   setLights(1);
-  for (const m of coilMats) { m.transparent = true; }
-  sheetMat.transparent = true;
   placeCamera(0.6);
   renderer.setSize(64, 64, false);
   renderer.render(scene, camera);
