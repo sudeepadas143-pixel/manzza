@@ -326,6 +326,7 @@ function intro(d) {
       </div>
       <img class="intro__m" src="/brand/manzza-m.webp" alt="" width="430" height="360" fetchpriority="high">
     </div>
+    <p class="intro__tagline" aria-hidden="true">${esc(d.config.company.tagline)}</p>
   </div>
 </section>`;
 }

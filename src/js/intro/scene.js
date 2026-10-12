@@ -13,14 +13,14 @@
  *
  * Beats (keep in sync with ./index.js):
  *   0.00–0.075 the logo (HTML): the wordmark leaves, the M takes the centre
- *   0.075–0.13 the M becomes the end face of a coil as the lights come up
+ *   0.075–0.16 the M shrinks into the bore of a coil that winds itself up around it
  *   0.13–0.22  the camera comes round to the coil
  *   0.22–0.38  the coil rolls out a sheet; slitting into strips
  *   0.38–0.50  45° mitre cuts
  *   0.50–0.62  the four laminations take their places in the core; the packets stack
  *   0.62–0.70  the core is stood up and raised onto its feet
  *   0.70–0.92  the clamping frame assembles: clamps, bolts, tie rods, nuts, lug
- *   0.92–1.00  the finished core, turning under the lights
+ *   0.92–1.00  the finished core, turning under the lights; the tagline (HTML)
  */
 import * as THREE from 'three';
 import {
@@ -103,7 +103,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
 
   const uniforms = createSteelUniforms();
   // a touch darker than raw steel: the insulation coating, and contrast with the painted frame
-  const STEEL = { color: new THREE.Color(0x9ba2ab) };
+  const STEEL = { color: new THREE.Color(0x8a919a) };
   const steel = createSteelMaterial(uniforms, STEEL);
 
   const W0 = 0.95; // widest lamination = strip width
@@ -119,9 +119,11 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     const tex = brushedTexture().clone();
     tex.repeat.set(6, 1);
     tex.needsUpdate = true;
+    // dark rolled steel, not a pale roll: low albedo, strong metallic reflections
     const outerMat = new THREE.MeshPhysicalMaterial({
-      color: 0xb3bac4, metalness: 0.9, roughness: 0.32, roughnessMap: tex,
-      anisotropy: 0.7, clearcoat: 0.3, clearcoatRoughness: 0.3,
+      color: 0x5c626a, metalness: 0.96, roughness: 0.34, roughnessMap: tex,
+      anisotropy: 0.4, clearcoat: 0.05, clearcoatRoughness: 0.4,
+      envMapIntensity: 0.45, // the soft boxes read as a sheen on dark steel, not a white wash
     });
     const outer = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(R, R, CW, mobile ? 96 : 160, 1, true), outerMat));
     outer.rotation.x = Math.PI / 2;
@@ -133,19 +135,32 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     c.width = c.height = mobile ? 1024 : 2048;
     const g = c.getContext('2d');
     const S = c.width / 2;
-    g.fillStyle = '#a3abb7'; g.fillRect(0, 0, c.width, c.height);
-    const wraps = mobile ? 70 : 140;
+    g.fillStyle = '#4c525b'; g.fillRect(0, 0, c.width, c.height);
+    const wraps = mobile ? 90 : 180;
+    let seed = 11;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
     for (let i = 0; i <= wraps; i++) {
       const rr = (r / R + (1 - r / R) * (i / wraps)) * S;
       g.beginPath(); g.arc(S, S, rr, 0, Math.PI * 2);
-      g.strokeStyle = i % 2 ? 'rgba(40,46,58,0.45)' : 'rgba(235,240,248,0.35)';
-      g.lineWidth = Math.max(1, (S / wraps) * 0.3);
+      // each wrap's edge catches the light a little differently
+      g.strokeStyle = i % 2 ? `rgba(14,17,22,${0.45 + rnd() * 0.25})` : `rgba(196,204,214,${0.12 + rnd() * 0.18})`;
+      g.lineWidth = Math.max(1, (S / wraps) * (0.25 + rnd() * 0.2));
       g.stroke();
     }
     const ringTex = new THREE.CanvasTexture(c);
     ringTex.colorSpace = THREE.SRGBColorSpace;
     ringTex.anisotropy = 8;
-    const endMat = new THREE.MeshPhysicalMaterial({ map: ringTex, metalness: 0.55, roughness: 0.42, clearcoat: 0.2, clearcoatRoughness: 0.4 });
+    const endMat = new THREE.MeshPhysicalMaterial({ map: ringTex, metalness: 0.8, roughness: 0.34, clearcoat: 0.25, clearcoatRoughness: 0.35 });
+    // winding: the end faces show only the wraps laid so far (radius <= uWind)
+    endMat.userData.wind = { value: R };
+    endMat.onBeforeCompile = (sh) => {
+      sh.uniforms.uWind = endMat.userData.wind;
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vRad;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRad = length(position.xy);');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vRad; uniform float uWind;')
+        .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nif (vRad > uWind) discard;');
+    };
+    endMat.customProgramCacheKey = () => 'coil-end';
     const endA = shadowed(new THREE.Mesh(new THREE.RingGeometry(r, R, mobile ? 96 : 160, 1), endMat));
     endA.position.z = CW / 2;
     const endB = endA.clone();
@@ -155,9 +170,18 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     spin.add(outer, bore, endA, endB);
     coil.add(spin);
     coil.userData.spin = spin;
+    coil.userData.outer = outer;
+    coil.userData.endMat = endMat;
     coilMats.push(outerMat, boreMat, endMat);
   }
   scene.add(coil);
+  // the strip being wound on: it feeds in over the top of the coil from the right
+  const feedMat = createSteelMaterial(uniforms, { color: new THREE.Color(0x6a7079), clearcoat: 0.1, envMapIntensity: 0.5 });
+  const feedGeo = new THREE.PlaneGeometry(9, CW);
+  feedGeo.rotateX(-Math.PI / 2);
+  feedGeo.translate(4.5, 0, 0);
+  const feed = shadowed(new THREE.Mesh(feedGeo, feedMat), false);
+  coil.add(feed);
 
   /* ---------------------------------------------- sheet → strips → laminations */
   // 2D layout: x along the strip (rolling direction), y across. Group is laid
@@ -172,10 +196,11 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   scene.add(strips);
 
   const clip = new THREE.Plane(new THREE.Vector3(1, 0, 0), -XS1); // keeps x >= the coil's position
-  const sheetMat = createSteelMaterial(uniforms, STEEL);
+  const SHEET = { color: new THREE.Color(0x6a7079), clearcoat: 0.1, envMapIntensity: 0.5 }; // fresh-cut sheet: darker, less glossy than a white roll
+  const sheetMat = createSteelMaterial(uniforms, SHEET);
   sheetMat.clippingPlanes = [clip];
   sheetMat.clipShadows = true;
-  const offcutMat = createSteelMaterial(uniforms, STEEL);
+  const offcutMat = createSteelMaterial(uniforms, SHEET);
   offcutMat.clippingPlanes = [clip];
   offcutMat.clipShadows = true;
   offcutMat.transparent = true;
@@ -306,7 +331,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   // camera glides through each one instead of stopping at it.
   const KEYS = [
     [0.0, [3.4, 1.0, 10.6], [3.4, 1.0, 0]],
-    [0.12, [3.4, 1.0, 10.6], [3.4, 1.0, 0]],
+    [0.155, [3.4, 1.0, 10.6], [3.4, 1.0, 0]],
     [0.215, [5.4, 2.4, 8.0], [3.4, 0.95, 0]],
     [0.31, [0.9, 6.4, 9.6], [0.1, 0, 0.3]],
     [0.37, [1.2, 7.6, 7.4], [0.6, 0, 0.2]],
@@ -316,8 +341,8 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     [0.63, [4.6, 4.8, 8.6], [0, 0.6, 0.8]],
     [0.71, [5.8, 3.4, 11.6], [0, 2.1, 2.0]],
     [0.8, [3.0, 3.7, 12.6], [0, 2.45, 2.0]],
-    [0.9, [-3.6, 3.9, 12.8], [0, 2.4, 2.0]],
-    [1.0, [-5.2, 4.1, 11.2], [0, 2.3, 2.0]],
+    [0.9, [-3.8, 3.6, 13.8], [0, 1.9, 2.0]],
+    [1.0, [-5.8, 3.3, 13.6], [0, 1.25, 2.0]],
   ];
   const holdEnd = 1; // keys[0..1] are a hold: keep that stretch still
   const camPath = new THREE.CatmullRomCurve3(KEYS.slice(holdEnd).map((k) => new THREE.Vector3(...k[1])), false, 'centripetal');
@@ -364,7 +389,17 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   const v3 = new THREE.Vector3();
   let coilFadeLast = -1;
 
+  // Bare steel (coil, sheet) reflects the studio at reduced strength. three.js only
+  // honours a material's own envMapIntensity when the material carries the envMap
+  // itself, so these get it explicitly and follow the lights-up ramp by hand.
+  const dimSteel = [coilMats[0], sheetMat, offcutMat, feedMat].map((m) => {
+    const base = m.envMapIntensity;
+    m.envMap = envTex;
+    return { m, base };
+  });
+
   function setLights(level) {
+    for (const d of dimSteel) d.m.envMapIntensity = d.base * level * LIGHT.env;
     key.intensity = LIGHT.key * level;
     rim.intensity = LIGHT.rim * level;
     fill.intensity = LIGHT.fill * level;
@@ -375,11 +410,15 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
 
   function update(p) {
     /* lights up: the M (HTML) dissolves into the coil's end face */
-    const lights = smooth(seg(p, 0.07, 0.14));
+    const lights = smooth(seg(p, 0.06, 0.13));
     setLights(lights);
-    const sp = Math.sin(Math.PI * seg(p, 0.06, 0.135));
-    spark.intensity = 6 * sp * sp;
-    spark.position.set(XS1 + 1.5, R + 1.3, CW / 2 + 0.5);
+    // the coil and sheet chapters are lit lower, so bare steel stays dark and metallic;
+    // the key comes up to full for the painted frame
+    key.intensity *= lerp(0.5, 1, smooth(seg(p, 0.5, 0.62)));
+    // the M collapses into the bore as a flash of the brand's blue
+    const sp = Math.sin(Math.PI * seg(p, 0.085, 0.16));
+    spark.intensity = 4 * sp * sp;
+    spark.position.set(XS1, R, CW / 2 + 0.7);
 
     /* coil: rolls left laying the sheet, then rolls away */
     const roll = easeInOut(seg(p, 0.22, 0.31));
@@ -388,7 +427,15 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     coil.visible = away < 1;
     coil.position.set(coilX, R + 0.002, 0);
     // a slow turn while it waits; rolling without slipping: angle = distance / radius
-    coil.userData.spin.rotation.z = seg(p, 0.0, 0.21) * 0.8 + (XS1 - coilX) / R;
+    // winding: wraps build outward from the bore while the strip feeds in
+    const wind = easeInOut(seg(p, 0.075, 0.16));
+    const curR = lerp(r + 0.015, R, wind);
+    coil.userData.outer.scale.set(curR / R, 1, curR / R);
+    coil.userData.endMat.userData.wind.value = curR + 0.001;
+    feed.visible = wind > 0 && wind < 1;
+    feed.position.set(0, curR + 0.002, 0);
+    feed.scale.x = Math.max(0.0001, 1 - wind); // the tail runs onto the coil as it finishes
+    coil.userData.spin.rotation.z = wind * 9 + seg(p, 0.16, 0.21) * 0.6 + (XS1 - coilX) / R;
     const coilFade = 1 - smooth(seg(p, 0.375, 0.42));
     if (coilFade !== coilFadeLast) {
       coilFadeLast = coilFade;

@@ -36,6 +36,7 @@ export async function initIntro(section) {
   const lockup = section.querySelector('.intro__lockup');
   const word = section.querySelector('.intro__word');
   const mark = section.querySelector('.intro__m');
+  const tagline = section.querySelector('.intro__tagline');
   const framesEl = section.querySelector('.intro__frames');
 
   if (prefersReduced()) {
@@ -112,13 +113,21 @@ export async function initIntro(section) {
     const wordOut = smooth(seg(p, 0.012, 0.05));
     word.style.opacity = (1 - wordOut).toFixed(3);
     word.style.transform = `translate3d(${(wordOut * 3).toFixed(2)}%, 0, 0)`;
-    // then it dissolves into the coil as the studio lights come up
-    const dissolve = smooth(seg(p, 0.085, 0.13));
-    const s = lerp(1, geo.k, go) * (1 + dissolve * 0.06);
+    // then it shrinks into the bore of the coil that winds up around it, and is gone
+    const into = smooth(seg(p, 0.075, 0.14));
+    const dissolve = smooth(seg(p, 0.11, 0.15));
+    const s = lerp(1, geo.k, go) * lerp(1, 0.34, into);
     mark.style.transform = `translate3d(${(geo.dx * go).toFixed(1)}px, ${(geo.dy * go).toFixed(1)}px, 0) scale(${s.toFixed(4)})`;
     mark.style.opacity = (1 - dissolve).toFixed(3);
     const hidden = dissolve >= 1;
     if (mark.hidden !== hidden) { mark.hidden = hidden; word.hidden = hidden; }
+
+    // the close: the tagline settles in under the finished core
+    if (tagline) {
+      const t = smooth(seg(p, 0.93, 0.985));
+      tagline.style.opacity = t.toFixed(3);
+      tagline.style.transform = `translate3d(0, ${((1 - t) * 14).toFixed(1)}px, 0)`;
+    }
 
     if (scene) {
       scene.update(p);

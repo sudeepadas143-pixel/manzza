@@ -692,6 +692,15 @@ html.menu-open { overflow: hidden; }
 .intro__m { position: absolute; left: 0; top: 0; width: 0; height: 0; mix-blend-mode: screen; transform-origin: 50% 50%; display: none; }
 .intro__m[hidden], .intro__word[hidden] { visibility: hidden; }
 
+/* the close: the tagline under the finished core */
+.intro__tagline {
+  position: absolute; left: 0; right: 0; bottom: max(5.5vh, 32px); margin: 0; padding: 0 var(--gutter);
+  text-align: center; pointer-events: none; opacity: 0;
+  font-size: clamp(2rem, 5.2vw, 4.25rem); font-weight: 600; letter-spacing: -0.035em; line-height: 1.05;
+  background: linear-gradient(180deg, var(--steel-50) 15%, var(--steel-300) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+}
+.intro:not(.intro--live) .intro__tagline { display: none; }
+
 /* static (no JS, reduced motion): the logo, whole */
 .intro__stage { min-height: min(78svh, 760px); }
 
