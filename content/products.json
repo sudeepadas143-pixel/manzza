@@ -6,17 +6,17 @@
       "name": "Mitre core laminations",
       "nameLong": "Mitre core laminations (step-lap)",
       "navLabel": "Mitre core (step-lap)",
-      "navNote": "Flagship · distribution and power transformers",
+      "navNote": "Core product · distribution and power transformers",
       "flagship": true,
       "visual": "core",
       "cardVisual": "mitre-corner",
-      "cardLine": "Mitre-cut electrical steel laminations for step-lap transformer cores.",
+      "cardLine": "Mitre-cut electrical steel laminations, including step-lap construction.",
       "seo": {
         "title": "Mitre Core & Step-Lap Laminations | MANZZA, Bengaluru",
         "description": "Mitre-cut step-lap laminations for distribution and power transformer cores, made to your drawing by MANZZA Industry in Bengaluru."
       },
-      "headline": "Mitre core laminations, cut for step-lap.",
-      "intro": "Electrical steel laminations with 45° mitre ends, cut to your drawing and supplied for step-lap stacking. From one layer to the next, the joint position moves by a small step, so neighbouring joints do not line up. This is our flagship product, made for distribution and power transformers.",
+      "headline": "Mitre core transformer laminations",
+      "intro": "Mitre-cut electrical steel laminations assembled into transformer core designs, including step-lap construction. Intended for transformer manufacturers producing distribution and power transformers, and designed around customer drawings, dimensions and technical specifications.",
       "facts": [
         {
           "label": "Material",
@@ -47,28 +47,28 @@
       ],
       "customisation": [
         {
-          "title": "Lamination dimensions",
-          "text": "Width and length of every limb and yoke lamination, as drawn."
+          "title": "Drawings and dimensions",
+          "text": "Designed around customer drawings, dimensions and technical specifications."
         },
         {
-          "title": "Mitre geometry",
-          "text": "45° mitre corners, a diamond-tip centre limb and V-notch yokes, cut to your core design."
+          "title": "Mitre, diamond tip and V-notch",
+          "text": "Cut to the customer's core design."
         },
         {
-          "title": "Step-lap arrangement",
-          "text": "Step sequence and step offset to your design, with laminations sorted for stacking."
+          "title": "Step-lap construction",
+          "text": "Precision cutting and accurate stacking geometry for step-lap cores."
         },
         {
-          "title": "Holes",
-          "text": "Holes punched where your drawing specifies them."
+          "title": "Bolt holes",
+          "text": "Punched to drawing."
         },
         {
           "title": "Material, thickness, grade",
-          "text": "To your specification, subject to availability."
+          "text": "CRGO or CRNO to specification, subject to availability."
         },
         {
           "title": "Stacking support",
-          "text": "Core stacking support for step-lap core construction."
+          "text": "Step-lap processing and core stacking support."
         }
       ],
       "send": [
@@ -104,13 +104,13 @@
       "flagship": false,
       "visual": "ei",
       "cardVisual": "ei",
-      "cardLine": "E-shaped and I-shaped laminations in standard sizes or your own dimensions.",
+      "cardLine": "E-shaped and I-shaped laminations in standard sizes or customized dimensions.",
       "seo": {
         "title": "E&I Laminations, Standard & Custom | MANZZA, Bengaluru",
         "description": "E&I transformer laminations in CRGO and CRNO electrical steel. Standard sizes, custom dimensions and custom tooling from MANZZA Industry, Bengaluru."
       },
-      "headline": "E&I laminations, standard or to your drawing.",
-      "intro": "E-shaped and I-shaped electrical steel laminations, punched to standard sizes or to your own dimensions. When a size is not standard, we work from your drawing and arrange the tooling for it.",
+      "headline": "E&I transformer laminations",
+      "intro": "E-shaped and I-shaped electrical steel laminations used in transformer core assemblies, in standard sizes for common requirements or customized dimensions and tooling for specific applications.",
       "facts": [
         {
           "label": "Material",
@@ -122,7 +122,7 @@
         },
         {
           "label": "Tooling",
-          "value": "Custom tooling for non-standard sizes"
+          "value": "Customized tooling for specific applications"
         },
         {
           "label": "Made to",
@@ -141,23 +141,19 @@
       "customisation": [
         {
           "title": "Standard sizes",
-          "text": "Tell us the size you use and we will confirm it against your drawing."
+          "text": "For common requirements."
         },
         {
           "title": "Custom dimensions",
-          "text": "Dimensions to your design."
+          "text": "For specific applications."
         },
         {
           "title": "Custom tooling",
-          "text": "Tooling arranged for sizes that are not standard."
-        },
-        {
-          "title": "Holes and slots",
-          "text": "Punched where your drawing specifies them."
+          "text": "For specific applications."
         },
         {
           "title": "Material, thickness, grade",
-          "text": "CRGO or CRNO to your specification, subject to availability."
+          "text": "CRGO or CRNO to specification, subject to availability."
         }
       ],
       "send": [
@@ -189,13 +185,13 @@
       "flagship": false,
       "visual": "strip",
       "cardVisual": "strip",
-      "cardLine": "Electrical steel strips cut to your width, length and profile, with holes punched to drawing.",
+      "cardLine": "Electrical steel strips to customer-specific widths, lengths and profiles, with custom hole punching.",
       "seo": {
         "title": "Electrical Steel Strip Laminations | MANZZA, Bengaluru",
         "description": "Custom electrical steel strip laminations in CRGO and CRNO, cut to width, length and profile with custom hole punching. MANZZA Industry, Bengaluru."
       },
-      "headline": "Strip laminations, cut to width, length and profile.",
-      "intro": "Electrical steel strips cut to the width, length and profile on your drawing, with holes punched where required.",
+      "headline": "Strip laminations",
+      "intro": "Electrical steel strips manufactured to customer-specific widths, lengths and profiles, with custom hole punching where required.",
       "facts": [
         {
           "label": "Material",
@@ -225,20 +221,20 @@
       ],
       "customisation": [
         {
-          "title": "Width and length",
-          "text": "Each strip cut to the width and length on your drawing."
-        },
-        {
-          "title": "Profile",
-          "text": "The profile on your drawing."
+          "title": "Width, length and profile",
+          "text": "To customer-specific requirements."
         },
         {
           "title": "Hole punching",
-          "text": "Hole positions and sizes as drawn."
+          "text": "Custom hole punching where required."
+        },
+        {
+          "title": "Drawing and tooling",
+          "text": "Made to drawing, dimensional and tooling requirements."
         },
         {
           "title": "Material, thickness, grade",
-          "text": "CRGO or CRNO to your specification, subject to availability."
+          "text": "CRGO or CRNO to specification, subject to availability."
         }
       ],
       "send": [

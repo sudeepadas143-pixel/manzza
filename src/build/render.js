@@ -423,7 +423,7 @@ const STEP_ICONS = {
 
 function process(d) {
   const steps = d.company.process.map((s, i) => `<li class="step">
-      <div class="step__icon">${STEP_ICONS[s.step] || ''}</div>
+      <div class="step__icon">${STEP_ICONS[{ 'Automated CNC cutting': 'Cut', 'Punching and hole processing': 'Punch', 'Step-lap processing and core stacking support': 'Step-lap', 'Shearing and supporting operations': 'Stack' }[s.step] || s.step] || ''}</div>
       <h3 class="step__title">${esc(s.step)}</h3>
       <p class="step__text">${esc(s.text)}</p>
     </li>`).join('');
@@ -453,8 +453,8 @@ function cta(d, a) {
   <div class="container cta__inner">
     <div class="cta__copy">
       ${eyebrow('', 'Request a quote')}
-      <h2 id="cta-h" class="cta__h">${esc(a.title || 'Send us your drawing.')}</h2>
-      <p class="cta__p">${esc(a.text || 'Tell us the product, material, thickness and quantity. We will review the drawing and come back to you with a quotation.')}</p>
+      <h2 id="cta-h" class="cta__h">${esc(a.title || 'Discuss your next requirement with our team.')}</h2>
+      <p class="cta__p">${esc(a.text || 'Submit your requirements for an individual quotation.')}</p>
     </div>
     <div class="cta__actions">
       <a class="btn btn--primary btn--lg" href="/quote${a.product ? `?product=${esc(a.product)}` : ''}">Request a quote</a>
@@ -479,31 +479,15 @@ function productPage(d, a) {
     <div class="container">
       <div class="section__head">
         ${eyebrow('', 'Core geometry')}
-        <h2 id="anatomy-h" class="h2">Mitre corners, a diamond tip and V-notch yokes.</h2>
-        <p class="lead">Every lamination in a three-limb core is one of five shapes, all cut to your drawing: two yokes, two outer limbs and a centre limb.</p>
+        <h2 id="anatomy-h" class="h2">Mitre, diamond tip and V-notch.</h2>
       </div>
       <figure class="diagram-fig diagram-fig--wide">${coreAnatomySVG({ id: 'core-anatomy' })}${coreAnatomySVG({ id: 'core-anatomy-c', compact: true })}
-        <ol class="diagram-legend"><li>Yokes, top and bottom</li><li>Limbs: two outer and one centre</li><li>Mitre corner, a 45° joint</li><li>Diamond tip of the centre limb</li><li>V-notch in the yoke, which seats the diamond tip</li><li>Bolt holes, punched to drawing</li></ol>
-        <figcaption><strong>One layer, face view.</strong> Proportions, holes and joint details follow your design.</figcaption>
+        <ol class="diagram-legend"><li>Yokes, top and bottom</li><li>Limbs: two outer and one centre</li><li>Mitre corner</li><li>Diamond tip of the centre limb</li><li>V-notch in the yoke, which seats the diamond tip</li><li>Bolt holes, punched to drawing</li></ol>
+        
       </figure>
     </div>
   </section>
-  <section class="section section--navy" aria-labelledby="joint-h">
-    <div class="container">
-      <div class="section__head">
-        ${eyebrow('', 'How a step-lap joint works')}
-        <h2 id="joint-h" class="h2">The joint moves one step with every layer.</h2>
-        <p class="lead">Grain-oriented steel carries flux best along its rolling direction. A 45° mitre lets the limb and yoke laminations meet with the grain of each running along its own length. In a step-lap core, the position of that joint moves by a small step from one layer to the next, then the sequence repeats. Because no two neighbouring joints line up, the flux reaching a joint gap can pass around it through the layers above and below.</p>
-      </div>
-      <div class="diagrams">
-        <figure class="diagram-fig">${stepLapFaceSVG({ id: 'sl-face' })}${stepLapFaceSVG({ id: 'sl-face-c', compact: true })}
-          <ol class="diagram-legend"><li>Limb lamination: grain runs along the limb</li><li>Yoke lamination: grain runs along the yoke</li><li>Joint of the top layer, a 45° mitre cut</li><li>Joints of the layers below, each moved one step along</li></ol>
-          <figcaption><strong>Face view of one corner.</strong> The top layer's joint is the bright solid line; the joints of the layers below are dashed.</figcaption></figure>
-        <figure class="diagram-fig">${stepLapSectionSVG({ id: 'sl-section' })}${stepLapSectionSVG({ id: 'sl-section-c', compact: true })}<figcaption><strong>Section through the joints.</strong> Laminations seen edge-on, thickness exaggerated.</figcaption></figure>
-      </div>
-      <p class="note">Step sequence and step offset are set by your core design. We cut and sort the laminations to match it.</p>
-    </div>
-  </section>` : '';
+` : '';
 
   return `<main id="main" class="product">
   <section class="phero">
@@ -515,7 +499,6 @@ function productPage(d, a) {
         <p class="lead">${esc(p.intro)}</p>
         <div class="btn-row">
           <a class="btn btn--primary" href="${quoteHref}">Request a quote</a>
-          <a class="btn btn--ghost" href="#send">What to send us</a>
         </div>
       </div>
       <div class="phero__visual">
@@ -529,7 +512,7 @@ function productPage(d, a) {
     <div class="container split">
       <div class="split__head">
         ${eyebrow('', 'Applications')}
-        <h2 id="apps-h" class="h2">Where it is used</h2>
+        <h2 id="apps-h" class="h2">Applications</h2>
       </div>
       <ul class="ticklist">${p.applications.map((x) => `<li>${icon.check}<span>${esc(x)}</span></li>`).join('')}</ul>
     </div>
@@ -538,7 +521,7 @@ function productPage(d, a) {
   <section class="section${p.diagram ? '' : ' section--navy'}" aria-labelledby="mat-h">
     <div class="container">
       <div class="section__head section__head--row">
-        <div>${eyebrow('', 'Material options')}<h2 id="mat-h" class="h2">Electrical steel</h2></div>
+        <div>${eyebrow('', 'Material options')}<h2 id="mat-h" class="h2">Material options</h2></div>
         <a class="textlink" href="/materials">Compare CRGO and CRNO ${icon.arrow}</a>
       </div>
       ${specTable(d, p.materials)}
@@ -550,24 +533,12 @@ function productPage(d, a) {
     <div class="container">
       <div class="section__head">
         ${eyebrow('', 'Customisation')}
-        <h2 id="cust-h" class="h2">What you can specify</h2>
+        <h2 id="cust-h" class="h2">Customisation</h2>
       </div>
       <div class="custom-grid">
         <ul class="cards">${p.customisation.map((c) => `<li class="card"><h3>${esc(c.title)}</h3><p>${esc(c.text)}</p></li>`).join('')}</ul>
         ${photo(d, { id: `product-${p.slug}`, label: `${p.name} from our line`, ratio: '4/5' })}
       </div>
-    </div>
-  </section>
-
-  <section class="section" id="send" aria-labelledby="send-h">
-    <div class="container send">
-      <div class="send__head">
-        ${eyebrow('', 'What to send us')}
-        <h2 id="send-h" class="h2">What we need to quote.</h2>
-        <p class="lead">Send what you have. If something is missing, we will ask.</p>
-        <a class="btn btn--primary" href="${quoteHref}">Request a quote</a>
-      </div>
-      <ol class="sendlist">${p.send.map((s, i) => `<li><span class="sendlist__n">${pad2(i + 1)}</span><div><h3>${esc(s.title)}</h3><p>${esc(s.text)}</p></div></li>`).join('')}</ol>
     </div>
   </section>
 
@@ -667,7 +638,7 @@ function quoteForm(d) {
     </div>
     <div class="fgrid">
       <div class="field"><label for="f-thk">Thickness (mm)</label><input id="f-thk" name="thickness" type="text" inputmode="decimal" aria-describedby="h-thk"><p class="hint" id="h-thk">${esc(thicknessHint)}</p></div>
-      <div class="field"><label for="f-grade">Grade</label><input id="f-grade" name="grade" type="text" aria-describedby="h-grade"><p class="hint" id="h-grade">If you are not sure, leave it blank.</p></div>
+      <div class="field"><label for="f-grade">Grade</label><input id="f-grade" name="grade" type="text"></div>
       <div class="field field--wide"><label for="f-rating">Transformer rating or application <span class="opt">optional</span></label><input id="f-rating" name="rating_or_application" type="text"></div>
     </div>
   </fieldset>
@@ -675,9 +646,9 @@ function quoteForm(d) {
   <fieldset class="fs">
     <legend class="fs__legend"><span class="fs__n">03</span>Quantity</legend>
     <div class="fgrid">
-      <div class="field"><label for="f-qty">Estimated quantity <span class="req">required</span></label><input id="f-qty" name="quantity" type="text" required aria-describedby="h-qty"><p class="hint" id="h-qty">In tonnes, pieces or core sets.</p></div>
+      <div class="field"><label for="f-qty">Estimated quantity <span class="req">required</span></label><input id="f-qty" name="quantity" type="text" required></div>
       <div class="field"><label for="f-freq">Order frequency</label>
-        <select id="f-freq" name="order_frequency"><option value="">Select…</option><option>One-time order</option><option>Monthly</option><option>Quarterly</option><option>Project by project</option><option>Not sure yet</option></select>
+        <input id="f-freq" name="order_frequency" type="text">
       </div>
     </div>
   </fieldset>
@@ -692,14 +663,13 @@ function quoteForm(d) {
         <span class="drop__text"><strong>Choose a file</strong> or drag it here</span>
         <span class="drop__file" data-file-name></span>
       </label>
-      <p class="hint" id="h-file">PDF, DWG, DXF, STEP, image or ZIP. For very large files, send the drawing by email instead.</p>
     </div>
     <div class="field"><label for="f-notes">Additional requirements</label><textarea id="f-notes" name="notes" rows="5"></textarea></div>
   </fieldset>
 
   <div class="qform__submit">
     <button class="btn btn--primary btn--lg" type="submit"><span class="btn__label">Send request</span></button>
-    <p class="qform__fine">We use these details only to reply to your enquiry. No prices are shown online: every quotation is prepared for your drawing.</p>
+    <p class="qform__fine">Prices are not displayed publicly. Each enquiry receives an individual quotation.</p>
   </div>
   <div class="qform__status" role="status" aria-live="polite" tabindex="-1"></div>
 </form>
@@ -707,7 +677,7 @@ function quoteForm(d) {
 <div class="qdone" id="quote-done" hidden tabindex="-1">
   <p class="qdone__mark" aria-hidden="true">${icon.check}</p>
   <h2 class="h2">Thank you. Your request has been sent.</h2>
-  <p class="lead">We will review your drawing and specification and reply by email or phone. If we need anything else, we will ask.</p>
+  <p class="lead">We will reply with an individual quotation.</p>
   <div class="btn-row"><a class="btn btn--ghost" href="/">Back to home</a><button class="btn btn--ghost" type="button" data-again>Send another request</button></div>
 </div>`;
 }
@@ -716,21 +686,13 @@ function contactCard(d) {
   const wa = whatsappHref(d, 'Hello MANZZA, I would like a quotation for laminations.');
   return `<aside class="qside">
     <div class="qside__block">
-      <h2 class="qside__h">Prefer to talk?</h2>
+      <h2 class="qside__h">Contact</h2>
       ${wa ? `<a class="btn btn--wa btn--block" href="${esc(wa)}" target="_blank" rel="noopener">${icon.wa} Chat on WhatsApp</a>` : `<p class="btn btn--wa btn--block is-disabled" aria-disabled="true">${icon.wa} WhatsApp number to be added</p>`}
       <ul class="contact-list contact-list--lg">
         <li>${icon.phone}<span>${phoneLink(d)}</span></li>
         <li>${icon.mail}<span>${emailLink(d)}</span></li>
         <li>${icon.pin}<span>${addressHTML(d)}</span></li>
       </ul>
-    </div>
-    <div class="qside__block">
-      <h2 class="qside__h">What happens next</h2>
-      <ol class="next">
-        <li><span><strong>We read your drawing.</strong> We check feasibility, material and thickness.</span></li>
-        <li><span><strong>We ask if anything is unclear.</strong> We may call or email you.</span></li>
-        <li><span><strong>You receive a quotation.</strong> Prepared for your drawing and quantity.</span></li>
-      </ol>
     </div>
   </aside>`;
 }

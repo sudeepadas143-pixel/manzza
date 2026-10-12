@@ -6,8 +6,8 @@
       "name": "Cold-Rolled Grain-Oriented electrical steel",
       "thickness": "0.20 mm to 0.35 mm",
       "grades": "70 to 120 grade, depending on specification and availability",
-      "summary": "Directional magnetic properties, which is why it is used for transformer cores.",
-      "detail": "The grains are aligned with the rolling direction, so the steel carries magnetic flux best along its length. Transformer cores are built so the flux runs with the grain, and the 45° mitre corner keeps it close to the grain as it turns from limb to yoke.",
+      "summary": "Primarily used in transformer cores because its directional magnetic properties make it suitable for efficient magnetic flux conduction.",
+      "detail": "Proper material selection and precision processing are important for achieving the required core performance.",
       "thicknessScale": {
         "from": 0.2,
         "to": 0.35
@@ -17,9 +17,9 @@
       "code": "CRNO",
       "name": "Cold-Rolled Non-Oriented electrical steel",
       "thickness": "0.35 mm and 0.50 mm",
-      "grades": "Per customer specification and availability",
-      "summary": "Properties are less direction-dependent, and it is used in other electrical applications.",
-      "detail": "Without a strongly preferred grain direction, its magnetic properties vary much less with direction across the sheet. That suits parts where the flux does not follow one fixed path.",
+      "grades": "Final grade selection is based on customer specifications and availability",
+      "summary": "Magnetic properties that are less direction-dependent than CRGO.",
+      "detail": "Used in a variety of electrical applications, depending on the design and performance requirements.",
       "thicknessScale": {
         "points": [
           0.35,
