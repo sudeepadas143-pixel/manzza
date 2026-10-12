@@ -28,7 +28,7 @@ import {
 } from '../lamination/geometry.js';
 import {
   extrudeLaminations, createSteelUniforms, createSteelMaterial, studioEnvironment,
-  brushedTexture, disposeTree, releaseShared, BRAND,
+  brushedTexture, disposeTree, releaseShared, BRAND, loadStudioHDRI, STUDIO_HDRI,
 } from '../lamination/three-kit.js';
 import { buildFrame, FRAME } from './frame.js';
 
@@ -37,7 +37,7 @@ const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
 export const STUDIO = new THREE.Color('#0a0b0d'); // matches --stage (ink-950) in main.css
 
-export function createIntroScene(canvas, { mobile = false, capture = false } = {}) {
+export function createIntroScene(canvas, { mobile = false, capture = false, hdri = null, onChange = () => {} } = {}) {
   /* ---------------------------------------------------------------- setup */
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   // Pixel ratio is capped: a 2× full-screen buffer of physically based steel is
@@ -45,7 +45,8 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   const maxRatio = capture ? 2 : 1.5;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxRatio));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  // AgX: filmic highlight roll-off without ACES's hue shifts on bright metal
+  renderer.toneMapping = THREE.AgXToneMapping;
   renderer.toneMappingExposure = 1.0;
   renderer.localClippingEnabled = true;
   renderer.shadowMap.enabled = true;
@@ -55,11 +56,26 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   const scene = new THREE.Scene();
   scene.background = STUDIO.clone();
   const camera = new THREE.PerspectiveCamera(32, 1, 0.05, 80);
-  const envTex = studioEnvironment(renderer, { dark: true });
+  let envTex = studioEnvironment(renderer, { dark: true }); // fallback until the HDRI arrives
   scene.environment = envTex;
-  scene.environmentRotation.set(0, -0.6, 0);
+  let hdriReady = !hdri;
+  if (hdri) {
+    loadStudioHDRI(renderer, hdri).then((tex) => {
+      if (disposed) { tex.dispose(); return; }
+      envTex.dispose();
+      envTex = tex;
+      scene.environment = tex;
+      hdriReady = true;
+      onChange();
+    }).catch(() => { hdriReady = true; onChange(); });
+  }
+  let disposed = false;
+  // turned so a soft box sits behind the camera for the coil's end face
+  scene.environmentRotation.set(0, STUDIO_HDRI.rotation, 0);
 
-  const key = new THREE.DirectionalLight(0xffffff, 0);
+  // Metal three-point: warm key, cool fill, cool rim at 4:1:2 (blender-lighting 'metal' profile).
+  // The warm/cool split is what gives bare steel its colour.
+  const key = new THREE.DirectionalLight(new THREE.Color().setRGB(1.0, 0.95, 0.85), 0);
   key.castShadow = true;
   key.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048);
   key.shadow.bias = -0.0004;
@@ -69,15 +85,15 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   key.shadow.camera.far = 40;
   scene.add(key, key.target);
   // cool rim from behind: draws the edges out of the black
-  const rim = new THREE.DirectionalLight(0xffffff, 0);
+  const rim = new THREE.DirectionalLight(new THREE.Color().setRGB(0.7, 0.85, 1.0), 0);
   scene.add(rim, rim.target);
   // electric-blue light, only for the moment the M becomes the coil
   const spark = new THREE.PointLight(BRAND.blueGlow, 0, 9, 1.4);
   scene.add(spark);
-  const fill = new THREE.HemisphereLight(0xffffff, 0x000000, 0);
-  scene.add(fill);
+  const fill = new THREE.DirectionalLight(new THREE.Color().setRGB(0.85, 0.9, 1.0), 0);
+  scene.add(fill, fill.target);
 
-  const LIGHT = { key: 3.4, rim: 2.6, fill: 0.2, env: 1.0 };
+  const LIGHT = { key: 3.2, fill: 0.8, rim: 1.6, env: 0.9 };
 
   // Floor: a soft pool of light under the subject, plus the shadow it receives.
   const poolTex = (() => {
@@ -103,7 +119,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
 
   const uniforms = createSteelUniforms();
   // a touch darker than raw steel: the insulation coating, and contrast with the painted frame
-  const STEEL = { color: new THREE.Color(0x8a919a) };
+  const STEEL = {};
   const steel = createSteelMaterial(uniforms, STEEL);
 
   const W0 = 0.95; // widest lamination = strip width
@@ -120,10 +136,10 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     tex.repeat.set(6, 1);
     tex.needsUpdate = true;
     // dark rolled steel, not a pale roll: low albedo, strong metallic reflections
+    // the outer wrap: the same steel as every lamination (F0 reflectance, fully metallic)
     const outerMat = new THREE.MeshPhysicalMaterial({
-      color: 0x5c626a, metalness: 0.96, roughness: 0.34, roughnessMap: tex,
-      anisotropy: 0.4, clearcoat: 0.05, clearcoatRoughness: 0.4,
-      envMapIntensity: 0.45, // the soft boxes read as a sheen on dark steel, not a white wash
+      color: BRAND.steel, metalness: 1, roughness: 0.28, roughnessMap: tex,
+      anisotropy: 0.5, clearcoat: 0.12, clearcoatRoughness: 0.2,
     });
     const outer = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(R, R, CW, mobile ? 96 : 160, 1, true), outerMat));
     outer.rotation.x = Math.PI / 2;
@@ -135,7 +151,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     c.width = c.height = mobile ? 1024 : 2048;
     const g = c.getContext('2d');
     const S = c.width / 2;
-    g.fillStyle = '#4c525b'; g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = '#a7abb0'; g.fillRect(0, 0, c.width, c.height); // steel reflectance between the wrap gaps
     const wraps = mobile ? 90 : 180;
     let seed = 11;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -143,14 +159,14 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
       const rr = (r / R + (1 - r / R) * (i / wraps)) * S;
       g.beginPath(); g.arc(S, S, rr, 0, Math.PI * 2);
       // each wrap's edge catches the light a little differently
-      g.strokeStyle = i % 2 ? `rgba(14,17,22,${0.45 + rnd() * 0.25})` : `rgba(196,204,214,${0.12 + rnd() * 0.18})`;
+      g.strokeStyle = i % 2 ? `rgba(30,32,36,${0.35 + rnd() * 0.25})` : `rgba(235,238,242,${0.15 + rnd() * 0.2})`;
       g.lineWidth = Math.max(1, (S / wraps) * (0.25 + rnd() * 0.2));
       g.stroke();
     }
     const ringTex = new THREE.CanvasTexture(c);
     ringTex.colorSpace = THREE.SRGBColorSpace;
     ringTex.anisotropy = 8;
-    const endMat = new THREE.MeshPhysicalMaterial({ map: ringTex, metalness: 0.8, roughness: 0.34, clearcoat: 0.25, clearcoatRoughness: 0.35 });
+    const endMat = new THREE.MeshPhysicalMaterial({ map: ringTex, metalness: 1, roughness: 0.42, clearcoat: 0.15, clearcoatRoughness: 0.25 });
     // winding: the end faces show only the wraps laid so far (radius <= uWind)
     endMat.userData.wind = { value: R };
     endMat.onBeforeCompile = (sh) => {
@@ -176,7 +192,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   }
   scene.add(coil);
   // the strip being wound on: it feeds in over the top of the coil from the right
-  const feedMat = createSteelMaterial(uniforms, { color: new THREE.Color(0x6a7079), clearcoat: 0.1, envMapIntensity: 0.5 });
+  const feedMat = createSteelMaterial(uniforms);
   const feedGeo = new THREE.PlaneGeometry(9, CW);
   feedGeo.rotateX(-Math.PI / 2);
   feedGeo.translate(4.5, 0, 0);
@@ -196,7 +212,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   scene.add(strips);
 
   const clip = new THREE.Plane(new THREE.Vector3(1, 0, 0), -XS1); // keeps x >= the coil's position
-  const SHEET = { color: new THREE.Color(0x6a7079), clearcoat: 0.1, envMapIntensity: 0.5 }; // fresh-cut sheet: darker, less glossy than a white roll
+  const SHEET = {};
   const sheetMat = createSteelMaterial(uniforms, SHEET);
   sheetMat.clippingPlanes = [clip];
   sheetMat.clipShadows = true;
@@ -378,6 +394,9 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     key.position.set(tmpL.x - 3.6 * Math.cos(sweep) + 4.6 * Math.sin(sweep), 9, tmpL.z + 5.2 * Math.cos(sweep) + 3.6 * Math.sin(sweep));
     rim.target.position.copy(tmpL);
     rim.position.set(tmpL.x - 5, 7, tmpL.z - 8);
+    // fill from the camera's side, low: opens up the faces the key leaves dark
+    fill.target.position.copy(tmpL);
+    fill.position.copy(camera.position).sub(tmpL).applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.7).setY(2.5).add(tmpL);
     pool.position.set(tmpL.x, -0.002, tmpL.z);
     const half = THREE.MathUtils.clamp(dist * 0.6, 3.5, 9);
     const sc = key.shadow.camera;
@@ -389,17 +408,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   const v3 = new THREE.Vector3();
   let coilFadeLast = -1;
 
-  // Bare steel (coil, sheet) reflects the studio at reduced strength. three.js only
-  // honours a material's own envMapIntensity when the material carries the envMap
-  // itself, so these get it explicitly and follow the lights-up ramp by hand.
-  const dimSteel = [coilMats[0], sheetMat, offcutMat, feedMat].map((m) => {
-    const base = m.envMapIntensity;
-    m.envMap = envTex;
-    return { m, base };
-  });
-
   function setLights(level) {
-    for (const d of dimSteel) d.m.envMapIntensity = d.base * level * LIGHT.env;
     key.intensity = LIGHT.key * level;
     rim.intensity = LIGHT.rim * level;
     fill.intensity = LIGHT.fill * level;
@@ -412,9 +421,6 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     /* lights up: the M (HTML) dissolves into the coil's end face */
     const lights = smooth(seg(p, 0.06, 0.13));
     setLights(lights);
-    // the coil and sheet chapters are lit lower, so bare steel stays dark and metallic;
-    // the key comes up to full for the painted frame
-    key.intensity *= lerp(0.5, 1, smooth(seg(p, 0.5, 0.62)));
     // the M collapses into the bore as a flash of the brand's blue
     const sp = Math.sin(Math.PI * seg(p, 0.085, 0.16));
     spark.intensity = 4 * sp * sp;
@@ -537,7 +543,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     };
     frame.feet.forEach((g, i) => {
       const { home } = g.userData;
-      arrive(g, clamp(seg(p, 0.715, 0.765) * 1.3 - i * 0.08), v3.set(home.x + Math.sign(home.x) * 7, home.y, home.z));
+      arrive(g, clamp(seg(p, 0.715, 0.765) * 1.3 - i * 0.08), v3.set(home.x + Math.sign(home.x) * 14, home.y, home.z));
     });
     frame.beams.forEach((g) => {
       const { home, which, front } = g.userData;
@@ -598,6 +604,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   }
 
   function dispose() {
+    disposed = true;
     disposeTree(scene);
     frame.dispose();
     glowTex.dispose();
@@ -620,5 +627,5 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   renderer.render(scene, camera);
   coilFadeLast = -1;
 
-  return { update, resize, dispose, coilFace, setPixelRatio, pixelRatio: () => renderer.getPixelRatio() };
+  return { update, resize, dispose, coilFace, setPixelRatio, pixelRatio: () => renderer.getPixelRatio(), ready: () => hdriReady };
 }

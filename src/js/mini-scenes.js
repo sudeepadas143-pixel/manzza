@@ -8,10 +8,22 @@ import {
   corePieces, cruciform, stepOffsets, eShape, iShape, stripShape, clipHalfPlane, holesLeftOf, CORE,
 } from './lamination/geometry.js';
 import {
-  extrudeLaminations, createSteelUniforms, createSteelMaterial, studioEnvironment, addLights,
+  extrudeLaminations, createSteelUniforms, createSteelMaterial, studioEnvironment,
+  loadStudioHDRI, STUDIO_HDRI,
 } from './lamination/three-kit.js';
 
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Metal three-point, as in the intro: warm key, cool fill, cool rim (4:1:2). */
+function metalLights(scene) {
+  const key = new THREE.DirectionalLight(new THREE.Color().setRGB(1.0, 0.95, 0.85), 2.4);
+  key.position.set(4, 7, 6);
+  const fill = new THREE.DirectionalLight(new THREE.Color().setRGB(0.85, 0.9, 1.0), 0.6);
+  fill.position.set(-6, 2, 5);
+  const rim = new THREE.DirectionalLight(new THREE.Color().setRGB(0.7, 0.85, 1.0), 1.2);
+  rim.position.set(-3, 5, -7);
+  scene.add(key, fill, rim);
+}
 
 function buildCore(mat) {
   const g = new THREE.Group();
@@ -91,18 +103,21 @@ export function startMinis(canvases) {
   renderer.setPixelRatio(1);
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMapping = THREE.AgXToneMapping; // same colour pipeline as the intro
+  renderer.toneMappingExposure = 1.1;
   const env = studioEnvironment(renderer, { dark: true }); // same black studio as the intro
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
   const views = canvases.map((canvas) => {
     const scene = new THREE.Scene();
     scene.environment = env;
-    scene.environmentIntensity = 1.6; // product shots: a little brighter than the intro
-    addLights(scene);
+    // these pieces are tilted towards the camera, so their faces reflect the studio from
+    // higher up than the intro's upright core: tip the studio to put a soft box there
+    const [rx, ry] = STUDIO_HDRI.miniRotation;
+    scene.environmentRotation.set(rx, ry, 0);
+    scene.environmentIntensity = 2.2; // small, tilted pieces need more of the studio to read as metal
+    metalLights(scene);
     const uniforms = createSteelUniforms();
-    uniforms.uEdge.value = 0.14;
     const mat = createSteelMaterial(uniforms);
     const build = (BUILDERS[canvas.dataset.mini] || buildCore)(mat);
     const pivot = new THREE.Group();
@@ -149,6 +164,13 @@ export function startMinis(canvases) {
     v.ctx.clearRect(0, 0, v.w, v.h);
     v.ctx.drawImage(glCanvas, 0, glCanvas.height - v.h, v.w, v.h, 0, 0, v.w, v.h);
   }
+
+  // swap in the photographed studio once it has loaded, so the steel matches the intro
+  loadStudioHDRI(renderer, STUDIO_HDRI.url).then((hdr) => {
+    views.forEach((v) => { v.scene.environment = hdr; });
+    env.dispose();
+    views.forEach((v) => v.visible && draw(v, performance.now()));
+  }).catch(() => {});
 
   const io = new IntersectionObserver((entries) => {
     for (const e of entries) {

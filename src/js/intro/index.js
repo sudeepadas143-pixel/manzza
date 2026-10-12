@@ -12,6 +12,7 @@
  */
 import { smooth, seg, lerp } from '../lamination/geometry.js';
 import { fallbackFrames } from '../lamination/svg.js';
+import { STUDIO_HDRI } from '../lamination/hdri.js';
 
 // frame windows for the SVG fallback: empty, coil, cut, mitre, step-lap (unused), core, outline (unused)
 const FRAME_WINDOWS = [[0, 0.1], [0.1, 0.22], [0.22, 0.38], [0.38, 0.52], [2, 2], [0.52, 1.01], [2, 2]];
@@ -105,7 +106,7 @@ export async function initIntro(section) {
   let lastP = -1;
   function apply(p) {
     window.__introP = p;
-    window.__introReady = !!scene || frameEls.length > 0;
+    window.__introReady = (!!scene && scene.ready()) || frameEls.length > 0;
     if (!geo) measure();
 
     // the wordmark and tagline step aside; the M moves to the centre and grows
@@ -183,7 +184,7 @@ export async function initIntro(section) {
         canvas = fresh;
       }
       canvas.dataset.used = '1';
-      scene = createScene(canvas, { mobile, capture });
+      scene = createScene(canvas, { mobile, capture, hdri: STUDIO_HDRI.url, onChange: () => { dirty = true; } });
       scene.resize(size.w, size.h);
       geo = null;
       section.classList.add('is-ready');

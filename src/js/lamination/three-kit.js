@@ -4,12 +4,15 @@
  */
 import * as THREE from 'three';
 import { ShapeUtils } from 'three';
+import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
+export { STUDIO_HDRI } from './hdri.js';
 import { ccw, signedArea } from './geometry.js';
 
 export const BRAND = {
   blue: new THREE.Color('#2f6bea'),
   blueGlow: new THREE.Color('#5b8fff'),
-  steel: new THREE.Color('#b7bec8'),
+  // steel's F0 reflectance (physicallybased.info), in linear: a metal's colour is its reflectance
+  steel: new THREE.Color().setRGB(0.56, 0.57, 0.58),
 };
 
 /* ------------------------------------------------------------------------ */
@@ -136,13 +139,16 @@ export function createSteelMaterial(uniforms, opts = {}) {
   // (anisotropic highlights follow UV u, which the extruder aligns with each
   // lamination's grain) under the faint sheen of its insulation coating.
   const m = new THREE.MeshPhysicalMaterial({
+    // Metallic is a switch, not a slider: anything below 1 mixes in a diffuse
+    // layer and steel reads as grey plastic or paper.
     color: opts.color || BRAND.steel,
-    metalness: 0.88,
-    roughness: opts.roughness ?? 0.3,
+    metalness: 1,
+    roughness: opts.roughness ?? 0.26, // brushed
     roughnessMap: brushedTexture(),
-    anisotropy: opts.anisotropy ?? 0.65,
-    clearcoat: opts.clearcoat ?? 0.3,
-    clearcoatRoughness: 0.3,
+    anisotropy: opts.anisotropy ?? 0.55,
+    // the thin glassy insulation coating of electrical steel
+    clearcoat: opts.clearcoat ?? 0.12,
+    clearcoatRoughness: 0.18,
     envMapIntensity: opts.envMapIntensity ?? 1,
     side: THREE.FrontSide,
   });
@@ -221,6 +227,25 @@ export function studioEnvironment(renderer, { dark = false } = {}) {
   soft.dispose();
   disposables.forEach((m) => { m.geometry.dispose(); m.material.dispose(); });
   return rt.texture;
+}
+
+/**
+ * A photographed studio (equirectangular HDR) for reflections. Metal has no
+ * colour of its own beyond its reflectance: what makes it read as metal is the
+ * world it reflects, with real gradients, warm and cool light, soft boxes.
+ * Resolves to a PMREM texture; the caller keeps its fallback until then.
+ */
+export function loadStudioHDRI(renderer, url) {
+  return new Promise((resolve, reject) => {
+    new HDRLoader().load(url, (tex) => {
+      tex.mapping = THREE.EquirectangularReflectionMapping;
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      const env = pmrem.fromEquirectangular(tex).texture;
+      tex.dispose();
+      pmrem.dispose();
+      resolve(env);
+    }, undefined, reject);
+  });
 }
 
 export function addLights(scene) {
