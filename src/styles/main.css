@@ -553,21 +553,26 @@ html.motion [data-follow] { transition: opacity 0.8s var(--ease-out), transform 
 .intro__m { position: absolute; left: 0; top: 0; width: 0; height: 0; mix-blend-mode: screen; transform-origin: 50% 50%; display: none; }
 .intro__m[hidden], .intro__word[hidden] { visibility: hidden; }
 
-/* the scroll cue: a capsule with a blue bead that drops, and the word under it.
-   It starts the film when pressed and fades out at the first scroll. */
+/* the scroll cue: the word, then a hairline that runs to the bottom edge of the
+   screen with a short electric-blue pulse travelling down it, into the page.
+   Pressing it starts the film; it fades at the first scroll. */
 .intro__cue {
-  position: absolute; left: 50%; bottom: max(28px, calc(env(safe-area-inset-bottom, 0px) + 20px)); z-index: 2;
-  transform: translateX(-50%); display: grid; justify-items: center; gap: 10px; padding: 8px 12px;
+  position: absolute; left: 50%; bottom: 0; z-index: 2; transform: translateX(-50%);
+  display: grid; justify-items: center; gap: 16px; padding: 12px 16px 0;
   background: none; border: 0; cursor: pointer; color: var(--mute);
-  transition: color 0.2s;
+  transition: color 0.25s;
 }
-.intro__cue-track { position: relative; display: block; width: 22px; height: 36px; border: 1px solid currentColor; border-radius: 11px; opacity: 0.7; }
-.intro__cue-track i { position: absolute; left: 50%; top: 7px; width: 4px; height: 7px; margin-left: -2px; border-radius: 2px; background: var(--blue-text); animation: cue-drop 2.2s var(--ease-in-out) infinite; }
-@keyframes cue-drop { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } 70% { transform: translateY(13px); opacity: 0; } 100% { transform: translateY(13px); opacity: 0; } }
-.intro__cue-label { font: 500 0.6875rem/1 var(--f-body); letter-spacing: 0.24em; text-transform: uppercase; padding-left: 0.24em; }
+.intro__cue-label { font: 500 0.6875rem/1 var(--f-body); letter-spacing: 0.32em; text-transform: uppercase; padding-left: 0.32em; }
+.intro__cue-line { position: relative; display: block; width: 1px; height: clamp(56px, 9vh, 88px); overflow: hidden; background: color-mix(in srgb, var(--mute) 22%, transparent); }
+.intro__cue-line::after {
+  content: ''; position: absolute; left: 0; top: 0; width: 1px; height: 40%;
+  background: linear-gradient(to bottom, transparent, var(--blue-text));
+  transform: translateY(-100%); animation: cue-run 2.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+@keyframes cue-run { 0% { transform: translateY(-100%); } 65%, 100% { transform: translateY(250%); } }
 @media (hover: hover) and (pointer: fine) { .intro__cue:hover { color: var(--white); } }
 .intro__cue:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: var(--r-xs); }
-@media (prefers-reduced-motion: reduce) { .intro__cue-track i { animation: none; top: 12px; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .intro__cue-line::after { animation: none; transform: none; height: 100%; opacity: 0.6; } }
 html.capture .intro__cue { display: none; }
 
 /* the close: the tagline under the finished core, as a title card */

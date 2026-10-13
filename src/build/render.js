@@ -325,8 +325,8 @@ function intro(d) {
     </div>
     <p class="intro__tagline" aria-hidden="true">${esc(d.config.company.tagline)}</p>
     <button class="intro__cue" type="button" data-cue aria-label="Scroll down">
-      <span class="intro__cue-track" aria-hidden="true"><i></i></span>
       <span class="intro__cue-label" aria-hidden="true">Scroll</span>
+      <span class="intro__cue-line" aria-hidden="true"></span>
     </button>
   </div>
 </section>`;

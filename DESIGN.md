@@ -169,5 +169,5 @@ and is skipped entirely under `prefers-reduced-motion`.
   tabular figures, `color-scheme`/`theme-color`, no `transition: all`.
 - **dark-mode-design-expert:** text tiers at 9:1 and 5.6:1 on navy; blue text tint at 7:1.
 - **de-slop:** copy is the client's own wording; nothing invented.
-- **Scroll cue:** a capsule with a dropping blue bead and "Scroll" at the foot of the opening
+- **Scroll cue:** "Scroll" over a hairline that runs to the bottom edge, a blue pulse travelling down it, at the foot of the opening
   logo; pressing it glides one screen into the film; it fades at the first scroll.
