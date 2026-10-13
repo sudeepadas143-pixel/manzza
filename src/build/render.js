@@ -356,7 +356,7 @@ function hero(d) {
 function productCards(d) {
   return d.products.map((p, i) => `
   <section class="band band--product${i === 1 ? ' band--flip' : i === 2 ? ' band--wide' : ''}" aria-labelledby="pb-${p.slug}">
-    <a class="band__media" href="/products/${p.slug}" tabindex="-1" aria-hidden="true">${mini(p.cardVisual, 'band__mini', { frame: i === 1 ? 'left' : i === 2 ? '' : 'right', scrub: true })}</a>
+    <a class="band__media" href="/products/${p.slug}" tabindex="-1" aria-hidden="true">${mini(p.cardVisual, 'band__mini', { frame: i === 1 ? 'left' : i === 2 ? '' : 'right' })}</a>
     <div class="container band__copy">
       <h2 id="pb-${p.slug}" class="d-xl" data-rise>${esc(p.name)}</h2>
       <p class="band__line">${esc(p.cardLine)}</p>
@@ -477,7 +477,7 @@ function productPage(d, a) {
 
   return `<main id="main" class="product">
   <section class="band band--phero">
-    <div class="band__media">${mini(p.visual, 'band__mini', { frame: 'right', scrub: true })}</div>
+    <div class="band__media">${mini(p.visual, 'band__mini', { frame: 'right' })}</div>
     <div class="container band__copy">
       <nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/#products">Products</a></li><li aria-current="page">${esc(p.name)}</li></ol></nav>
       <h1 class="d-xxl" data-rise>${esc(p.headline)}</h1>
