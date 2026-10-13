@@ -504,7 +504,7 @@ function productPage(d, a) {
         <a class="link" href="/materials">Compare CRGO and CRNO</a>
       </div>
       ${specTable(d, p.materials)}
-      <p class="note">Grades and thicknesses are supplied to your specification, subject to availability.</p>
+      <p class="note">Grades depend on material specification and availability.</p>
     </div>
   </section>
 
@@ -644,7 +644,6 @@ function quoteForm(d) {
 
   <div class="qform__submit">
     <button class="btn btn--filled" type="submit"><span class="btn__label">Send request</span></button>
-    <p class="qform__fine">Prices are not displayed publicly. Each enquiry receives an individual quotation.</p>
   </div>
   <div class="qform__status" role="status" aria-live="polite" tabindex="-1"></div>
 </form>
@@ -652,7 +651,6 @@ function quoteForm(d) {
 <div class="qdone" id="quote-done" hidden tabindex="-1">
   <p class="qdone__mark" aria-hidden="true">${icon.check}</p>
   <h2 class="d-lg">Thank you. Your request has been sent.</h2>
-  <p class="body-lg">We will reply with an individual quotation.</p>
   <div class="btn-row"><a class="btn btn--ghost" href="/"><span class="btn__label">Back to home</span></a><button class="link" type="button" data-again>Send another request</button></div>
 </div>`;
 }

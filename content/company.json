@@ -1,6 +1,6 @@
 {
   "_readme": "Company copy used on the home page and elsewhere. Edit text freely; keep the keys. Do not add certifications, figures or client names that MANZZA cannot back up.",
-  "about": "MANZZA Industry Pvt. Ltd. is an Indian manufacturer specializing in electrical steel laminations used in transformer core construction. Based in Bengaluru, Karnataka, MANZZA serves transformer manufacturers across Karnataka, Andhra Pradesh, Telangana and Tamil Nadu. Our focus is on precision-cut electrical steel laminations, consistent manufacturing, customer-specific specifications and dependable B2B supply.",
+  "about": "MANZZA Industry Pvt. Ltd. is an Indian manufacturer specializing in electrical steel laminations used in transformer core construction. Based in Bengaluru, Karnataka, MANZZA serves transformer manufacturers across Karnataka, Andhra Pradesh, Telangana and Tamil Nadu, with the capability to serve a broader customer base as the business grows. Our focus is on precision-cut electrical steel laminations, consistent manufacturing, customer-specific specifications and dependable B2B supply. We manufacture different types of transformer laminations to support a range of transformer designs, from conventional E&I constructions to advanced mitre-core assemblies using step-lap construction. MANZZA works with both standard and customized requirements, helping transformer manufacturers source laminations suited to their engineering drawings, core designs and production requirements.",
   "intro": {
     "headline": "Precision-engineered transformer laminations.",
     "lede": "At MANZZA Industry Pvt. Ltd., we manufacture electrical steel laminations for transformer core applications, combining precision processing with a commitment to consistent quality and dependable supply."
@@ -12,7 +12,7 @@
     },
     {
       "step": "Punching and hole processing",
-      "text": "Punching for components that require specified holes or profiles, supporting customized and repeat production requirements."
+      "text": "Punching capabilities for components that require specified holes or profiles, supporting customized and repeat production requirements."
     },
     {
       "step": "Step-lap processing and core stacking support",
@@ -30,7 +30,7 @@
     },
     {
       "title": "Material traceability",
-      "text": "Where applicable, material grades and batch information linked to incoming material documentation."
+      "text": "Where applicable, material grades and batch information can be linked to incoming material documentation."
     },
     {
       "title": "Repeatability",
@@ -42,7 +42,7 @@
     },
     {
       "title": "Specification-led production",
-      "text": "Material and component requirements set against customer drawings and agreed tolerances."
+      "text": "Material and component requirements established against customer drawings and agreed tolerances."
     },
     {
       "title": "Technical collaboration",
@@ -74,7 +74,7 @@
     },
     "quote": {
       "title": "Request a Quote for Transformer Laminations | MANZZA",
-      "description": "Send your drawing and specification for mitre core, E&I or strip laminations. MANZZA Industry, Bengaluru, will review it and reply with a quotation."
+      "description": "Send your drawing and specification for mitre core, E&I or strip laminations to MANZZA Industry, Bengaluru, for an individual quotation."
     },
     "notFound": {
       "title": "Page not found | MANZZA",

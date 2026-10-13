@@ -5,7 +5,7 @@
       "code": "CRGO",
       "name": "Cold-Rolled Grain-Oriented electrical steel",
       "thickness": "0.20 mm to 0.35 mm",
-      "grades": "70 to 120 grade, depending on specification and availability",
+      "grades": "70 to 120 grade, depending on material specification and availability",
       "summary": "Primarily used in transformer cores because its directional magnetic properties make it suitable for efficient magnetic flux conduction.",
       "detail": "Proper material selection and precision processing are important for achieving the required core performance.",
       "thicknessScale": {
@@ -15,7 +15,7 @@
     },
     {
       "code": "CRNO",
-      "name": "Cold-Rolled Non-Oriented electrical steel",
+      "name": "Cold-Rolled Non-Grain-Oriented electrical steel",
       "thickness": "0.35 mm and 0.50 mm",
       "grades": "Final grade selection is based on customer specifications and availability",
       "summary": "Magnetic properties that are less direction-dependent than CRGO.",

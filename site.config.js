@@ -64,7 +64,7 @@ export default {
     show: true,
     value: 'Up to 160',
     unit: 'metric tonnes per month',
-    note: 'Indicative, subject to product mix and scheduling.',
+    note: 'Indicative, subject to product mix, specifications, scheduling and actual available capacity.',
     confirmed: TODO('Confirm the 160 MT/month figure, then replace this line with: confirmed: true,'),
   },
 };

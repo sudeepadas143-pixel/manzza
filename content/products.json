@@ -25,7 +25,7 @@
         {
           "label": "Transformer ratings",
           "value": "16 kVA to 16 MVA",
-          "note": "Subject to design and customer requirements"
+          "note": "Subject to the specific design and customer requirements"
         },
         {
           "label": "Made to",
@@ -34,7 +34,7 @@
       ],
       "applications": [
         "Distribution transformer cores",
-        "Power transformer cores, subject to design"
+        "Power transformer cores"
       ],
       "materials": [
         "CRGO",
@@ -46,27 +46,19 @@
           "text": "Designed around customer drawings, dimensions and technical specifications."
         },
         {
-          "title": "Mitre, diamond tip and V-notch",
-          "text": ""
-        },
-        {
           "title": "Step-lap construction",
-          "text": "Precision cutting and accurate stacking geometry for step-lap cores."
+          "text": "Precision cutting and accurate stacking geometry are important to core performance."
         },
         {
-          "title": "Bolt holes",
-          "text": ""
+          "title": "Core stacking support",
+          "text": "Manufacturing processes supporting mitre-core geometries and the required arrangement of laminations for step-lap core construction."
         },
         {
           "title": "Material, thickness, grade",
           "text": "CRGO or CRNO to specification, subject to availability."
-        },
-        {
-          "title": "Stacking support",
-          "text": ""
         }
       ],
-      "diagram": true
+      "diagram": false
     },
     {
       "slug": "ei-laminations",
@@ -83,7 +75,7 @@
         "description": "E&I transformer laminations in CRGO and CRNO electrical steel. Standard sizes, custom dimensions and custom tooling from MANZZA Industry, Bengaluru."
       },
       "headline": "E&I transformer laminations",
-      "intro": "E-shaped and I-shaped electrical steel laminations used in transformer core assemblies, in standard sizes for common requirements or customized dimensions and tooling for specific applications.",
+      "intro": "E-shaped and I-shaped electrical steel laminations used in transformer core assemblies, in standard sizes for common requirements or customized dimensions and tooling for specific applications. Suitable for manufacturers who require repeatable, accurately cut laminated core components.",
       "facts": [
         {
           "label": "Material",
@@ -138,7 +130,7 @@
       "flagship": false,
       "visual": "strip",
       "cardVisual": "strip",
-      "cardLine": "Electrical steel strips to customer-specific widths, lengths and profiles, with custom hole punching.",
+      "cardLine": "Electrical steel strips to customer-specific widths, lengths and profiles, with custom hole punching where required.",
       "seo": {
         "title": "Electrical Steel Strip Laminations | MANZZA, Bengaluru",
         "description": "Custom electrical steel strip laminations in CRGO and CRNO, cut to width, length and profile with custom hole punching. MANZZA Industry, Bengaluru."
@@ -156,7 +148,7 @@
         },
         {
           "label": "Holes",
-          "value": "Custom hole punching"
+          "value": "Custom hole punching where required"
         },
         {
           "label": "Made to",
@@ -164,8 +156,7 @@
         }
       ],
       "applications": [
-        "Industrial electrical applications that use strip-form laminations",
-        "Transformer-related applications"
+        "Industrial electrical and transformer-related applications that use strip-form laminations"
       ],
       "materials": [
         "CRGO",
