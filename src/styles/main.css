@@ -764,3 +764,8 @@ html.js:not(.rm) .intro--gl.is-ready .intro__canvas { opacity: 1; }
 /* film capture (?capture): pure animation, no site chrome */
 html.capture .site-header { display: none; }
 #materials .band__lede { margin: 0 0 clamp(40px, 6vw, 72px); }
+/* home: the remaining factory photographs under the line shot */
+.photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(12px, 1.6vw, 20px); margin-top: clamp(12px, 1.6vw, 20px); }
+.photo-grid .photo { margin: 0; }
+.photo figcaption:empty { display: none; }
+@media (max-width: 760px) { .photo-grid { grid-template-columns: 1fr; } }
