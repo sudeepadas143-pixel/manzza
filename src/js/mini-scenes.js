@@ -115,7 +115,9 @@ export function startMinis(canvases) {
     // higher up than the intro's upright core: tip the studio to put a soft box there
     const [rx, ry] = STUDIO_HDRI.miniRotation;
     scene.environmentRotation.set(rx, ry, 0);
-    scene.environmentIntensity = 2.2; // small, tilted pieces need more of the studio to read as metal
+    // small, tilted pieces need more of the studio to read as metal; the full core's
+    // broad faces catch the soft box whole, so it gets less or they burn out to white
+    scene.environmentIntensity = canvas.dataset.mini === 'core' ? 0.85 : 2.2;
     metalLights(scene);
     const uniforms = createSteelUniforms();
     const mat = createSteelMaterial(uniforms);
@@ -135,26 +137,45 @@ export function startMinis(canvases) {
 
   function fit(v) {
     const rect = v.canvas.getBoundingClientRect();
-    const w = Math.max(1, Math.round(rect.width * dpr));
-    const h = Math.max(1, Math.round(rect.height * dpr));
+    // full-bleed bands are large: cap their backing store so a band costs no more than a card
+    const k = Math.min(dpr, 2400 / Math.max(1, rect.width), 1600 / Math.max(1, rect.height));
+    const w = Math.max(1, Math.round(rect.width * k));
+    const h = Math.max(1, Math.round(rect.height * k));
     if (w !== v.w || h !== v.h) {
       v.w = w; v.h = h;
       v.canvas.width = w; v.canvas.height = h;
-      v.camera.aspect = w / h;
+      const aspect = w / h;
+      v.camera.aspect = aspect;
+      // in a wide band the part sits to one side of the copy (data-frame)
+      const side = aspect > 1.15 ? ({ right: 1, left: -1 }[v.canvas.dataset.frame] || 0) : 0;
       const fov = THREE.MathUtils.degToRad(v.camera.fov);
       const fitH = v.sphere.radius / Math.sin(fov / 2);
-      const fitW = fitH / Math.min(1, v.camera.aspect);
-      const d = Math.max(fitH, fitW) * 1.08;
+      const fitW = fitH / Math.min(1, side ? aspect / 2 : aspect);
+      const d = Math.max(fitH, fitW) * (side ? 0.86 : 1.08);
       v.camera.position.set(0, d * 0.18, d);
       v.camera.lookAt(0, 0, 0);
+      if (side) v.camera.setViewOffset(w, h, -side * w * 0.22, 0, w, h);
+      else v.camera.clearViewOffset();
       v.camera.updateProjectionMatrix();
     }
+  }
+
+  // data-scrub: the part turns with its band's progress through the viewport
+  function scrubOf(v) {
+    if (!('scrub' in v.canvas.dataset)) return 0;
+    const band = v.canvas.closest('.band') || v.canvas;
+    const r = band.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const prog = Math.min(1, Math.max(0, (vh - r.top) / (vh + r.height)));
+    return (prog - 0.5) * 1.4;
   }
 
   function draw(v, time) {
     fit(v);
     const t = reduced ? 0.6 : time * 0.001 + v.phase;
-    v.pivot.rotation.set(-v.build.tilt, Math.sin(t * v.build.spin) * v.build.swing - 0.3, 0);
+    const scrub = reduced ? 0 : scrubOf(v);
+    const idle = Math.sin(t * v.build.spin) * v.build.swing * (scrub ? 0.35 : 1);
+    v.pivot.rotation.set(-v.build.tilt + scrub * 0.12, idle - 0.3 + scrub, 0);
     const W = glCanvas.width, H = glCanvas.height;
     if (v.w > W || v.h > H) renderer.setSize(Math.max(W, v.w), Math.max(H, v.h), false);
     renderer.setViewport(0, 0, v.w, v.h);

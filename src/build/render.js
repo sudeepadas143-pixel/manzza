@@ -96,11 +96,6 @@ const icon = {
   upload: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 15v4h16v-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>',
 };
 
-/** Section eyebrow with the step-lap mark (four offset hairlines). */
-// Headings carry their own weight: no label above them. Kept as a no-op so
-// page templates that still pass one stay valid.
-const eyebrow = () => '';
-
 /* --------------------------------------------------------- static visuals */
 
 function miniSVG(type) {
@@ -133,12 +128,18 @@ function miniSVG(type) {
   return V('0 0 800 600', `<path d="${pathD(s.outer, map)}${s.holes.map((h) => pathD(h, map)).join('')}" class="f-steel" fill-rule="evenodd"/>`);
 }
 
-function mini(type, cls = '', caption = '') {
+function mini(type, cls = '', { frame = '', scrub = false } = {}) {
+  // frame: where the part sits in a wide band ('right' leaves the left for the copy)
+  // scrub: the part turns with the band's scroll progress
   return `<div class="mini ${cls}">
     <div class="mini__fallback">${miniSVG(type)}</div>
-    <canvas data-mini="${esc(type)}" aria-hidden="true"></canvas>
-    ${caption ? `<p class="mini__caption">${esc(caption)}</p>` : ''}
+    <canvas data-mini="${esc(type)}"${frame ? ` data-frame="${esc(frame)}"` : ''}${scrub ? ' data-scrub' : ''} aria-hidden="true"></canvas>
   </div>`;
+}
+
+/** The one marketing CTA: a ghost pill (white fill wipes in on hover). */
+function pill(href, label, { cls = '', attrs: extra = '' } = {}) {
+  return `<a class="btn btn--ghost ${cls}" href="${esc(href)}"${extra}><span class="btn__label">${esc(label)}</span></a>`;
 }
 
 /** Real-photo slot: shows /images/<id>.(webp|jpg|png) when present, else a neutral placeholder. */
@@ -233,8 +234,7 @@ function head(d, a) {
 function header(d, a) {
   const active = a.active || '';
   const cur = (k) => (k === active ? ' aria-current="page"' : '');
-  const prodLinks = d.products.map((p) => `<li><a href="/products/${p.slug}"${a.product === p.slug ? ' aria-current="page"' : ''}>
-      <span class="dd__name">${esc(p.navLabel)}</span><span class="dd__note">${esc(p.navNote)}</span></a></li>`).join('');
+  const prodLinks = d.products.map((p) => `<li><a href="/products/${p.slug}"${a.product === p.slug ? ' aria-current="page"' : ''}>${esc(p.navLabel)}</a></li>`).join('');
   return `<a class="skip-link" href="#main">Skip to main content</a>
 <header class="site-header" data-header>
   <div class="container header__inner">
@@ -250,22 +250,20 @@ function header(d, a) {
           </div>
         </li>
         <li class="nav__item"><a class="nav__link" href="/materials"${cur('materials')}>Materials</a></li>
+        <li class="nav__item"><a class="nav__link" href="/quote"${cur('quote')}>Request a quote</a></li>
       </ul>
     </nav>
-    <a class="btn btn--primary btn--sm header__cta" href="/quote"${cur('quote')}>Request a quote</a>
     <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu"><span class="menu-toggle__bars" aria-hidden="true"><i></i><i></i></span><span class="menu-toggle__label">Menu</span></button>
   </div>
 </header>
   <div class="mobile-menu" id="mobile-menu" hidden>
     <div class="container">
-      <p class="mobile-menu__label">Products</p>
-      <ul class="mobile-menu__list">${d.products.map((p) => `<li><a href="/products/${p.slug}">${esc(p.navLabel)}<span>${esc(p.navNote)}</span></a></li>`).join('')}</ul>
-      <ul class="mobile-menu__list mobile-menu__list--main">
+      <ul class="mobile-menu__list">
+        ${d.products.map((p) => `<li><a href="/products/${p.slug}">${esc(p.navLabel)}</a></li>`).join('')}
         <li><a href="/materials">Materials</a></li>
-        <li><a href="/">Home</a></li>
+        <li><a href="/quote">Request a quote</a></li>
       </ul>
-      <a class="btn btn--primary btn--block" href="/quote">Request a quote</a>
-      <p class="mobile-menu__contact">${icon.phone} ${phoneLink(d)}</p>
+      <p class="mobile-menu__contact">${phoneLink(d)}</p>
     </div>
   </div>
 `;
@@ -274,12 +272,11 @@ function header(d, a) {
 function footer(d) {
   const c = d.config;
   const wa = whatsappHref(d, 'Hello MANZZA, I would like to discuss a lamination requirement.');
-  return `<footer class="site-footer on-dark">
+  return `<footer class="site-footer">
   <div class="container">
     <div class="footer__grid">
       <div class="footer__brand">
         <a href="/" class="footer__logo" aria-label="MANZZA – home"><img src="/brand/manzza-logo.webp" alt="MANZZA" width="930" height="205" loading="lazy"></a>
-        <p class="footer__tag">${esc(c.company.tagline)}</p>
         <p class="footer__sub">A ${esc(c.company.city)}-based manufacturer of transformer laminations.</p>
       </div>
       <nav class="footer__col" aria-label="Products">
@@ -290,13 +287,13 @@ function footer(d) {
         <p class="footer__h">Information</p>
         <ul><li><a href="/materials">Materials: CRGO and CRNO</a></li><li><a href="/quote">Request a quote</a></li><li><a href="/#about">About MANZZA</a></li></ul>
       </nav>
-      <div class="footer__col footer__contact">
+      <div class="footer__col">
         <p class="footer__h">Contact</p>
-        <ul class="contact-list">
-          <li>${icon.phone}<span>${phoneLink(d)}</span></li>
-          <li>${icon.mail}<span>${emailLink(d)}</span></li>
-          <li>${icon.wa}<span>${wa ? `<a href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp us</a>` : tbc('WhatsApp number')}</span></li>
-          <li>${icon.pin}<span>${addressHTML(d)}</span></li>
+        <ul>
+          <li>${phoneLink(d)}</li>
+          <li>${emailLink(d)}</li>
+          <li>${wa ? `<a href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>` : tbc('WhatsApp number')}</li>
+          <li>${addressHTML(d)}</li>
         </ul>
         ${isTodo(c.contact.hours) || !c.contact.hours ? '' : `<p class="footer__hours">${esc(c.contact.hours)}</p>`}
       </div>
@@ -333,35 +330,27 @@ function intro(d) {
 
 function hero(d) {
   const ix = d.company.intro;
-  // the headline in two parts: the product, then where and how
-  const cut = ix.headline.indexOf(',');
-  const [a, b] = cut > 0 ? [ix.headline.slice(0, cut) + '.', ix.headline.slice(cut + 1).trim()] : [ix.headline, ''];
-  return `<section class="hero" aria-labelledby="hero-h">
+  return `<section class="band hero" aria-labelledby="hero-h">
   <div class="container hero__inner">
-    <h1 id="hero-h" class="h1 hero__h1"><span class="hero__h1-a">${esc(a)}</span>${b ? ` <span class="hero__h1-b">${esc(b.charAt(0).toUpperCase() + b.slice(1))}</span>` : ''}</h1>
-    <p class="lead hero__lede">${esc(ix.lede)}</p>
-    <div class="btn-row btn-row--center">
-      <a class="btn btn--primary btn--lg" href="/quote">Request a quote</a>
-      <a class="textlink textlink--lg" href="#products">See the products ${icon.arrow}</a>
-    </div>
+    <p class="eyebrow" data-line>${esc(d.config.company.legalName)} · ${esc(d.config.company.city)}</p>
+    <h1 id="hero-h" class="d-xxl" data-rise>${esc(ix.headline)}</h1>
+    <p class="body-lg hero__lede">${esc(ix.lede)}</p>
+    ${pill('/quote', 'Request a quote')}
   </div>
 </section>`;
 }
 
+/** Home: each product is a full-bleed band, the render as its photograph. */
 function productCards(d) {
-  return `<div class="pgrid">${d.products.map((p) => `
-    <article class="pcard${p.flagship ? ' pcard--flagship' : ''}">
-      <a class="pcard__media" href="/products/${p.slug}" tabindex="-1" aria-hidden="true">${mini(p.cardVisual, 'pcard__visual')}</a>
-      <div class="pcard__body">
-        <h3 class="pcard__title"><a href="/products/${p.slug}">${esc(p.name)}</a></h3>
-        <p class="pcard__line">${esc(p.cardLine)}</p>
-        <div class="pcard__actions">
-          <a class="btn btn--primary btn--sm" href="/quote?product=${esc(p.slug)}">Request a quote</a>
-          <a class="textlink" href="/products/${p.slug}" aria-label="Learn more about ${esc(p.name.toLowerCase().replace('e&i', 'E&I'))}">Learn more ${icon.arrow}</a>
-        </div>
-      </div>
-    </article>`).join('')}
-  </div>`;
+  return d.products.map((p, i) => `
+  <section class="band band--product${i % 2 ? ' band--flip' : ''}" aria-labelledby="pb-${p.slug}">
+    <a class="band__media" href="/products/${p.slug}" tabindex="-1" aria-hidden="true">${mini(p.cardVisual, 'band__mini', { frame: i % 2 ? 'left' : 'right', scrub: true })}</a>
+    <div class="container band__copy">
+      <h2 id="pb-${p.slug}" class="d-xl" data-rise>${esc(p.name)}</h2>
+      <p class="band__line">${esc(p.cardLine)}</p>
+      ${pill(`/products/${p.slug}`, 'Learn more', { attrs: ` aria-label="Learn more about ${esc(p.name.toLowerCase().replace('e&i', 'E&I'))}"` })}
+    </div>
+  </section>`).join('');
 }
 
 /** Thickness scale: positions only at the values stated in materials.json. */
@@ -399,7 +388,7 @@ function compareTable(d) {
     <thead><tr><td></td>${M.map((m) => `<th scope="col"><span class="spec__code">${esc(m.code)}</span></th>`).join('')}</tr></thead>
     <tbody>
       ${row('Full name', (m) => esc(m.name))}
-      ${row('Thickness', (m) => `<span class="num">${esc(m.thickness)}</span>`)}
+      ${row('Thickness', (m) => `<span class="num spec__big">${esc(m.thickness)}</span>`)}
       ${row('Grades', (m) => esc(m.grades))}
       ${row('Magnetic properties', (m) => esc(m.summary))}
     </tbody>
@@ -414,55 +403,44 @@ function specTable(d, codes) {
   </table></div>`;
 }
 
-const STEP_ICONS = {
-  Cut: '<svg viewBox="0 0 64 40" aria-hidden="true"><rect x="4" y="10" width="56" height="20" class="si-steel"/><line x1="2" y1="20" x2="62" y2="20" class="si-accent"/></svg>',
-  Punch: '<svg viewBox="0 0 64 40" aria-hidden="true"><rect x="4" y="10" width="56" height="20" class="si-steel"/><circle cx="20" cy="20" r="4" class="si-hole"/><circle cx="44" cy="20" r="4" class="si-hole"/></svg>',
-  'Step-lap': '<svg viewBox="0 0 64 40" aria-hidden="true"><g class="si-line"><line x1="6" y1="10" x2="30" y2="10"/><line x1="36" y1="10" x2="58" y2="10"/><line x1="6" y1="17" x2="34" y2="17"/><line x1="40" y1="17" x2="58" y2="17"/><line x1="6" y1="24" x2="38" y2="24"/><line x1="44" y1="24" x2="58" y2="24"/><line x1="6" y1="31" x2="26" y2="31"/><line x1="32" y1="31" x2="58" y2="31"/></g></svg>',
-  Stack: '<svg viewBox="0 0 64 40" aria-hidden="true"><g class="si-line"><line x1="10" y1="9" x2="54" y2="9"/><line x1="8" y1="15" x2="56" y2="15"/><line x1="6" y1="21" x2="58" y2="21"/><line x1="8" y1="27" x2="56" y2="27"/><line x1="10" y1="33" x2="54" y2="33"/></g></svg>',
-};
-
 function process(d) {
-  const steps = d.company.process.map((s, i) => `<li class="step">
-      <div class="step__icon">${STEP_ICONS[{ 'Automated CNC cutting': 'Cut', 'Punching and hole processing': 'Punch', 'Step-lap processing and core stacking support': 'Step-lap', 'Shearing and supporting operations': 'Stack' }[s.step] || s.step] || ''}</div>
-      <h3 class="step__title">${esc(s.step)}</h3>
-      <p class="step__text">${esc(s.text)}</p>
-    </li>`).join('');
-  return `<ol class="steps">${steps}</ol>`;
+  return `<ul class="cols">${d.company.process.map((s) => `<li class="col" data-line>
+      <h3 class="col__title">${esc(s.step)}</h3>
+      <p class="col__text">${esc(s.text)}</p>
+    </li>`).join('')}</ul>`;
 }
 
 function capacity(d) {
   const c = d.config.capacity;
   if (!c || !c.show) return '';
+  // "Up to 160": the figure set large, its qualifier as a label above it
+  const m = String(c.value).match(/^(.*?)(\d[\d,.]*)\s*$/);
+  const [pre, num] = m ? [m[1].trim(), m[2]] : ['', String(c.value)];
   return `<div class="capacity">
-    <p class="capacity__value"><span class="num">${esc(c.value)}</span> <span class="capacity__unit">${esc(c.unit)}</span></p>
-    <p class="capacity__note">${esc(c.note)}</p>
+    ${pre ? `<p class="eyebrow">${esc(pre)}</p>` : ''}
+    <p class="capacity__value d-xxl"><span class="num"${/^\d+$/.test(num) ? ` data-count="${num}"` : ''}>${esc(num)}</span></p>
+    <p class="eyebrow">${esc(c.unit)}</p>
+    <p class="note">${esc(c.note)}</p>
   </div>`;
 }
 
 function quality(d) {
-  return `<ul class="qlist">${d.company.quality.map((q) => `<li><span class="qlist__mark" aria-hidden="true"></span><div><h3>${esc(q.title)}</h3><p>${esc(q.text)}</p></div></li>`).join('')}</ul>`;
+  return `<ul class="rows rows--2">${d.company.quality.map((q) => `<li data-line><h3 class="rows__title">${esc(q.title)}</h3><p>${esc(q.text)}</p></li>`).join('')}</ul>`;
 }
 
 function customers(d) {
-  return `<ul class="who">${d.company.customers.map((c) => `<li><h3>${esc(c.title)}</h3><p>${esc(c.text)}</p></li>`).join('')}</ul>`;
+  return `<ul class="cols cols--3">${d.company.customers.map((c) => `<li class="col" data-line><h3 class="col__title">${esc(c.title)}</h3><p class="col__text">${esc(c.text)}</p></li>`).join('')}</ul>`;
 }
 
 function cta(d, a) {
   const wa = whatsappHref(d, 'Hello MANZZA, I would like to send a drawing for a quotation.');
-  return `<section class="cta on-dark" aria-labelledby="cta-h">
+  const phone = d.config.contact.phone;
+  return `<section class="band cta" aria-labelledby="cta-h">
   <div class="container cta__inner">
-    <div class="cta__copy">
-      ${eyebrow('', 'Request a quote')}
-      <h2 id="cta-h" class="cta__h">${esc(a.title || 'Discuss your next requirement with our team.')}</h2>
-      <p class="cta__p">${esc(a.text || 'Submit your requirements for an individual quotation.')}</p>
-    </div>
-    <div class="cta__actions">
-      <a class="btn btn--primary btn--lg" href="/quote${a.product ? `?product=${esc(a.product)}` : ''}">Request a quote</a>
-      <div class="cta__alt">
-        ${wa ? `<a class="btn btn--ghost" href="${esc(wa)}" target="_blank" rel="noopener">${icon.wa} WhatsApp</a>` : ''}
-        <p class="cta__phone">${icon.phone} ${phoneLink(d)}</p>
-      </div>
-    </div>
+    <h2 id="cta-h" class="d-xxl" data-rise>${esc(a.title || 'Discuss your next requirement with our team.')}</h2>
+    <p class="body-lg cta__p">${esc(a.text || 'Submit your requirements for an individual quotation.')}</p>
+    ${pill(`/quote${a.product ? `?product=${esc(a.product)}` : ''}`, 'Request a quote')}
+    ${wa || !isTodo(phone) ? `<p class="cta__alt">${wa ? `<a href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}${!isTodo(phone) ? phoneLink(d) : ''}</p>` : ''}
   </div>
 </section>`;
 }
@@ -473,84 +451,70 @@ function productPage(d, a) {
   const p = d.products.find((x) => x.slug === a.slug);
   const others = d.products.filter((x) => x.slug !== p.slug);
   const quoteHref = `/quote?product=${p.slug}`;
-  const facts = p.facts.map((f) => `<div class="fact"><dt>${esc(f.label)}</dt><dd>${esc(f.value)}${f.note ? `<span class="fact__note">${esc(f.note)}</span>` : ''}</dd></div>`).join('');
+  const facts = p.facts.map((f) => `<div class="fact" data-line><dt class="eyebrow">${esc(f.label)}</dt><dd>${esc(f.value)}${f.note ? `<span class="fact__note">${esc(f.note)}</span>` : ''}</dd></div>`).join('');
   const diagram = p.diagram ? `
   <section class="section" aria-labelledby="anatomy-h">
     <div class="container">
-      <div class="section__head">
-        ${eyebrow('', 'Core geometry')}
-        <h2 id="anatomy-h" class="h2">Mitre, diamond tip and V-notch.</h2>
-      </div>
-      <figure class="diagram-fig diagram-fig--wide">${coreAnatomySVG({ id: 'core-anatomy' })}${coreAnatomySVG({ id: 'core-anatomy-c', compact: true })}
+      <h2 id="anatomy-h" class="d-lg section__h" data-rise>Mitre, diamond tip and V-notch.</h2>
+      <figure class="diagram-fig">${coreAnatomySVG({ id: 'core-anatomy' })}${coreAnatomySVG({ id: 'core-anatomy-c', compact: true })}
         <ol class="diagram-legend"><li>Yokes, top and bottom</li><li>Limbs: two outer and one centre</li><li>Mitre corner</li><li>Diamond tip of the centre limb</li><li>V-notch in the yoke, which seats the diamond tip</li><li>Bolt holes, punched to drawing</li></ol>
-        
       </figure>
     </div>
   </section>
 ` : '';
 
   return `<main id="main" class="product">
-  <section class="phero">
-    <div class="container phero__grid">
-      <div class="phero__copy">
-        <nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/#products">Products</a></li><li aria-current="page">${esc(p.name)}</li></ol></nav>
-        ${eyebrow('', p.flagship ? 'Flagship product' : 'Product')}
-        <h1 class="h1">${esc(p.headline)}</h1>
-        <p class="lead">${esc(p.intro)}</p>
-        <div class="btn-row">
-          <a class="btn btn--primary" href="${quoteHref}">Request a quote</a>
-        </div>
-      </div>
-      <div class="phero__visual">
-        ${mini(p.visual, 'mini--hero')}
-      </div>
+  <section class="band band--phero">
+    <div class="band__media">${mini(p.visual, 'band__mini', { frame: 'right', scrub: true })}</div>
+    <div class="container band__copy">
+      <nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/#products">Products</a></li><li aria-current="page">${esc(p.name)}</li></ol></nav>
+      <h1 class="d-xxl" data-rise>${esc(p.headline)}</h1>
+      <p class="body-lg band__lede">${esc(p.intro)}</p>
+      ${pill(quoteHref, 'Request a quote')}
     </div>
-    <div class="container"><dl class="facts">${facts}</dl></div>
+  </section>
+
+  <section class="section section--soft" aria-label="Key facts">
+    <div class="container"><dl class="facts" style="--n:${p.facts.length}">${facts}</dl></div>
   </section>
 
   <section class="section" aria-labelledby="apps-h">
     <div class="container split">
-      <div class="split__head">
-        ${eyebrow('', 'Applications')}
-        <h2 id="apps-h" class="h2">Applications</h2>
-      </div>
-      <ul class="ticklist">${p.applications.map((x) => `<li>${icon.check}<span>${esc(x)}</span></li>`).join('')}</ul>
+      <h2 id="apps-h" class="d-lg" data-rise>Applications</h2>
+      <ul class="rows">${p.applications.map((x) => `<li data-line><p class="rows__strong">${esc(x)}</p></li>`).join('')}</ul>
     </div>
   </section>
   ${diagram}
-  <section class="section${p.diagram ? '' : ' section--navy'}" aria-labelledby="mat-h">
+  <section class="section section--soft" aria-labelledby="mat-h">
     <div class="container">
-      <div class="section__head section__head--row">
-        <div>${eyebrow('', 'Material options')}<h2 id="mat-h" class="h2">Material options</h2></div>
-        <a class="textlink" href="/materials">Compare CRGO and CRNO ${icon.arrow}</a>
+      <div class="section__head">
+        <h2 id="mat-h" class="d-lg" data-rise>Material options</h2>
+        <a class="link" href="/materials">Compare CRGO and CRNO</a>
       </div>
       ${specTable(d, p.materials)}
       <p class="note">Grades and thicknesses are supplied to your specification, subject to availability.</p>
     </div>
   </section>
 
-  <section class="section${p.diagram ? ' section--navy' : ''}" aria-labelledby="cust-h">
+  <section class="section" aria-labelledby="cust-h">
     <div class="container">
-      <div class="section__head">
-        ${eyebrow('', 'Customisation')}
-        <h2 id="cust-h" class="h2">Customisation</h2>
-      </div>
+      <h2 id="cust-h" class="d-lg section__h" data-rise>Customisation</h2>
       <div class="custom-grid">
-        <ul class="cards">${p.customisation.map((c) => `<li class="card"><h3>${esc(c.title)}</h3>${c.text ? `<p>${esc(c.text)}</p>` : ''}</li>`).join('')}</ul>
+        <ul class="rows rows--2">${p.customisation.map((c) => `<li data-line><h3 class="rows__title">${esc(c.title)}</h3>${c.text ? `<p>${esc(c.text)}</p>` : ''}</li>`).join('')}</ul>
         ${photo(d, { id: `product-${p.slug}`, label: p.name, ratio: '4/5' })}
       </div>
     </div>
   </section>
 
-  <section class="section section--tight section--navy" aria-label="Other products">
+  <section class="section section--soft section--tight" aria-label="Other products">
     <div class="container">
-      <p class="others__h">Other products</p>
-      <ul class="others">${others.map((o) => `<li><a href="/products/${o.slug}"><span>${esc(o.name)}</span><span class="others__line">${esc(o.cardLine)}</span>${icon.arrow}</a></li>`).join('')}</ul>
+      <p class="eyebrow">Other products</p>
+      <ul class="others">${others.map((o) => `<li><a href="/products/${o.slug}"><span class="others__name">${esc(o.name)}</span>${icon.arrow}</a></li>`).join('')}</ul>
     </div>
   </section>
 
   ${cta(d, { product: p.slug })}
-  <div class="stickybar" data-stickybar><a class="btn btn--primary btn--block" href="${quoteHref}">Request a quote for ${esc(p.name.replace(' laminations', ''))}</a></div>
+  <div class="stickybar" data-stickybar>${pill(quoteHref, `Request a quote for ${p.name.replace(' laminations', '')}`, { cls: 'btn--block' })}</div>
 </main>`;
 }
 
@@ -558,8 +522,8 @@ function productPage(d, a) {
 
 function materialsDetail(d) {
   return `<div class="mats">${d.materials.map((m) => `
-    <article class="mat" id="${m.code.toLowerCase()}">
-      <p class="mat__code">${esc(m.code)}</p>
+    <article class="mat" id="${m.code.toLowerCase()}" data-line>
+      <p class="mat__code d-xxl">${esc(m.code)}</p>
       <h2 class="mat__name">${esc(m.name)}</h2>
       <p class="mat__summary">${esc(m.summary)}</p>
       <p class="mat__detail">${esc(m.detail)}</p>
@@ -667,7 +631,7 @@ function quoteForm(d) {
   </fieldset>
 
   <div class="qform__submit">
-    <button class="btn btn--primary btn--lg" type="submit"><span class="btn__label">Send request</span></button>
+    <button class="btn btn--filled" type="submit"><span class="btn__label">Send request</span></button>
     <p class="qform__fine">Prices are not displayed publicly. Each enquiry receives an individual quotation.</p>
   </div>
   <div class="qform__status" role="status" aria-live="polite" tabindex="-1"></div>
@@ -675,24 +639,22 @@ function quoteForm(d) {
 
 <div class="qdone" id="quote-done" hidden tabindex="-1">
   <p class="qdone__mark" aria-hidden="true">${icon.check}</p>
-  <h2 class="h2">Thank you. Your request has been sent.</h2>
-  <p class="lead">We will reply with an individual quotation.</p>
-  <div class="btn-row"><a class="btn btn--ghost" href="/">Back to home</a><button class="btn btn--ghost" type="button" data-again>Send another request</button></div>
+  <h2 class="d-lg">Thank you. Your request has been sent.</h2>
+  <p class="body-lg">We will reply with an individual quotation.</p>
+  <div class="btn-row"><a class="btn btn--ghost" href="/"><span class="btn__label">Back to home</span></a><button class="link" type="button" data-again>Send another request</button></div>
 </div>`;
 }
 
 function contactCard(d) {
   const wa = whatsappHref(d, 'Hello MANZZA, I would like a quotation for laminations.');
   return `<aside class="qside">
-    <div class="qside__block">
-      <h2 class="qside__h">Contact</h2>
-      ${wa ? `<a class="btn btn--wa btn--block" href="${esc(wa)}" target="_blank" rel="noopener">${icon.wa} Chat on WhatsApp</a>` : `<p class="btn btn--wa btn--block is-disabled" aria-disabled="true">${icon.wa} WhatsApp number to be added</p>`}
-      <ul class="contact-list contact-list--lg">
-        <li>${icon.phone}<span>${phoneLink(d)}</span></li>
-        <li>${icon.mail}<span>${emailLink(d)}</span></li>
-        <li>${icon.pin}<span>${addressHTML(d)}</span></li>
-      </ul>
-    </div>
+    <h2 class="eyebrow">Contact</h2>
+    <ul class="qside__list">
+      <li>${phoneLink(d)}</li>
+      <li>${emailLink(d)}</li>
+      <li>${wa ? `<a href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>` : tbc('WhatsApp number')}</li>
+      <li>${addressHTML(d)}</li>
+    </ul>
   </aside>`;
 }
 
@@ -708,8 +670,8 @@ const PARTIALS = {
   capacity: (d) => capacity(d),
   quality: (d) => quality(d),
   customers: (d) => customers(d),
-  about: (d) => `<p class="about__p">${esc(d.company.about)}</p>`,
-  eyebrow: (d, a) => eyebrow(a.n, a.label),
+  about: (d) => `<p class="statement" data-words>${esc(d.company.about)}</p>`,
+  pill: (d, a) => pill(a.href, a.label),
   photo: (d, a) => photo(d, a),
   materialsDetail: (d) => materialsDetail(d),
   grainFigure: () => grainFigure(),

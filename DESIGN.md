@@ -1,141 +1,140 @@
 ---
 name: MANZZA
-description: Transformer core laminations, presented with Apple's product-page grammar on black.
+description: Transformer core laminations presented in SpaceX's design language (awesome-design-md, design/reference/spacex.DESIGN.md) — pure black, condensed uppercase DIN-style display type, full-bleed imagery, one ghost pill per band.
+source: design/reference/spacex.DESIGN.md (VoltAgent/awesome-design-md, MIT)
 colors:
-  ink-950: "#0a0b0d"
-  elev-1: "color-mix(in srgb, #fff 4%, #0a0b0d)"
-  elev-2: "color-mix(in srgb, #fff 7%, #0a0b0d)"
-  elev-3: "color-mix(in srgb, #fff 10%, #0a0b0d)"
-  elev-4: "color-mix(in srgb, #fff 13%, #0a0b0d)"
-  steel-50: "#f4f5f7"
-  steel-100: "#e4e7eb"
-  steel-200: "#cfd4da"
-  steel-300: "#aeb4bc"
-  steel-400: "#8b929b"
-  line: "rgba(255, 255, 255, 0.1)"
+  canvas-night: "#000000"
+  canvas-night-soft: "#0a0a0a"
+  on-primary: "#ffffff"
+  on-primary-mute: "#f0f0fa"
+  body: "rgba(240, 240, 250, 0.72)"
+  note: "rgba(240, 240, 250, 0.52)"
+  hairline-on-dark: "#3a3a3f"
+  canvas-cool: "#f0f0fa"
   brand-blue: "#2f6bea"
 typography:
-  display:
-    fontFamily: "Geist Variable, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
-    fontSize: "clamp(2.75rem, 7.4vw, 6rem)"
-    fontWeight: 600
-    lineHeight: 1.02
-    letterSpacing: "-0.04em"
-  headline:
-    fontFamily: "Geist Variable, sans-serif"
-    fontSize: "clamp(2rem, 4.6vw, 3.5rem)"
-    fontWeight: 600
-    lineHeight: 1.07
-    letterSpacing: "-0.028em"
-  lead:
-    fontFamily: "Geist Variable, sans-serif"
-    fontSize: "clamp(1.1875rem, 1.7vw, 1.4375rem)"
-    fontWeight: 500
-    lineHeight: 1.38
-    letterSpacing: "-0.016em"
-  body:
-    fontFamily: "Geist Variable, sans-serif"
+  display-xxl:
+    fontFamily: "Barlow Condensed, Arial Narrow, Arial, sans-serif"
+    fontSize: "clamp(2.75rem, 8vw, 6.5rem)"
+    fontWeight: 700
+    lineHeight: 0.95
+    letterSpacing: "0.02em"
+    textTransform: uppercase
+  display-xl:
+    fontFamily: "Barlow Condensed"
+    fontSize: "clamp(2.25rem, 5.4vw, 4.5rem)"
+    fontWeight: 700
+    lineHeight: 1
+    letterSpacing: "0.02em"
+    textTransform: uppercase
+  display-lg:
+    fontFamily: "Barlow Condensed"
+    fontSize: "clamp(1.75rem, 3.4vw, 3rem)"
+    fontWeight: 700
+    lineHeight: 1.05
+    letterSpacing: "0.02em"
+    textTransform: uppercase
+  body-lg:
+    fontFamily: "Barlow, Arial, sans-serif"
+    fontSize: "1.1875rem"
+    fontWeight: 400
+    lineHeight: 1.6
+    letterSpacing: "0.02em"
+  body-md:
+    fontFamily: "Barlow"
     fontSize: "1.0625rem"
     fontWeight: 400
-    lineHeight: 1.5
-    letterSpacing: "-0.011em"
-  label:
-    fontFamily: "Geist Variable, sans-serif"
-    fontSize: "0.875rem"
+    lineHeight: 1.55
+    letterSpacing: "0.02em"
+  button-cap:
+    fontFamily: "Barlow"
+    fontSize: "0.8125rem"
+    fontWeight: 700
+    letterSpacing: "0.09em"
+    textTransform: uppercase
+  micro-cap:
+    fontFamily: "Barlow"
+    fontSize: "0.75rem"
     fontWeight: 500
-    lineHeight: 1.4
+    lineHeight: 2
+    letterSpacing: "0.12em"
+    textTransform: uppercase
 rounded:
-  field: "12px"
-  card-sm: "18px"
-  tile: "28px"
-  pill: "980px"
-spacing:
-  section-y: "clamp(88px, 12vw, 160px)"
-  tile-gap: "16px"
-  gutter: "20px / 32px / 44px"
+  xs: "4px"
+  pill: "32px"
+  full: "9999px"
 components:
-  button-primary:
-    backgroundColor: "{colors.steel-100}"
-    textColor: "{colors.ink-950}"
+  button-ghost:
+    backgroundColor: transparent
+    border: "1px solid {colors.on-primary}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.button-cap}"
     rounded: "{rounded.pill}"
-    height: "44px"
-    padding: "0 22px"
-  button-primary-hover:
-    backgroundColor: "{colors.steel-50}"
-  button-primary-active:
-    backgroundColor: "{colors.steel-200}"
-  button-primary-lg:
-    height: "52px"
-    padding: "0 30px"
-  button-primary-sm:
-    height: "36px"
-    padding: "0 16px"
-  button-secondary:
-    backgroundColor: "transparent"
-    textColor: "{colors.steel-100}"
-    rounded: "{rounded.pill}"
-  link-chevron:
-    textColor: "{colors.steel-100}"
-  tile:
-    backgroundColor: "{colors.elev-2}"
-    rounded: "{rounded.tile}"
-    padding: "32px 28px"
-  field:
-    backgroundColor: "{colors.elev-3}"
-    textColor: "{colors.steel-100}"
-    rounded: "{rounded.field}"
+    padding: "18px 24px"
+    hover: "white fill wipes in from the left, label turns black"
+  button-filled-cool:
+    backgroundColor: "{colors.canvas-cool}"
+    textColor: "{colors.canvas-night}"
+    use: "quote form submit only"
+  text-input:
+    backgroundColor: "{colors.canvas-night-soft}"
+    border: "1px solid {colors.hairline-on-dark}"
+    rounded: "{rounded.xs}"
+  nav-bar-overlay:
+    backgroundColor: transparent
+    textColor: "{colors.on-primary}"
+    typography: "{typography.micro-cap}"
 ---
 
 ## Overview
-Apple's product-page grammar applied to an industrial component: the lamination is
-presented like a flagship product. Black ground, one neo-grotesk family set large and
-tight, quiet grey supporting copy, graphite tiles that lighten as they rise, and a light-steel
-accent for the things a visitor can act on. Sections open with a centred headline.
-The home page begins with a WebGL scroll film; everything after it is calm by design.
+SpaceX's system applied to an industrial component. Every chapter is a band on pure
+black, opened by one uppercase condensed headline and closed by at most one ghost pill.
+The imagery is the design: until MANZZA supplies factory photographs, the steel is
+shown by the site's own WebGL renders (the scroll film and the product scenes), lit by
+a photographed studio and composed full-bleed like SpaceX's launch photography.
 
-## Colors
-Steel, built in three tiers in `main.css` (primitives → semantic → component), following
-dark-mode-design-expert. The page is `ink-950`, a cool near-black (never #000). Raised
-surfaces get lighter, not shadowed: `elev-1` for alternate chapters and the footer,
-`elev-2` for tiles, `elev-3` for fields, hover and the dropdown, `elev-4` for pressed
-states. Text is off-white `steel-100` (15.9:1, inside the 12–16:1 comfort band, never
-pure white), `steel-300` for body (9:1) and `steel-400` for notes (6:1). The accent is
-light steel: the primary pill, links, marks and highlights. Electric blue `brand-blue` is
-kept for the logo's bolt and the intro film; it is not an interface colour.
+## Departures from the reference, and why
+- **Imagery:** 3D renders stand in for photography; photo slots stay in place and take
+  real factory photographs (`public/images/<id>.webp`) when they arrive.
+- **Body text tiers:** SpaceX is white-only. Technical copy needs a reading tier, so body
+  runs at 72% of `on-primary-mute` and notes at 52%. Headlines stay pure white.
+- **Tables:** SpaceX's marketing pages have none. The client brief requires a technical
+  specification table, so tables sit on `canvas-night-soft` with `hairline-on-dark` rules,
+  values in display type.
+- **One filled button:** the quote form's submit uses `button-filled-cool` (SpaceX keeps
+  filled buttons for its shop's transactional actions; sending a quote is ours).
+- **Brand blue:** stays in the logo's bolt and the scroll film. Never an interface colour.
 
 ## Typography
-Geist (self-hosted via @fontsource-variable/geist) for everything; figures use tabular
-numerals rather than a monospace face. Sentence case throughout, no all-caps labels.
-Headlines are semibold with tight negative tracking; a two-tone headline sets its second
-sentence in `text-3`. `text-wrap: balance` on headings, `pretty` on paragraphs.
+Barlow, one family in two widths: Barlow Condensed 700 for display, Barlow for body and
+caps chrome. Barlow is drawn from highway signage like DIN 1451, which the reference's
+D-DIN descends from, and is OFL-licensed. Display is always uppercase, tight leading
+(0.95–1.05), positive tracking. Chrome (nav, buttons, eyebrows, labels) is caps with
+wide tracking. Figures use tabular numerals.
 
 ## Layout
-Max content width 1180px. Section rhythm `section-y` (clamp 72–128px) top and bottom. Section heads are
-centred; content below may be left-aligned when it is a table or prose. The product
-lineup is three equal columns of centred picture, name, line and actions.
+Full-width bands; type in a 1200px column. Product bands are at least one viewport tall
+with the render filling the band and the copy anchored bottom-left. Sections are divided
+by tone (`canvas-night` / `canvas-night-soft`) and 1px hairlines, never cards or shadows.
 
-## Elevation & Depth
-Flat. Depth is tonal (lighter surfaces rise), not shadows; only the translucent
-header and dropdown use blur (saturate 180%, blur 20px) and the dropdown a soft shadow.
-
-## Shapes
-Pills for buttons, 28px tiles (22px on phones), 18px small cards, 12px fields, round
-radio marks and status dots. No cut corners, no outlines around tiles.
-
-## Components
-- Primary button: light-steel pill, near-black sentence-case label in regular weight, 44px minimum target (the 36px small pill gets an invisible 44px hit area); hover
-  lightens, press darkens and scales to 0.97; focus is a 2px steel ring offset from the pill.
-- Secondary button: steel-outlined pill; hover adds a faint fill.
-- Chevron link: off-white text with a drawn chevron that nudges 2px on hover; underline on hover.
-- Tile: graphite, 28px radius, no border.
-- Product lineup item: picture tile, name,
-  one line, then "Request a quote" (small pill) and "Learn more ›".
+## Motion
+Restrained and purposeful (the brief asks to avoid excessive animation). Each runs once
+and is skipped entirely under `prefers-reduced-motion`.
+- **Headline rise:** display headlines rise word by word out of a mask as they enter
+  (700ms, ease-out-expo, 45ms stagger) — a film title card, not a bounce.
+- **Hairline draw:** section rules draw left to right as their section enters.
+- **Ghost pill:** a white fill wipes in from the left on hover; the label inverts.
+- **Renders follow the scroll:** product renders turn with the band's scroll progress, so
+  scrolling feels like walking round the part.
+- **About statement:** words light up from 20% to full white as the paragraph scrolls
+  through the viewport.
+- **Capacity figure:** counts up once when it enters.
+- **Navigation:** transparent over the film; hides while scrolling down, returns on
+  scroll up; a solid black bar once past the first band.
+- **Page change:** a short cross-fade between pages (view transitions).
 
 ## Do's and Don'ts
-- Do keep one filled steel action per view; everything else is a link or outline.
-- Do keep labels in sentence case and buttons free of arrows.
-- Don't add labels above headings or 01/02/03 numbering unless the content is a real sequence.
-- Don't use gradient text beyond the hero's product name.
-- Don't outline tiles or add shadows to them.
-- Don't use pure black (#000) or pure white (#fff) for surfaces or text.
-- Don't use blue for interface controls; it belongs to the logo and the film.
+- Do keep display uppercase, condensed, tracked.
+- Do keep one ghost pill per band; links elsewhere are underlined white text.
+- Don't add accent colours, gradients, shadows, rounded tiles or glass.
+- Don't add copy that the client brief or the user did not supply.

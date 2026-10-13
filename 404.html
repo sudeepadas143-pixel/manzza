@@ -8,14 +8,11 @@
 <body class="page-404">
   {{> header}}
   <main id="main">
-    <section class="phero phero--text phero--404">
+    <section class="phero phero--404">
       <div class="container">
-        <h1 class="h1">Page not found</h1>
-        <p class="lead">The link may be out of date.</p>
-        <div class="btn-row">
-          <a class="btn btn--primary" href="/">Go to the home page</a>
-          <a class="btn btn--ghost" href="/quote">Request a quote</a>
-        </div>
+        <h1 class="d-xxl" data-rise>Page not found</h1>
+        <p class="body-lg phero__lede">The link may be out of date.</p>
+        {{> pill href="/" label="Go to the home page"}}
       </div>
     </section>
   </main>

@@ -9,39 +9,27 @@
   {{> header active="materials"}}
 
   <main id="main">
-    <section class="phero phero--text">
+    <section class="phero">
       <div class="container">
         <nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li aria-current="page">Materials</li></ol></nav>
-        <h1 class="h1 h1--wide">Materials and technical specifications</h1>
-        <p class="lead lead--wide">Working with CRGO and CRNO electrical steel, we support transformer manufacturers with a range of thicknesses, grades and customized component requirements.</p>
+        <h1 class="d-xxl" data-rise>Materials and technical specifications</h1>
+        <p class="body-lg phero__lede">Working with CRGO and CRNO electrical steel, we support transformer manufacturers with a range of thicknesses, grades and customized component requirements.</p>
       </div>
     </section>
 
-    <section class="section section--flush-top" aria-labelledby="spec-h">
+    <section class="section section--soft" aria-labelledby="spec-h">
       <div class="container">
-        <h2 id="spec-h" class="h3 table-title">Specification</h2>
+        <h2 id="spec-h" class="d-lg section__h" data-rise>Specification</h2>
         {{> specTable}}
-        <div class="scale-row">
-          <div>
-            <p class="label-sm">Thickness ranges, mm</p>
-            {{> thicknessScale}}
-          </div>
-          <p class="note">Grades depend on material specification and availability.</p>
-        </div>
+        <p class="note">Grades depend on material specification and availability.</p>
       </div>
     </section>
 
-    <section class="section section--navy" aria-label="Material details">
+    <section class="section" aria-label="Material details">
       <div class="container">
         {{> materialsDetail}}
       </div>
     </section>
-
-    
-
-    
-
-    
 
     {{> cta}}
   </main>

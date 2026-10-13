@@ -3,6 +3,7 @@
  * mobile sticky quote bar.
  */
 import { initMinis } from './minis.js';
+import { initMotion } from './motion.js';
 
 function initNav() {
   const header = document.querySelector('[data-header]');
@@ -41,17 +42,30 @@ function initNav() {
     window.matchMedia('(min-width: 961px)').addEventListener('change', (m) => { if (m.matches) set(false); });
   }
 
-  // Header gets a solid edge once the page scrolls
-  const onScroll = () => header.classList.toggle('is-scrolled', window.scrollY > 8);
-  onScroll();
-  window.addEventListener('scroll', onScroll, { passive: true });
+  // Overlay nav: transparent over the film, solid black after it; hides while
+  // scrolling down, comes back as soon as the visitor scrolls up.
+  const intro = document.querySelector('#intro');
+  let lastY = window.scrollY;
+  let ticking = false;
+  const update = () => {
+    ticking = false;
+    const y = window.scrollY;
+    const solidFrom = intro ? intro.offsetTop + intro.offsetHeight - header.offsetHeight : 8;
+    header.classList.toggle('is-solid', y > solidFrom);
+    if (Math.abs(y - lastY) > 6) {
+      header.classList.toggle('is-hidden', y > lastY && y > header.offsetHeight * 3);
+      lastY = y;
+    }
+  };
+  update();
+  window.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
 }
 
 function initStickyBar() {
   const bar = document.querySelector('[data-stickybar]');
   if (!bar) return;
   // hide the mobile quote bar while another quote button is already on screen
-  const targets = [...document.querySelectorAll('.phero .btn--primary, .cta .btn--primary, .send .btn--primary')];
+  const targets = [...document.querySelectorAll('.band--phero .btn, .cta .btn')];
   const seen = new Set();
   const io = new IntersectionObserver((entries) => {
     entries.forEach((e) => (e.isIntersecting ? seen.add(e.target) : seen.delete(e.target)));
@@ -64,6 +78,7 @@ function initStickyBar() {
 export function initCommon() {
   document.documentElement.classList.add('js');
   initNav();
+  initMotion();
   initMinis();
   initStickyBar();
   document.querySelectorAll('[data-year]').forEach((el) => { el.textContent = new Date().getFullYear(); });

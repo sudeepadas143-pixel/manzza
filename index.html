@@ -12,70 +12,55 @@
     {{> intro}}
     {{> hero}}
 
-    <section id="products" class="section" aria-labelledby="products-h">
+    <section id="products" class="band band--head" aria-labelledby="products-h">
       <div class="container">
-        <div class="section__head section__head--row">
-          <div>
-            <h2 id="products-h" class="h2">Products</h2>
-          </div>
-          <p class="lead section__aside">Mitre-core step-lap laminations, E&amp;I laminations and customized strip laminations, manufactured to meet customer drawings, material specifications and production requirements.</p>
-        </div>
-        {{> productCards}}
+        <h2 id="products-h" class="d-xl" data-rise>Products</h2>
+        <p class="body-lg band__lede">Mitre-core step-lap laminations, E&amp;I laminations and customized strip laminations, manufactured to meet customer drawings, material specifications and production requirements.</p>
       </div>
     </section>
+    {{> productCards}}
 
-    <section id="materials" class="section section--navy" aria-labelledby="materials-h">
+    <section id="materials" class="section section--soft" aria-labelledby="materials-h">
       <div class="container">
-        <div class="section__head section__head--row">
-          <div>
-            <h2 id="materials-h" class="h2">Materials and technical specifications</h2>
-          </div>
-          <a class="textlink" href="/materials">Full materials guide {{> icon name="arrow"}}</a>
+        <div class="section__head">
+          <h2 id="materials-h" class="d-xl" data-rise>Materials and technical specifications</h2>
+          <a class="link" href="/materials">Full materials guide</a>
         </div>
-        <div class="mat-home">
-          {{> compareTable}}
-          <div class="mat-home__scale">
-            <p class="label-sm">Thickness, mm</p>
-            {{> thicknessScale}}
-            <p class="note">Grades depend on material specification and availability.</p>
-          </div>
-        </div>
+        {{> compareTable}}
+        <p class="note">Grades depend on material specification and availability.</p>
       </div>
     </section>
 
     <section id="process" class="section" aria-labelledby="process-h">
       <div class="container">
-        <div class="section__head section__head--row">
-          <div>
-            <h2 id="process-h" class="h2">Manufacturing capabilities</h2>
-          </div>
-          <p class="lead section__aside">MANZZA uses a combination of automated cutting equipment and supporting manufacturing machinery to produce electrical steel laminations.</p>
+        <div class="section__head">
+          <h2 id="process-h" class="d-xl" data-rise>Manufacturing capabilities</h2>
+          <p class="body-lg">MANZZA uses a combination of automated cutting equipment and supporting manufacturing machinery to produce electrical steel laminations.</p>
         </div>
         {{> process}}
-        <div class="process-foot">
-          {{> photo id="factory-cnc-line" label="Manufacturing facility" ratio="16/10"}}
-          <div class="process-foot__side">
-            {{> capacity}}
-            <div class="quality">
-              <h3 class="h3">Quality and engineering approach</h3>
-              {{> quality}}
-            </div>
-          </div>
-        </div>
+        {{> photo id="factory-cnc-line" label="Manufacturing facility" ratio="21/9"}}
       </div>
     </section>
 
-    <section id="about" class="section section--navy" aria-labelledby="who-h">
+    <section class="band band--capacity" aria-label="Production capacity">
+      <div class="band__media" aria-hidden="true"><div class="mini band__mini"><canvas data-mini="core" data-frame="right" data-scrub aria-hidden="true"></canvas></div></div>
+      <div class="container band__copy">
+        {{> capacity}}
+      </div>
+    </section>
+
+    <section class="section section--soft" aria-labelledby="quality-h">
       <div class="container">
-        <div class="section__head section__head--row">
-          <h2 id="who-h" class="h2">About MANZZA</h2>
-        </div>
-        <div class="about">
-          <div class="about__copy">
-            {{> about}}
-          </div>
-          {{> customers}}
-        </div>
+        <h2 id="quality-h" class="d-xl section__h" data-rise>Quality and engineering approach</h2>
+        {{> quality}}
+      </div>
+    </section>
+
+    <section id="about" class="section" aria-labelledby="about-h">
+      <div class="container">
+        <h2 id="about-h" class="d-xl section__h" data-rise>About MANZZA</h2>
+        {{> about}}
+        {{> customers}}
       </div>
     </section>
 
