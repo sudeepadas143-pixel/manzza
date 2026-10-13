@@ -261,6 +261,9 @@ html:not(.rm) .mobile-menu:not([hidden]) .mobile-menu__list li { animation: rise
 /* phones: the render takes the top of the band, the copy the bottom */
 @media (max-width: 899px) {
   .band--product .band__media, .band--phero .band__media, .band--capacity .band__media { bottom: 38%; }
+  /* product page heads carry more copy: stack render above the copy so they never overlap */
+  .band--phero { flex-direction: column; align-items: stretch; justify-content: flex-end; }
+  .band--phero .band__media { position: relative; inset: auto; height: clamp(240px, 38svh, 380px); flex: none; margin-bottom: 8px; }
 }
 @media (min-width: 900px) {
   .band--product .band__copy, .band--capacity .band__copy { padding-right: 50%; }

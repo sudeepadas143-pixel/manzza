@@ -147,7 +147,7 @@ export function startMinis(canvases) {
       const aspect = w / h;
       v.camera.aspect = aspect;
       // in a wide band the part sits to one side of the copy (data-frame)
-      const side = aspect > 1.15 ? ({ right: 1, left: -1 }[v.canvas.dataset.frame] || 0) : 0;
+      const side = aspect > 1.5 ? ({ right: 1, left: -1 }[v.canvas.dataset.frame] || 0) : 0;
       const fov = THREE.MathUtils.degToRad(v.camera.fov);
       const fitH = v.sphere.radius / Math.sin(fov / 2);
       const fitW = fitH / Math.min(1, side ? aspect / 2 : aspect);
