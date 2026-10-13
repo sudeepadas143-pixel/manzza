@@ -137,6 +137,13 @@ Every push to the main branch redeploys automatically, so editing a JSON file an
 
 The small rotating product visuals (`src/js/minis.js`, `src/js/mini-scenes.js`) share one offscreen WebGL renderer, use the same steel material and studio lighting, animate only while visible, and fall back to static SVG drawings.
 
+## Design review (pixelslop)
+
+`/pixelslop http://localhost:4173/` in Claude Code scans the built site in a real browser
+(5 scored pillars, AI-slop patterns, personas) and can fix what it finds. The project's
+design context is in `.pixelslop.md` and the buyer persona in `.pixelslop/personas/`.
+The agents themselves are a per-machine install: `npx pixelslop install` (project scope).
+
 ## Project layout
 
 ```

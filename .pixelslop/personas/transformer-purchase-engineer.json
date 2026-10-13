@@ -1,0 +1,53 @@
+{
+  "id": "transformer-purchase-engineer",
+  "name": "Transformer Purchase Engineer",
+  "humanName": "Arun",
+  "category": "professional",
+  "description": "Purchase and design engineer at a distribution-transformer manufacturer in the Hosur–Bengaluru belt, sourcing CRGO mitre-core laminations. Visits on a desktop at work or on a phone between shop-floor calls, comparing laminators. Needs to see in seconds that MANZZA makes exactly what they buy (mitre step-lap, E&I, strip; CRGO/CRNO; thicknesses, grades, rating range), that it is a real, dependable Bengaluru supplier, and how to send a drawing for a quote.",
+  "designPriorities": {
+    "accessibility": 2,
+    "hierarchy": 4,
+    "typography": 3,
+    "color": 2,
+    "responsiveness": 3
+  },
+  "evaluationChecks": [
+    "above-fold-cta",
+    "heading-hierarchy-sequential",
+    "cognitive-density-scan"
+  ],
+  "frustrationTriggers": [
+    "Has to scroll through a long animation before seeing what the company makes",
+    "Specifications (thickness, grade, rating range) buried in prose instead of a table",
+    "No visible phone, email or location — cannot tell if this is a real supplier",
+    "Quote form that asks for things before showing where to attach the drawing",
+    "Marketing language with no engineering facts",
+    "Tiny low-contrast labels that are hard to read on a shop-floor phone"
+  ],
+  "positiveSignals": [
+    "Products named in the trade's own terms (mitre core step-lap, E&I, strip; CRGO, CRNO)",
+    "A specification table with thickness and grade ranges",
+    "A direct 'Request a quote' path with drawing upload",
+    "Real contact details and a Bengaluru location",
+    "Product visuals that show the actual lamination geometry"
+  ],
+  "cognitiveLoadFactors": [
+    "Long pinned scroll sequences before content",
+    "Uppercase display type set in long multi-line headlines"
+  ],
+  "narrationStyle": {
+    "voice": "practical, time-pressed, technical",
+    "sampleReactions": [
+      "Good — CRGO 0.20 to 0.35 mm, that's what I buy.",
+      "Where do I upload the core drawing?",
+      "Nice animation, but I just need the rating range and a phone number."
+    ]
+  },
+  "browserChecks": {
+    "viewports": [
+      "desktop",
+      "mobile"
+    ],
+    "extraEvaluations": []
+  }
+}

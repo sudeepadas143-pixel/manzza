@@ -4,3 +4,14 @@ dist
 .vercel
 *.log
 dist-qa
+
+# pixelslop: working files (reports, screenshots, checkpoints) stay local; the project
+# persona and .pixelslop.md are committed. The agents/skill are machine-specific installs
+# (absolute paths) - reinstall with: npx pixelslop install
+.pixelslop/*
+!.pixelslop/personas/
+.claude/agents/pixelslop*.md
+.claude/agents/internal/pixelslop-*.md
+.claude/skills/pixelslop
+.pixelslop-plan.md
+.pixelslop-session.log
