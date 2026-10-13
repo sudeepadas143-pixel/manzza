@@ -209,7 +209,7 @@ function head(d, a) {
   <meta name="description" content="${esc(description)}">
   ${base ? `<link rel="canonical" href="${esc(abs(pathName))}">` : ''}
   ${a.noindex ? '<meta name="robots" content="noindex">' : ''}
-  <meta name="theme-color" content="#000000">
+  <meta name="theme-color" content="#06080d">
   <meta name="color-scheme" content="dark">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="${esc(c.company.legalName)}">

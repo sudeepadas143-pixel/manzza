@@ -35,7 +35,7 @@ import { buildFrame, FRAME } from './frame.js';
 const easeOut = (t) => 1 - (1 - t) ** 3;
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
-export const STUDIO = new THREE.Color('#000000'); // matches --stage in main.css
+export const STUDIO = new THREE.Color('#06080d'); // matches --stage (--canvas) in main.css
 
 export function createIntroScene(canvas, { mobile = false, capture = false, hdri = null, onChange = () => {} } = {}) {
   /* ---------------------------------------------------------------- setup */
@@ -439,7 +439,8 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
     const roll = easeInOut(seg(p, 0.22, 0.31));
     const away = easeInOut(seg(p, 0.355, 0.42));
     const coilX = lerp(XS1, XS0, roll) - away * 3.2;
-    coil.visible = away < 1;
+    // unlit, the coil is a black disc behind the logo: keep it out until its lights come up
+    coil.visible = away < 1 && lights > 0.002;
     coil.position.set(coilX, R + 0.002, 0);
     // a slow turn while it waits; rolling without slipping: angle = distance / radius
     // winding: wraps build outward from the bore while the strip feeds in

@@ -3,17 +3,19 @@ name: MANZZA
 description: Transformer core laminations presented in SpaceX's design language (awesome-design-md, design/reference/spacex.DESIGN.md) in the client's black, deep navy and electric blue — condensed uppercase DIN-style display type, full-bleed imagery, one ghost pill per band.
 source: design/reference/spacex.DESIGN.md (VoltAgent/awesome-design-md, MIT)
 colors:
-  canvas-night: "#000000"
-  navy: "#081226"
-  navy-deep: "#050b19"
-  electric-blue: "#2f6bea"
-  electric-blue-hover: "#4a82ff"
-  electric-blue-text: "#6e9bff"
-  on-primary: "#ffffff"
-  on-primary-mute: "#eef2ff"
-  body: "rgba(226, 234, 255, 0.74)"
-  note: "rgba(226, 234, 255, 0.54)"
-  hairline-on-dark: "#1d2a4a"
+  # calibrated with taste-skill (.claude/skills/taste-skill): no pure black or white,
+  # one cool neutral family, one accent locked page-wide, accent saturation < 80%, no glows
+  canvas: "#06080d"          # off-black, navy-cool
+  navy: "#0b1426"            # deep navy
+  navy-deep: "#080e1b"
+  electric-blue: "#3169e3"   # the logo's hue (221°) at 76% saturation
+  electric-blue-press: "#2a5bc9"
+  electric-blue-text: "#80a3ef"
+  on-primary: "#f4f6fa"      # off-white
+  on-primary-mute: "#e6ebf3"
+  body: "rgba(238, 241, 246, 0.74)"
+  note: "rgba(238, 241, 246, 0.55)"
+  hairline-on-dark: "#1c2438"
 typography:
   display-xxl:
     fontFamily: "Barlow Condensed, Arial Narrow, Arial, sans-serif"
@@ -109,11 +111,13 @@ a photographed studio and composed full-bleed like SpaceX's launch photography.
 - **Colour:** SpaceX is black and white only. The client brief (§8) sets MANZZA's primaries
   as black, deep navy and electric blue, for a "premium black and electric-blue industrial
   design system", and the brand personality as powerful, innovative, technical and
-  dependable. So: black is the stage (film, product bands, hero); deep navy carries the
-  alternate chapters, footer and menus; electric blue (the logo's bolt, #2f6bea) is the
-  one accent — button fills on hover, the submit button, rules, eyebrows, focus, the
-  table head rule, and a glow rising behind the closing call to action. Small blue text
-  uses a lighter tint (#6e9bff) to stay above 6:1 on black and navy.
+  dependable. So: off-black is the stage (film, product bands, hero); deep navy carries
+  the alternate chapters, footer and menus; electric blue is the one accent — button
+  fills on hover, the submit button, rules, eyebrows, focus, the table head rule and the
+  rule that opens the closing call to action. Calibrated with taste-skill: off-black
+  #06080d and off-white #f4f6fa instead of pure values (same cool family as the navy),
+  the logo's blue hue at 76% saturation (#3169e3; the logo artwork itself is untouched),
+  no glows, and small blue text in a lighter tint (#80a3ef, 7:1 on navy).
 
 ## Typography
 Barlow, one family in two widths: Barlow Condensed 700 for display, Barlow for body and
@@ -147,6 +151,6 @@ and is skipped entirely under `prefers-reduced-motion`.
 ## Do's and Don'ts
 - Do keep display uppercase, condensed, tracked.
 - Do keep one ghost pill per band; links elsewhere are underlined white text.
-- Don't add colours beyond black, deep navy, electric blue and white; no shadows, rounded
-  tiles or glass. The only gradient is the blue glow behind the closing call to action.
+- Don't add colours beyond off-black, deep navy, electric blue and off-white; no glows,
+  gradients, shadows, rounded tiles or glass.
 - Don't add copy that the client brief or the user did not supply.
