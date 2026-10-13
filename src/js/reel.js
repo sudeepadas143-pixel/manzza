@@ -1,129 +1,113 @@
 /**
- * Factory photo carousel. Scrolling is native (scroll-snap), so swipe, trackpad
- * and keyboard work without help; this adds arrow buttons, mouse drag, the
- * counter, segment progress and a slow autoplay that stops for good once the
- * visitor takes over, pauses off-screen and on hover, and never runs under
- * prefers-reduced-motion.
+ * Factory photo carousel. Frames are stacked in one stage; changing frame wipes
+ * the new one in from the direction of travel. Thumbnails act as pagination and
+ * show autoplay progress. Swipe/drag on the stage, arrow buttons and arrow keys
+ * all navigate. Autoplay starts the first time the reel is on screen, pauses on
+ * hover, off-screen or in a background tab, and stops for good once the visitor
+ * takes over. No autoplay and no transitions under prefers-reduced-motion.
  */
 const DWELL = 6000;
+const WIPE = 1100;
 
 export function initReels() {
   document.querySelectorAll('[data-reel]').forEach(reel);
 }
 
 function reel(root) {
-  const track = root.querySelector('.reel__track');
-  const slides = [...track.children];
-  const ticks = [...root.querySelectorAll('.reel__tick')];
+  const stage = root.querySelector('.reel__stage');
+  const slides = [...stage.querySelectorAll('.reel__slide')];
+  const thumbs = [...root.querySelectorAll('.reel__thumb')];
   const now = root.querySelector('[data-reel-now]');
-  const prev = root.querySelector('[data-reel-prev]');
-  const next = root.querySelector('[data-reel-next]');
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let index = -1;
+  const n = slides.length;
+  let index = 0;
   let auto = !reduced;
-  let visible = false;
-  let hovered = false;
-  let t0 = 0;
-  let raf = 0;
+  let seen = false, visible = false, hovered = false;
+  let t0 = 0, paused = 0;
+  const timers = new WeakMap();
 
-  // the last frames clamp to the end of the track instead of leaving a gap
-  const left = (i) => Math.min(slides[i].offsetLeft - slides[0].offsetLeft, track.scrollWidth - track.clientWidth);
-  // where the track is heading: repeated clicks step from here, not from a mid-glide position
-  let target = 0;
-  const go = (i, smooth = true) => {
-    i = (i + slides.length) % slides.length;
-    target = i;
-    track.scrollTo({ left: left(i), behavior: smooth && !reduced ? 'smooth' : 'auto' });
-  };
-  const setActive = (i) => {
+  root.classList.toggle('is-auto', auto);
+
+  const show = (i, dir) => {
+    i = (i + n) % n;
     if (i === index) return;
-    index = i;
-    slides.forEach((s, k) => {
-      s.classList.toggle('is-active', k === i);
-      s.setAttribute('aria-hidden', k === i ? 'false' : 'true');
-    });
-    ticks.forEach((t, k) => { t.classList.toggle('is-done', k < i); t.firstElementChild.style.setProperty('--p', k === i && !auto ? 1 : 0); });
+    const from = slides[index], to = slides[i];
+    dir = dir || (i > index ? 1 : -1);
+    clearTimeout(timers.get(from)); clearTimeout(timers.get(to));
+    slides.forEach((s) => s.classList.remove('is-leaving', 'is-in', 'from-left'));
+    from.classList.remove('is-active');
+    from.setAttribute('aria-hidden', 'true');
+    to.setAttribute('aria-hidden', 'false');
+    to.classList.add('is-active');
+    if (!reduced) {
+      from.classList.add('is-leaving');
+      to.classList.add('is-in');
+      if (dir < 0) to.classList.add('from-left');
+      timers.set(from, setTimeout(() => from.classList.remove('is-leaving'), WIPE));
+      timers.set(to, setTimeout(() => to.classList.remove('is-in', 'from-left'), WIPE));
+    }
+    thumbs.forEach((t, k) => (k === i ? t.setAttribute('aria-current', 'true') : t.removeAttribute('aria-current')));
     now.textContent = String(i + 1).padStart(2, '0');
+    index = i;
     t0 = performance.now();
+    root.style.setProperty('--auto', 0);
   };
-  const nearest = () => {
-    const x = track.scrollLeft;
-    const max = track.scrollWidth - track.clientWidth;
-    if (x >= max - 2) return slides.length - 1;
-    let best = 0;
-    slides.forEach((_, k) => { if (Math.abs(left(k) - x) < Math.abs(left(best) - x)) best = k; });
-    return best;
-  };
-  const stopAuto = () => {
+
+  const takeOver = () => {
     if (!auto) return;
     auto = false;
-    ticks[index]?.firstElementChild.style.setProperty('--p', 1);
+    root.classList.remove('is-auto');
   };
 
-  let settle = 0;
-  track.addEventListener('scroll', () => {
-    setActive(nearest());
-    clearTimeout(settle);
-    settle = setTimeout(() => { target = nearest(); }, 160);
-  }, { passive: true });
-  prev.addEventListener('click', () => { stopAuto(); go(target - 1); });
-  next.addEventListener('click', () => { stopAuto(); go(target + 1); });
-  ticks.forEach((t, k) => t.addEventListener('click', () => { stopAuto(); go(k); }));
-  track.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowRight') { e.preventDefault(); stopAuto(); go(target + 1); }
-    if (e.key === 'ArrowLeft') { e.preventDefault(); stopAuto(); go(target - 1); }
+  root.querySelector('[data-reel-prev]').addEventListener('click', () => { takeOver(); show(index - 1, -1); });
+  root.querySelector('[data-reel-next]').addEventListener('click', () => { takeOver(); show(index + 1, 1); });
+  thumbs.forEach((t, k) => t.addEventListener('click', () => { takeOver(); show(k); }));
+  stage.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') { e.preventDefault(); takeOver(); show(index + 1, 1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); takeOver(); show(index - 1, -1); }
   });
-  ['touchstart', 'wheel'].forEach((ev) => track.addEventListener(ev, stopAuto, { passive: true }));
   root.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') hovered = true; });
-  root.addEventListener('pointerleave', () => { hovered = false; t0 = performance.now() - progress() * DWELL; });
+  root.addEventListener('pointerleave', () => { hovered = false; });
+  root.addEventListener('focusin', takeOver);
 
-  // mouse drag (touch already scrolls natively)
+  // swipe (touch) and drag (mouse) on the stage
   let drag = null;
-  track.addEventListener('pointerdown', (e) => {
-    if (e.pointerType !== 'mouse' || e.button !== 0) return;
-    drag = { x: e.clientX, left: track.scrollLeft, moved: false };
-    track.setPointerCapture(e.pointerId);
+  stage.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    drag = { x: e.clientX, y: e.clientY, id: e.pointerId };
   });
-  track.addEventListener('pointermove', (e) => {
-    if (!drag) return;
-    const dx = e.clientX - drag.x;
-    if (!drag.moved && Math.abs(dx) > 4) { drag.moved = true; track.classList.add('is-drag'); stopAuto(); }
-    if (drag.moved) track.scrollLeft = drag.left - dx;
+  stage.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (Math.abs(e.clientX - drag.x) > 8 && Math.abs(e.clientX - drag.x) > Math.abs(e.clientY - drag.y)) {
+      stage.classList.add('is-drag');
+      try { stage.setPointerCapture(e.pointerId); } catch {}
+    }
   });
-  const endDrag = (e) => {
-    if (!drag) return;
-    const { moved, x } = drag;
+  const end = (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
     drag = null;
-    track.classList.remove('is-drag');
-    if (!moved) return;
-    // flick direction decides, then snap
-    const dx = e.clientX - x;
-    const target = Math.abs(dx) > 60 ? index + (dx < 0 ? 1 : -1) : nearest();
-    go(Math.max(0, Math.min(slides.length - 1, target)));
+    stage.classList.remove('is-drag');
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy)) { takeOver(); show(index + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1); }
   };
-  track.addEventListener('pointerup', endDrag);
-  track.addEventListener('pointercancel', endDrag);
+  stage.addEventListener('pointerup', end);
+  stage.addEventListener('pointercancel', () => { drag = null; stage.classList.remove('is-drag'); });
 
-  // autoplay: fill the active segment, then advance
-  let paused = 0;
-  const progress = () => Math.min(1, (performance.now() - t0) / DWELL);
+  new IntersectionObserver(([e]) => {
+    visible = e.isIntersecting;
+    if (visible && !seen) { seen = true; t0 = performance.now(); }
+  }, { threshold: 0.35 }).observe(root);
+
+  if (!auto) return;
   const tick = () => {
-    raf = requestAnimationFrame(tick);
     if (!auto) return;
+    requestAnimationFrame(tick);
     if (!seen) return;
     if (!visible || hovered || document.hidden) { if (!paused) paused = performance.now(); return; }
     if (paused) { t0 += performance.now() - paused; paused = 0; }
-    const p = progress();
-    ticks[index].firstElementChild.style.setProperty('--p', p.toFixed(4));
-    if (p >= 1) go(index + 1);
+    const p = Math.min(1, (performance.now() - t0) / DWELL);
+    root.style.setProperty('--auto', p.toFixed(4));
+    if (p >= 1) show(index + 1, 1);
   };
-  let seen = false;
-  new IntersectionObserver(([e]) => {
-    visible = e.isIntersecting;
-    // the clock starts the first time the reel is actually on screen
-    if (visible && !seen) { seen = true; t0 = performance.now(); paused = 0; }
-  }, { threshold: 0.35 }).observe(root);
-
-  setActive(0);
-  if (auto) raf = requestAnimationFrame(tick);
+  requestAnimationFrame(tick);
 }
