@@ -142,12 +142,19 @@ function pill(href, label, { cls = '', attrs: extra = '', primary = false } = {}
   return `<a class="btn ${primary ? 'btn--primary' : 'btn--ghost'} ${cls}" href="${esc(href)}"${extra}><span class="btn__label">${esc(label)}</span></a>`;
 }
 
+/** What each factory photograph actually shows (alt text). */
+const PHOTO_ALT = {
+  'mitre-core': 'Automated lamination cutting line at the MANZZA facility, with cut mitre core laminations laid out on the floor',
+  'strip-laminations': 'A coil of electrical steel feeding strip into the automated cutting line at the MANZZA facility',
+  'ei-laminations': 'The stacking end of an automated lamination cutting line at the MANZZA facility',
+};
+
 /** Real-photo slot: shows /images/<id>.(webp|jpg|png) when present, else a neutral placeholder. */
 function photo(d, { id, label, alt, ratio = '4/3' }) {
   const dir = path.join(d.root, 'public', 'images');
   const file = ['webp', 'jpg', 'jpeg', 'png'].map((ext) => `${id}.${ext}`).find((f) => fs.existsSync(path.join(dir, f)));
   if (file) {
-    return `<figure class="photo" style="aspect-ratio:${ratio}"><img src="/images/${file}" alt="${esc(alt || label)}" width="1600" height="1000" loading="lazy" decoding="async"><figcaption>${esc(label)}</figcaption></figure>`;
+    return `<figure class="photo" style="aspect-ratio:${ratio}"><img src="/images/${file}" alt="${esc(alt || label)}" width="1280" height="${id === 'factory-cnc-line' ? 566 : 960}" loading="lazy" decoding="async"><figcaption>${esc(label)}</figcaption></figure>`;
   }
   return `<figure class="photo photo--slot" style="aspect-ratio:${ratio}" data-photo-slot="${esc(id)}">
     <div class="photo__hatch" aria-hidden="true"></div>
@@ -506,7 +513,7 @@ function productPage(d, a) {
       <h2 id="cust-h" class="d-lg section__h" data-rise>Customisation</h2>
       <div class="custom-grid">
         <ul class="rows rows--2">${p.customisation.map((c) => `<li data-line><h3 class="rows__title">${esc(c.title)}</h3>${c.text ? `<p>${esc(c.text)}</p>` : ''}</li>`).join('')}</ul>
-        ${photo(d, { id: `product-${p.slug}`, label: p.name, ratio: '4/5' })}
+        ${photo(d, { id: `product-${p.slug}`, label: 'Manufacturing facility, Bengaluru', alt: PHOTO_ALT[p.slug], ratio: '4/3' })}
       </div>
     </div>
   </section>

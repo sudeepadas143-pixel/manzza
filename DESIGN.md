@@ -205,3 +205,23 @@ stands 6-9:1 off the brightest backdrop where the blue fill fell to 1.3:1 on the
 current. Agreed by dark-mode-design-expert (the primary is the lightest element on dark),
 web-design-guidelines/pixelslop (contrast), taste-skill (one accent, used for detail not
 large fills) and the SpaceX/Apple reference (light pill on dark).
+
+## Liquid glass (after cocolayuan/liquid-glass)
+`src/js/glass.js` (own implementation of the technique: SDF displacement map from a
+canvas -> SVG feDisplacementMap, red displaced slightly more than green/blue).
+- **Light glass** — primary pills (Request a quote, header pills, form submit): off-white
+  body >= 88% opaque so the ink label keeps ~18:1, bright top edge, soft lower edge,
+  lift shadow; hover adds the electric-blue inner ring.
+- **Clear glass** — secondary pills (Learn more): 4-14% white body, specular rim.
+- **Dark glass** — header bar, products dropdown, phone sticky bar, photo caption chips.
+- Refraction runs through `backdrop-filter: url(#lens)` in Chromium on desktop; the
+  backdrops are live WebGL, so the reference's clone-the-scene path cannot apply.
+  Safari, Firefox and touch devices get the same glass body without the bending.
+  `prefers-reduced-transparency` swaps every glass surface for a solid one.
+- Measured: the glass costs no frame rate of note (CSS-only vs refraction within noise).
+
+## Photography
+Factory photographs supplied by MANZZA fill every photo slot: the full line (home,
+manufacturing), and one per product page captioned "Manufacturing facility, Bengaluru"
+(they show machinery, not that product). Graded slightly down (brightness 0.9) to sit
+on the dark page. Note: the machines carry their maker's name (Global SPS).

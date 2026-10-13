@@ -688,5 +688,75 @@ html.js:not(.rm) .intro--gl.is-ready .intro__canvas { opacity: 1; }
   body, .body-lg, .band__line, .band__lede, .col__text, .rows p, .index__text { font-size: 1rem; }
 }
 
+/* ==========================================================================
+   Liquid glass (glass.js adds the edge refraction in Chromium). Every browser
+   gets the glass body below: a frost gradient, backdrop blur, and a specular
+   rim (bright top edge, faint lower edge, hairline body). Labels keep their
+   contrast: the light glass stays >= 88% opaque under its ink label.
+   ========================================================================== */
+:root {
+  --glass-rim: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 0 rgba(255, 255, 255, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  --glass-lift: 0 10px 30px rgba(2, 4, 10, 0.35);
+}
+
+/* light glass: the primary action. Off-white body over a refracting rim */
+.btn--primary, .btn--filled, .header__cta, .nav__link.nav__link--cta {
+  background: linear-gradient(180deg, rgba(250, 251, 253, 0.96) 0%, rgba(232, 237, 245, 0.9) 100%);
+  -webkit-backdrop-filter: blur(8px) saturate(1.5); backdrop-filter: blur(8px) saturate(1.5);
+  box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 rgba(90, 110, 150, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.6), var(--glass-lift);
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn--primary:hover, .btn--filled:hover, .header__cta:hover, .nav__link.nav__link--cta:hover {
+    background: linear-gradient(180deg, #fff 0%, rgba(240, 244, 250, 0.94) 100%);
+    box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 rgba(90, 110, 150, 0.35), inset 0 0 0 2px var(--blue), 0 14px 36px rgba(2, 4, 10, 0.42);
+  }
+}
+
+/* clear glass: secondary pills */
+.btn--ghost {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 100%);
+  -webkit-backdrop-filter: blur(4px) saturate(1.6); backdrop-filter: blur(4px) saturate(1.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -1px 0 rgba(255, 255, 255, 0.14), inset 0 0 0 1px rgba(255, 255, 255, 0.34), var(--glass-lift);
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn--ghost:hover { box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px var(--cta-bg), var(--glass-lift); }
+}
+
+/* dark glass: the header bar, the products dropdown, the phone sticky bar */
+.site-header {
+  background: linear-gradient(180deg, rgba(10, 16, 30, 0.42) 0%, rgba(6, 8, 13, 0.22) 100%);
+  -webkit-backdrop-filter: blur(14px) saturate(1.6); backdrop-filter: blur(14px) saturate(1.6);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.07);
+  transition: transform 0.5s var(--ease-out), background-color 0.3s;
+}
+.site-header.is-solid { background: linear-gradient(180deg, rgba(10, 16, 30, 0.66) 0%, rgba(6, 8, 13, 0.5) 100%); }
+.dd {
+  background: linear-gradient(180deg, rgba(14, 22, 40, 0.74) 0%, rgba(8, 14, 27, 0.66) 100%);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5);
+  border: 0; border-radius: 16px; box-shadow: var(--glass-rim), 0 18px 48px rgba(2, 4, 10, 0.5);
+}
+.stickybar {
+  background: linear-gradient(180deg, rgba(14, 22, 40, 0.7) 0%, rgba(8, 14, 27, 0.62) 100%);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5);
+  border-top: 0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+/* photographs: graded a touch down to sit on the dark page; the caption is a glass chip
+   over the real photograph, where the refraction has something to bend */
+.photo img { filter: brightness(0.9) saturate(0.94); }
+.photo:not(.photo--slot) figcaption {
+  left: 16px; bottom: 16px; padding: 6px 14px; border-radius: 999px; line-height: 1.6; color: var(--white);
+  background: linear-gradient(180deg, rgba(14, 22, 40, 0.62) 0%, rgba(8, 14, 27, 0.5) 100%);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4); backdrop-filter: blur(10px) saturate(1.4);
+  box-shadow: var(--glass-rim);
+}
+
+/* reduced transparency: solid surfaces, same shapes */
+@media (prefers-reduced-transparency: reduce) {
+  .site-header, .site-header.is-solid, .dd, .stickybar, .photo:not(.photo--slot) figcaption { background: var(--navy-deep); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .btn--ghost { background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .btn--primary, .btn--filled, .header__cta, .nav__link.nav__link--cta { background: var(--cta-bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
 /* film capture (?capture): pure animation, no site chrome */
 html.capture .site-header { display: none; }
