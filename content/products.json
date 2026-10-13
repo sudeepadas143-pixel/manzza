@@ -95,7 +95,8 @@
         }
       ],
       "applications": [
-        "Transformer core assemblies"
+        "Transformer core assemblies",
+        "Electrical and transformer-related applications"
       ],
       "materials": [
         "CRGO",

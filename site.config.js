@@ -62,9 +62,9 @@ export default {
   // ---------------------------------------------------------------------------
   capacity: {
     show: true,
-    value: 'Up to 160',
+    value: 'Production capacity 160',
     unit: 'metric tonnes per month',
-    note: 'Indicative, subject to product mix, specifications, scheduling and actual available capacity.',
-    confirmed: TODO('Confirm the 160 MT/month figure, then replace this line with: confirmed: true,'),
+    note: '',
+    confirmed: true, // 160 MT/month per the client content brief
   },
 };

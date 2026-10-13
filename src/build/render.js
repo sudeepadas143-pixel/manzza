@@ -432,7 +432,7 @@ function capacity(d) {
     ${pre ? `<p class="eyebrow">${esc(pre)}</p>` : ''}
     <p class="capacity__value d-xxl"><span class="num"${/^\d+$/.test(num) ? ` data-count="${num}"` : ''}>${esc(num)}</span></p>
     <p class="eyebrow">${esc(c.unit)}</p>
-    <p class="note">${esc(c.note)}</p>
+    ${c.note ? `<p class="note">${esc(c.note)}</p>` : ''}
   </div>`;
 }
 
