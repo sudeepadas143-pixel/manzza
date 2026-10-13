@@ -174,13 +174,16 @@ and is skipped entirely under `prefers-reduced-motion`.
 
 ## Atmosphere (Gradient Backdrops)
 `src/lib/backdrop` (nonlineartom/gradient-backdrops, MIT), mounted by `src/js/backdrops.js`
-on five sections (home: hero, products intro, about, closing CTA; inner pages: the head);
-the product bands, tables, capabilities, quality and the form stay flat.
+on six sections (home: hero, products intro, materials, about, closing CTA; inner pages:
+the head); the product bands, capabilities, quality and the form stay flat.
 - **Hero:** `silk`, navy-to-steel lit folds (#06080d -> #4d72b8, sheen 0.45), strongest on
   the right, masked to 25-40% behind the headline.
 - **Products intro:** `mesh`, navy and electric-blue light pooling mid-section, fading out
   before the hero above and the first product band below.
+- **Materials (home):** `mesh`, a calm, low-contrast navy field behind the spec table.
 - **About:** `flow`, a dark current brightest on the open right side of the statement.
+- Flat navy chapters (`.section--soft`) now fade in and out of the off-black at their top
+  and bottom instead of starting as hard-edged blocks, so they sit with the backdrops.
 - **Closing CTA:** `flow`, navy with a slow brand-blue current (contrast 0.82).
 - **Inner-page heads (materials, quote, 404):** `mesh`, navy haze with a blue lift top-right.
 - Grain 0.06-0.07 on all three. Motion 0.2-0.35 speed; frozen on one frame under

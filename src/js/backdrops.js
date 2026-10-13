@@ -20,6 +20,13 @@ const LOOKS = {
     params: { points: [[0.05, 0.1], [0.4, 0.55], [0.82, 0.5], [0.2, 0.98], [0.7, 0.98]], blend: 2.2, drift: 0.8, warp: 1 },
     speed: 0.35, grain: 0.07,
   },
+  // materials: a calm navy field behind the spec table (slow, low contrast, readable)
+  materials: {
+    style: 'mesh',
+    colors: ['#06080d', '#0c1832', '#132a5c', '#06080d', '#0a1530'],
+    params: { points: [[0.05, 0.05], [0.25, 0.45], [0.8, 0.35], [0.95, 0.95], [0.55, 0.85]], blend: 2.4, drift: 0.5, warp: 0.8 },
+    speed: 0.25, grain: 0.06,
+  },
   // about: a dark current behind the statement, brightest on the open right side
   about: {
     style: 'flow',

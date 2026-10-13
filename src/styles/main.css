@@ -232,7 +232,8 @@ html:not(.rm) .mobile-menu:not([hidden]) .mobile-menu__list li { animation: rise
 
 /* -------------------------------------------------------------- bands & sections */
 .section { position: relative; padding: var(--section-y) 0; background: var(--canvas); }
-.section--soft { background: var(--canvas-soft); }
+/* navy chapters fade in and out of the off-black instead of starting as a hard-edged block */
+.section--soft { background: linear-gradient(180deg, var(--canvas) 0%, var(--navy) 22%, var(--navy) 78%, var(--canvas) 100%); }
 .section--tight { padding: 56px 0; }
 .section__head { display: grid; gap: 24px; margin-bottom: clamp(48px, 6vw, 80px); }
 .section__head > .body-lg { max-width: 62ch; }
@@ -565,8 +566,13 @@ html.motion [data-line]:not(.is-in)::before { background: var(--blue); }
 #products { background: radial-gradient(40% 32% at 60% 50%, #0d1a36 0%, rgba(13, 26, 54, 0) 100%), var(--canvas); }
 #products .gb-canvas { -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 35%, #000 55%, transparent 92%); mask-image: linear-gradient(180deg, transparent 0%, #000 35%, #000 55%, transparent 92%); }
 
+/* materials (home): a very calm navy field behind the table; deepest at the edges so it
+   flows out of the products above and into manufacturing below */
+#materials { background: radial-gradient(60% 45% at 30% 45%, #0d1932 0%, rgba(13, 25, 50, 0) 100%), linear-gradient(180deg, var(--canvas) 0%, #090f1d 30%, #090f1d 70%, var(--canvas) 100%); }
+#materials .gb-canvas { -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 22%, #000 72%, transparent 100%); mask-image: linear-gradient(180deg, transparent 0%, #000 22%, #000 72%, transparent 100%); }
+
 /* about: brightest on the right, calm behind the statement, fading out at the top and bottom */
-#about { background: radial-gradient(45% 50% at 80% 40%, #0f1f40 0%, rgba(15, 31, 64, 0) 100%), var(--canvas); }
+#about { background: radial-gradient(40% 32% at 78% 50%, #0f1f40 0%, rgba(15, 31, 64, 0) 100%), var(--canvas); }
 #about .gb-canvas {
   -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,.35) 0%, rgba(0,0,0,.5) 40%, #000 75%), linear-gradient(180deg, transparent 0%, #000 15%, #000 70%, transparent 100%);
   -webkit-mask-composite: source-in; mask-image: linear-gradient(90deg, rgba(0,0,0,.35) 0%, rgba(0,0,0,.5) 40%, #000 75%), linear-gradient(180deg, transparent 0%, #000 15%, #000 70%, transparent 100%);
