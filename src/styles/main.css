@@ -548,13 +548,6 @@ html.motion [data-follow] { transition: opacity 0.8s var(--ease-out), transform 
 .intro__brand { position: absolute; inset: 0; display: grid; place-items: center; padding: 0 var(--gutter); pointer-events: none; }
 .intro__lockup { position: relative; width: min(760px, 86vw); aspect-ratio: 950 / 290; }
 .intro__word { width: 100%; height: 100%; mix-blend-mode: screen; }
-/* the tagline under the wordmark, set as type (the same title card that closes the film),
-   so it stays sharp at any size */
-.intro__lockup { container-type: inline-size; }
-.intro__sub {
-  position: absolute; left: 50%; top: 78%; transform: translateX(-50%); margin: 0; white-space: nowrap;
-  font: 700 5.2cqi/1 var(--f-display); letter-spacing: 0.16em; padding-left: 0.16em; text-transform: uppercase; color: var(--white);
-}
 /* once the M has its own layer, cut exactly its box out of the wordmark (M_BOX in intro/index.js),
    so the bolt's glow around it stays on the wordmark layer */
 .intro.is-split .intro__word { clip-path: polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, 2.35% 15.97%, 25.34% 15.97%, 25.34% 79.03%, 2.35% 79.03%, 2.35% 15.97%); }
@@ -584,12 +577,15 @@ html.motion [data-follow] { transition: opacity 0.8s var(--ease-out), transform 
 @media (prefers-reduced-motion: reduce) { .intro__cue-line::after { animation: none; transform: none; height: 100%; opacity: 0.6; } }
 html.capture .intro__cue { display: none; }
 
-/* the close: the tagline under the finished core, as a title card */
+/* the close: the logo's own blue tagline (cut from the lockup artwork, upscaled),
+   screened onto the stage under the finished core */
 .intro__tagline {
-  position: absolute; left: 0; right: 0; bottom: max(6vh, 36px); margin: 0; padding: 0 var(--gutter);
-  text-align: center; pointer-events: none; opacity: 0; color: var(--white);
-  font: 700 clamp(2.25rem, 6vw, 5rem)/0.95 var(--f-display); letter-spacing: 0.04em; text-transform: uppercase;
+  position: absolute; left: 0; right: 0; bottom: max(7vh, 40px); margin: 0 auto;
+  width: min(1100px, calc(100% - var(--gutter) * 2)); height: auto;
+  mix-blend-mode: screen; pointer-events: none; opacity: 0;
 }
+/* phones: the words take most of the width; the side rules run off the edges */
+@media (max-width: 600px) { .intro__tagline { width: 118vw; max-width: none; right: auto; margin-left: -9vw; } }
 .intro:not(.intro--live) .intro__tagline { display: none; }
 
 .intro__stage { min-height: min(78svh, 760px); }

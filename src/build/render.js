@@ -320,11 +320,10 @@ function intro(d) {
     <div class="intro__brand">
       <div class="intro__lockup">
         <img class="intro__word" src="/brand/manzza-logo-lockup.webp" alt="MANZZA" width="950" height="290" fetchpriority="high">
-        <p class="intro__sub">${esc(d.config.company.tagline)}</p>
       </div>
       <img class="intro__m" src="/brand/manzza-m.webp" alt="" width="430" height="360" fetchpriority="high">
     </div>
-    <p class="intro__tagline" aria-hidden="true">${esc(d.config.company.tagline)}</p>
+    <img class="intro__tagline" src="/brand/manzza-tagline.webp" alt="" aria-hidden="true" width="902" height="34" decoding="async">
     <button class="intro__cue" type="button" data-cue aria-label="Scroll down">
       <span class="intro__cue-label" aria-hidden="true">Scroll</span>
       <span class="intro__cue-line" aria-hidden="true"></span>
