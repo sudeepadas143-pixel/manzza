@@ -879,3 +879,7 @@ html.capture .site-header { display: none; }
 /* header CTA: compact 36px pill, 48px tap area kept by an invisible halo */
 .nav__link.nav__link--cta, .header__cta { font-size: 0.8125rem; min-height: 0; }
 .nav__link--cta::before, .header__cta::before { content: ''; position: absolute; inset: -6px -2px; }
+@media (max-width: 767px) {
+  .header__cta { height: 30px; padding: 0 11px; font-size: 0.6875rem; letter-spacing: 0.07em; }
+  .header__cta::before { inset: -9px -4px; }
+}
