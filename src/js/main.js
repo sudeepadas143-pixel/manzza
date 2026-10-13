@@ -4,6 +4,7 @@
  */
 import { initMinis } from './minis.js';
 import { initMotion } from './motion.js';
+import { initBackdrops } from './backdrops.js';
 
 function initNav() {
   const header = document.querySelector('[data-header]');
@@ -87,6 +88,7 @@ export function initCommon() {
   initNav();
   initMotion();
   initMinis();
+  initBackdrops();
   initStickyBar();
   document.querySelectorAll('[data-year]').forEach((el) => { el.textContent = new Date().getFullYear(); });
 }

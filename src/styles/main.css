@@ -535,6 +535,37 @@ html.motion [data-line]:not(.is-in)::before { background: var(--blue); }
 @media (min-width: 961px) { .stickybar { display: none; } }
 
 /* ==========================================================================
+   Atmosphere (backdrops.js): three sections only. Each has a static CSS
+   background in the same colours (first paint, no-WebGL, capture); the live
+   canvas fades in over it and is masked so the copy always sits on calm ground.
+   ========================================================================== */
+[data-atmos] .gb-canvas, [data-atmos] .gb-grain { opacity: 0; transition: opacity 1.6s var(--ease-out); }
+[data-atmos].atmos-live .gb-canvas { opacity: 1; }
+[data-atmos].atmos-live .gb-grain { opacity: 1; }
+
+/* hero: the steel folds live on the right; the headline side stays near-black, and the
+   top and bottom melt into the film above and the products below */
+.hero { background: radial-gradient(45% 45% at 78% 48%, #101c36 0%, rgba(16, 28, 54, 0) 100%), var(--canvas); }
+.hero .gb-canvas {
+  -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.12) 34%, rgba(0,0,0,.6) 58%, #000 80%), linear-gradient(180deg, transparent 0%, #000 22%, #000 74%, transparent 100%);
+  -webkit-mask-composite: source-in; mask-image: linear-gradient(90deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.12) 34%, rgba(0,0,0,.6) 58%, #000 80%), linear-gradient(180deg, transparent 0%, #000 22%, #000 74%, transparent 100%);
+  mask-composite: intersect;
+}
+@media (max-width: 760px) {
+  /* phones: the copy fills the width, so the folds rise from the empty space below it */
+  .hero { background: radial-gradient(80% 26% at 60% 74%, #101c36 0%, rgba(16, 28, 54, 0) 100%), var(--canvas); }
+  .hero .gb-canvas { -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,.18) 30%, rgba(0,0,0,.4) 55%, #000 82%, transparent 100%); mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,.18) 30%, rgba(0,0,0,.4) 55%, #000 82%, transparent 100%); }
+}
+
+/* the close: a deep navy current; the blue rule along the top stays the edge */
+.cta { background: radial-gradient(55% 55% at 78% 60%, rgba(23, 45, 90, .6) 0%, rgba(23, 45, 90, 0) 100%), var(--navy); }
+.cta .gb-canvas { -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,.45) 0%, #000 60%); mask-image: linear-gradient(90deg, rgba(0,0,0,.45) 0%, #000 60%); }
+
+/* inner-page heads: a barely-there haze that fades out before the content below */
+.phero { background: radial-gradient(50% 60% at 75% 25%, #0f1b34 0%, rgba(15, 27, 52, 0) 100%), var(--canvas); }
+.phero .gb-canvas { -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent 100%); mask-image: linear-gradient(180deg, #000 55%, transparent 100%); }
+
+/* ==========================================================================
    Motion (motion.js adds html.motion; nothing here applies without it)
    ========================================================================== */
 /* headline rise: words come up out of a mask, one after another */

@@ -171,3 +171,21 @@ and is skipped entirely under `prefers-reduced-motion`.
 - **de-slop:** copy is the client's own wording; nothing invented.
 - **Scroll cue:** "Scroll" over a hairline that runs to the bottom edge, a blue pulse travelling down it, at the foot of the opening
   logo; pressing it glides one screen into the film; it fades at the first scroll.
+
+## Atmosphere (Gradient Backdrops)
+`src/lib/backdrop` (nonlineartom/gradient-backdrops, MIT), mounted by `src/js/backdrops.js`
+on three sections only; every content section stays flat.
+- **Hero:** `silk` in a navy-to-steel ramp (#06080d → #2b4373), sheen 0.28, 2.2 folds:
+  lit sheet steel turning slowly on the right. Masked so the headline side stays at
+  5-12% and the top/bottom melt into the neighbouring sections.
+- **Closing CTA:** `flow`, navy-only ramp (#0a1223 → #172d5a), contrast 0.68, speed 0.2.
+- **Inner-page heads (materials, quote, 404):** `mesh`, a barely-there navy haze that
+  fades out before the content.
+- Grain 0.06-0.07 on all three. Motion 0.2-0.35 speed; frozen on one frame under
+  `prefers-reduced-motion`; paused off-screen; mounted only when the section is near.
+- Phones: 250k-pixel cap and 80% speed; soft styles render at 0.28-0.5 scale.
+- Static fallback: each section has a soft radial in the same navy as its CSS background,
+  sized to fade out before the section edges. It is the first paint, the no-WebGL view
+  and the capture view; the canvas fades in over it.
+- No auroras, no saturated glows, no neon; taste-skill's "no glows" rule still holds:
+  these are deep, low-contrast tonal shifts, not lit halos.

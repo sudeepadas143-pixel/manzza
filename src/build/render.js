@@ -335,7 +335,7 @@ function intro(d) {
 
 function hero(d) {
   const ix = d.company.intro;
-  return `<section class="band hero" aria-labelledby="hero-h">
+  return `<section class="band hero" data-atmos="hero" aria-labelledby="hero-h">
   <div class="container hero__inner">
     <p class="eyebrow" data-line>${esc(d.config.company.legalName)} · ${esc(d.config.company.city)}</p>
     <h1 id="hero-h" class="d-xxl" data-rise>${esc(ix.headline)}</h1>
@@ -440,7 +440,7 @@ function customers(d) {
 function cta(d, a) {
   const wa = whatsappHref(d, 'Hello MANZZA, I would like to send a drawing for a quotation.');
   const phone = d.config.contact.phone;
-  return `<section class="band cta" aria-labelledby="cta-h">
+  return `<section class="band cta" data-atmos="cta" aria-labelledby="cta-h">
   <div class="container cta__inner">
     <h2 id="cta-h" class="d-xl cta__h" data-rise>${esc(a.title || 'Discuss your next requirement with our team.')}</h2>
     <p class="body-lg cta__p">${esc(a.text || 'Submit your requirements for an individual quotation.')}</p>
