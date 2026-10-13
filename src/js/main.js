@@ -6,6 +6,7 @@ import { initMinis } from './minis.js';
 import { initMotion } from './motion.js';
 import { initBackdrops } from './backdrops.js';
 import { initGlass } from './glass.js';
+import { initReels } from './reel.js';
 
 function initNav() {
   const header = document.querySelector('[data-header]');
@@ -91,6 +92,7 @@ export function initCommon() {
   initMinis();
   initBackdrops();
   initGlass();
+  initReels();
   initStickyBar();
   document.querySelectorAll('[data-year]').forEach((el) => { el.textContent = new Date().getFullYear(); });
 }

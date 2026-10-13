@@ -39,12 +39,22 @@
           <p class="body-lg">MANZZA uses a combination of automated cutting equipment and supporting manufacturing machinery to produce electrical steel laminations.</p>
         </div>
         {{> process}}
-        {{> photo id="factory-cnc-line" label="Manufacturing facility, Bengaluru" alt="Automated transformer-lamination cutting line at the MANZZA facility in Bengaluru" ratio="1280/566"}}
-        <div class="photo-grid">
-          {{> photo id="product-mitre-core" label="" alt="Automated lamination cutting line at the MANZZA facility, with cut mitre core laminations laid out on the floor"}}
-          {{> photo id="product-strip-laminations" label="" alt="A coil of electrical steel feeding strip into the automated cutting line at the MANZZA facility"}}
-          {{> photo id="product-ei-laminations" label="" alt="The stacking end of an automated lamination cutting line at the MANZZA facility"}}
-        </div>
+        <section class="reel" aria-roledescription="carousel" aria-label="MANZZA manufacturing facility" data-reel>
+          <ol class="reel__track" data-lenis-prevent tabindex="0">
+            <li class="reel__slide" role="group" aria-roledescription="slide" aria-label="1 of 4"><figure class="reel__frame"><img src="/images/factory-cnc-line.webp" alt="Automated transformer-lamination cutting line at the MANZZA facility in Bengaluru" width="1280" height="566" loading="eager" decoding="async" draggable="false"></figure></li>
+            <li class="reel__slide" role="group" aria-roledescription="slide" aria-label="2 of 4"><figure class="reel__frame"><img src="/images/product-mitre-core.webp" alt="Automated lamination cutting line at the MANZZA facility, with cut mitre core laminations laid out on the floor" width="1280" height="960" loading="lazy" decoding="async" draggable="false"></figure></li>
+            <li class="reel__slide" role="group" aria-roledescription="slide" aria-label="3 of 4"><figure class="reel__frame"><img src="/images/product-strip-laminations.webp" alt="A coil of electrical steel feeding strip into the automated cutting line at the MANZZA facility" width="1280" height="960" loading="lazy" decoding="async" draggable="false"></figure></li>
+            <li class="reel__slide" role="group" aria-roledescription="slide" aria-label="4 of 4"><figure class="reel__frame"><img src="/images/product-ei-laminations.webp" alt="The stacking end of an automated lamination cutting line at the MANZZA facility" width="1280" height="960" loading="lazy" decoding="async" draggable="false"></figure></li>
+          </ol>
+          <div class="reel__bar">
+            <p class="reel__count" aria-hidden="true"><span class="reel__now" data-reel-now>01</span><span class="reel__sep"></span><span>04</span></p>
+            <div class="reel__progress" aria-hidden="true"><button type="button" class="reel__tick" tabindex="-1"><span></span></button><button type="button" class="reel__tick" tabindex="-1"><span></span></button><button type="button" class="reel__tick" tabindex="-1"><span></span></button><button type="button" class="reel__tick" tabindex="-1"><span></span></button></div>
+            <div class="reel__nav">
+              <button type="button" class="reel__btn" data-reel-prev aria-label="Previous photograph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6 8.5 12l6 6"/></svg></button>
+              <button type="button" class="reel__btn" data-reel-next aria-label="Next photograph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 6 6 6-6 6"/></svg></button>
+            </div>
+          </div>
+        </section>
       </div>
     </section>
 

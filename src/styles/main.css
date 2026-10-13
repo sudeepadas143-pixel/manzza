@@ -764,8 +764,67 @@ html.js:not(.rm) .intro--gl.is-ready .intro__canvas { opacity: 1; }
 /* film capture (?capture): pure animation, no site chrome */
 html.capture .site-header { display: none; }
 #materials .band__lede { margin: 0 0 clamp(40px, 6vw, 72px); }
-/* home: the remaining factory photographs under the line shot */
-.photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(12px, 1.6vw, 20px); margin-top: clamp(12px, 1.6vw, 20px); }
-.photo-grid .photo { margin: 0; }
-.photo figcaption:empty { display: none; }
-@media (max-width: 760px) { .photo-grid { grid-template-columns: 1fr; } }
+/* ---------------------------------------------------------------- reel
+   Factory photographs as a carousel: native scroll-snap (swipe, trackpad and
+   keyboard for free), the next frame peeking in, the active frame lit and
+   slowly pushing in, inactive frames dimmed. The bar carries a counter,
+   segment progress (fills during autoplay) and glass arrow buttons. */
+.reel { margin-top: clamp(48px, 6vw, 80px); --gap: clamp(12px, 1.6vw, 24px); --w: min(78%, 1040px); }
+.reel__track {
+  display: flex; gap: var(--gap); list-style: none; margin: 0; padding: 0;
+  overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none;
+  cursor: grab; outline: none; -webkit-user-select: none; user-select: none;
+}
+.reel__track::-webkit-scrollbar { display: none; }
+.reel__track.is-drag { cursor: grabbing; scroll-snap-type: none; }
+.reel__track:focus-visible .reel__slide.is-active .reel__frame { box-shadow: 0 0 0 2px var(--blue); }
+.reel__slide { flex: 0 0 var(--w); scroll-snap-align: start; }
+.reel__slide:last-child { scroll-snap-align: end; }
+.reel__frame {
+  position: relative; margin: 0; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--r-xs);
+  background: var(--canvas-soft); isolation: isolate;
+}
+.reel__frame img {
+  width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none;
+  filter: brightness(0.62) saturate(0.7); transform: scale(1.06);
+  transition: filter 0.9s var(--ease-out), transform 1.2s var(--ease-out);
+}
+/* cool steel grade and a soft vignette so the photos sit in the black/navy palette */
+.reel__frame::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(6, 8, 13, 0.55) 100%),
+              linear-gradient(180deg, rgba(11, 20, 38, 0) 60%, rgba(6, 8, 13, 0.5) 100%);
+  box-shadow: inset 0 0 0 1px rgba(244, 246, 250, 0.06);
+}
+.reel__slide.is-active .reel__frame img { filter: brightness(0.92) saturate(0.95); transform: scale(1.0); animation: reel-push 9s linear forwards; }
+@keyframes reel-push { from { transform: scale(1.0); } to { transform: scale(1.045); } }
+
+.reel__bar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: clamp(16px, 3vw, 40px); margin-top: clamp(20px, 2.4vw, 32px); }
+.reel__count { display: flex; align-items: center; gap: 12px; margin: 0; font: 600 0.9375rem/1 var(--f-body); letter-spacing: 0.16em; color: var(--mute); font-variant-numeric: tabular-nums; }
+.reel__now { color: var(--white); }
+.reel__sep { width: 28px; height: 1px; background: var(--hairline); }
+.reel__progress { display: flex; gap: 6px; }
+.reel__tick { flex: 1; height: 18px; padding: 0; border: 0; background: none; cursor: pointer; display: flex; align-items: center; }
+.reel__tick span { position: relative; display: block; width: 100%; height: 2px; background: var(--hairline); overflow: hidden; border-radius: 2px; }
+.reel__tick span::after { content: ''; position: absolute; inset: 0; background: var(--blue); transform: scaleX(var(--p, 0)); transform-origin: left; }
+.reel__tick.is-done span::after { --p: 1; background: rgba(128, 163, 239, 0.45); }
+.reel__nav { display: flex; gap: 10px; }
+.reel__btn {
+  width: 48px; height: 48px; border-radius: 50%; border: 0; cursor: pointer; display: grid; place-items: center; color: var(--white);
+  background: rgba(244, 246, 250, 0.06); box-shadow: inset 0 0 0 1px rgba(244, 246, 250, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4); backdrop-filter: blur(10px) saturate(1.4);
+  transition: background 0.35s var(--ease-out), box-shadow 0.35s var(--ease-out), transform 0.16s var(--ease-out), opacity 0.3s;
+}
+.reel__btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.reel__btn:hover { background: rgba(244, 246, 250, 0.12); box-shadow: inset 0 0 0 1px rgba(128, 163, 239, 0.8), 0 0 0 4px rgba(49, 105, 227, 0.18); }
+.reel__btn:active { transform: scale(0.94); }
+.reel__btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+.reel__btn[disabled] { opacity: 0.35; cursor: default; }
+@media (max-width: 760px) {
+  .reel { --w: 86%; }
+  .reel__frame { aspect-ratio: 4 / 3; }
+  .reel__btn { width: 44px; height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reel__frame img, .reel__slide.is-active .reel__frame img { transition: none; animation: none; transform: none; }
+}
