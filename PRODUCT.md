@@ -26,6 +26,7 @@ Plain, specific, confident. Engineering facts, not slogans. Sentence case.
 - The logo is used as supplied (metallic artwork on black).
 
 ## Brand commitments
-- Colours: black and white for the interface (no blue buttons);
-  electric blue (#2f6bea) stays in the logo and the intro film.
+- Colours (client brief §8): black, deep navy and electric blue (#2f6bea, the logo's bolt);
+  a premium black and electric-blue industrial system. Personality: powerful, innovative,
+  technical, dependable.
 - Visual direction: SpaceX's design language from awesome-design-md (design/reference/spacex.DESIGN.md), adapted in DESIGN.md.

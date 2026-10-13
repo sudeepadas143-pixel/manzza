@@ -1,17 +1,19 @@
 ---
 name: MANZZA
-description: Transformer core laminations presented in SpaceX's design language (awesome-design-md, design/reference/spacex.DESIGN.md) — pure black, condensed uppercase DIN-style display type, full-bleed imagery, one ghost pill per band.
+description: Transformer core laminations presented in SpaceX's design language (awesome-design-md, design/reference/spacex.DESIGN.md) in the client's black, deep navy and electric blue — condensed uppercase DIN-style display type, full-bleed imagery, one ghost pill per band.
 source: design/reference/spacex.DESIGN.md (VoltAgent/awesome-design-md, MIT)
 colors:
   canvas-night: "#000000"
-  canvas-night-soft: "#0a0a0a"
+  navy: "#081226"
+  navy-deep: "#050b19"
+  electric-blue: "#2f6bea"
+  electric-blue-hover: "#4a82ff"
+  electric-blue-text: "#6e9bff"
   on-primary: "#ffffff"
-  on-primary-mute: "#f0f0fa"
-  body: "rgba(240, 240, 250, 0.72)"
-  note: "rgba(240, 240, 250, 0.52)"
-  hairline-on-dark: "#3a3a3f"
-  canvas-cool: "#f0f0fa"
-  brand-blue: "#2f6bea"
+  on-primary-mute: "#eef2ff"
+  body: "rgba(226, 234, 255, 0.74)"
+  note: "rgba(226, 234, 255, 0.54)"
+  hairline-on-dark: "#1d2a4a"
 typography:
   display-xxl:
     fontFamily: "Barlow Condensed, Arial Narrow, Arial, sans-serif"
@@ -71,14 +73,15 @@ components:
     typography: "{typography.button-cap}"
     rounded: "{rounded.pill}"
     padding: "18px 24px"
-    hover: "white fill wipes in from the left, label turns black"
-  button-filled-cool:
-    backgroundColor: "{colors.canvas-cool}"
-    textColor: "{colors.canvas-night}"
+    hover: "electric-blue fill wipes in from the left, outline turns blue"
+  button-filled:
+    backgroundColor: "{colors.electric-blue}"
+    textColor: "{colors.on-primary}"
     use: "quote form submit only"
   text-input:
-    backgroundColor: "{colors.canvas-night-soft}"
+    backgroundColor: "{colors.canvas-night}"
     border: "1px solid {colors.hairline-on-dark}"
+    focus: "{colors.electric-blue} border"
     rounded: "{rounded.xs}"
   nav-bar-overlay:
     backgroundColor: transparent
@@ -101,9 +104,16 @@ a photographed studio and composed full-bleed like SpaceX's launch photography.
 - **Tables:** SpaceX's marketing pages have none. The client brief requires a technical
   specification table, so tables sit on `canvas-night-soft` with `hairline-on-dark` rules,
   values in display type.
-- **One filled button:** the quote form's submit uses `button-filled-cool` (SpaceX keeps
+- **One filled button:** the quote form's submit uses `button-filled`, electric blue (SpaceX keeps
   filled buttons for its shop's transactional actions; sending a quote is ours).
-- **Brand blue:** stays in the logo's bolt and the scroll film. Never an interface colour.
+- **Colour:** SpaceX is black and white only. The client brief (§8) sets MANZZA's primaries
+  as black, deep navy and electric blue, for a "premium black and electric-blue industrial
+  design system", and the brand personality as powerful, innovative, technical and
+  dependable. So: black is the stage (film, product bands, hero); deep navy carries the
+  alternate chapters, footer and menus; electric blue (the logo's bolt, #2f6bea) is the
+  one accent — button fills on hover, the submit button, rules, eyebrows, focus, the
+  table head rule, and a glow rising behind the closing call to action. Small blue text
+  uses a lighter tint (#6e9bff) to stay above 6:1 on black and navy.
 
 ## Typography
 Barlow, one family in two widths: Barlow Condensed 700 for display, Barlow for body and
@@ -122,8 +132,9 @@ Restrained and purposeful (the brief asks to avoid excessive animation). Each ru
 and is skipped entirely under `prefers-reduced-motion`.
 - **Headline rise:** display headlines rise word by word out of a mask as they enter
   (700ms, ease-out-expo, 45ms stagger) — a film title card, not a bounce.
-- **Hairline draw:** section rules draw left to right as their section enters.
-- **Ghost pill:** a white fill wipes in from the left on hover; the label inverts.
+- **Hairline draw:** section rules draw left to right in electric blue as their section
+  enters, then settle to navy.
+- **Ghost pill:** an electric-blue fill wipes in from the left on hover.
 - **Renders follow the scroll:** product renders turn with the band's scroll progress, so
   scrolling feels like walking round the part.
 - **About statement:** words light up from 20% to full white as the paragraph scrolls
@@ -136,5 +147,6 @@ and is skipped entirely under `prefers-reduced-motion`.
 ## Do's and Don'ts
 - Do keep display uppercase, condensed, tracked.
 - Do keep one ghost pill per band; links elsewhere are underlined white text.
-- Don't add accent colours, gradients, shadows, rounded tiles or glass.
+- Don't add colours beyond black, deep navy, electric blue and white; no shadows, rounded
+  tiles or glass. The only gradient is the blue glow behind the closing call to action.
 - Don't add copy that the client brief or the user did not supply.
