@@ -320,11 +320,11 @@ function intro(d) {
     <div class="intro__frames" aria-hidden="true"></div>
     <div class="intro__brand">
       <div class="intro__lockup">
-        <img class="intro__word" src="/brand/manzza-logo-lockup.webp" alt="MANZZA" width="950" height="290" fetchpriority="high">
+        <img class="intro__word" src="/brand/manzza-logo-lockup.webp" srcset="/brand/manzza-logo-lockup-950.webp 950w, /brand/manzza-logo-lockup.webp 1900w" sizes="min(760px, 86vw)" alt="MANZZA" width="950" height="290" fetchpriority="high">
       </div>
       <img class="intro__m" src="/brand/manzza-m.webp" alt="" width="430" height="360" fetchpriority="high">
     </div>
-    <img class="intro__tagline" src="/brand/manzza-tagline.webp" alt="" aria-hidden="true" width="902" height="34" decoding="async">
+    <img class="intro__tagline" src="/brand/manzza-tagline.webp" srcset="/brand/manzza-tagline-1200.webp 1200w, /brand/manzza-tagline.webp 3608w" sizes="min(1100px, 100vw)" alt="" aria-hidden="true" width="902" height="34" decoding="async">
     <button class="intro__cue" type="button" data-cue aria-label="Scroll down">
       <span class="intro__cue-label" aria-hidden="true">Scroll</span>
       <span class="intro__cue-line" aria-hidden="true"></span>

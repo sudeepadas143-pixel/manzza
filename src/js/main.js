@@ -16,10 +16,15 @@ function initNav() {
       btn.setAttribute('aria-expanded', String(open));
       item.classList.toggle('is-open', open);
     };
-    btn.addEventListener('click', () => set(btn.getAttribute('aria-expanded') !== 'true'));
+    // a click right after hover opened the menu keeps it open (it would otherwise toggle shut)
+    let hoverOpenedAt = 0;
+    btn.addEventListener('click', () => {
+      if (performance.now() - hoverOpenedAt < 600) { set(true); hoverOpenedAt = 0; return; }
+      set(btn.getAttribute('aria-expanded') !== 'true');
+    });
     const hover = window.matchMedia('(hover: hover) and (pointer: fine)');
     let t;
-    item.addEventListener('mouseenter', () => { if (hover.matches) { clearTimeout(t); set(true); } });
+    item.addEventListener('mouseenter', () => { if (hover.matches) { clearTimeout(t); if (btn.getAttribute('aria-expanded') !== 'true') hoverOpenedAt = performance.now(); set(true); } });
     item.addEventListener('mouseleave', () => { if (hover.matches) t = setTimeout(() => set(false), 160); });
     item.addEventListener('keydown', (e) => { if (e.key === 'Escape') { set(false); btn.focus(); } });
     item.addEventListener('focusout', (e) => { if (!item.contains(e.relatedTarget)) set(false); });

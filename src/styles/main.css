@@ -624,5 +624,12 @@ html.js:not(.rm) .intro--gl.is-ready .intro__canvas { opacity: 1; }
   ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 }
 
+/* phones: 16px body in a 16px gutter keeps paragraphs at ~45+ characters a line
+   (pixelslop measure floor); placed last so it wins over the fluid sizes above */
+@media (max-width: 479px) {
+  :root { --gutter: 16px; }
+  body, .body-lg, .band__line, .band__lede, .col__text, .rows p, .index__text { font-size: 1rem; }
+}
+
 /* film capture (?capture): pure animation, no site chrome */
 html.capture .site-header { display: none; }
