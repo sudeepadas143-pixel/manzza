@@ -319,7 +319,8 @@ function intro(d) {
     <div class="intro__frames" aria-hidden="true"></div>
     <div class="intro__brand">
       <div class="intro__lockup">
-        <img class="intro__word" src="/brand/manzza-logo-lockup.webp" alt="MANZZA – Engineered for Power" width="950" height="290" fetchpriority="high">
+        <img class="intro__word" src="/brand/manzza-logo-lockup.webp" alt="MANZZA" width="950" height="290" fetchpriority="high">
+        <p class="intro__sub">${esc(d.config.company.tagline)}</p>
       </div>
       <img class="intro__m" src="/brand/manzza-m.webp" alt="" width="430" height="360" fetchpriority="high">
     </div>

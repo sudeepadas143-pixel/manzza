@@ -36,6 +36,7 @@ export async function initIntro(section) {
   const stage = section.querySelector('.intro__stage');
   const lockup = section.querySelector('.intro__lockup');
   const word = section.querySelector('.intro__word');
+  const sub = section.querySelector('.intro__sub');
   const mark = section.querySelector('.intro__m');
   const tagline = section.querySelector('.intro__tagline');
   const cue = section.querySelector('[data-cue]');
@@ -123,6 +124,12 @@ export async function initIntro(section) {
     const wordOut = smooth(seg(p, 0.012, 0.05));
     word.style.opacity = (1 - wordOut).toFixed(3);
     word.style.transform = `translate3d(${(wordOut * 3).toFixed(2)}%, 0, 0)`;
+    // the tagline under the wordmark goes first, dropping away
+    if (sub) {
+      const so = smooth(seg(p, 0.004, 0.03));
+      sub.style.opacity = (1 - so).toFixed(3);
+      sub.style.transform = `translate3d(-50%, ${(so * 12).toFixed(1)}px, 0)`;
+    }
     // then it shrinks into the bore of the coil that winds up around it, and is gone
     const into = smooth(seg(p, 0.075, 0.14));
     const dissolve = smooth(seg(p, 0.11, 0.15));
