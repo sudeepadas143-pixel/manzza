@@ -104,8 +104,8 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
     g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
   })();
-  const poolMat = new THREE.MeshBasicMaterial({ map: poolTex, color: 0x1c2230, transparent: true, depthWrite: false, toneMapped: false });
-  const pool = new THREE.Mesh(new THREE.PlaneGeometry(22, 22), poolMat);
+  const poolMat = new THREE.MeshBasicMaterial({ map: poolTex, color: 0x161b26, transparent: true, depthWrite: false, toneMapped: false });
+  const pool = new THREE.Mesh(new THREE.PlaneGeometry(13, 13), poolMat); // small enough that its edge never reads as a horizon on the black stage
   pool.rotation.x = -Math.PI / 2;
   pool.position.y = -0.002;
   scene.add(pool);
