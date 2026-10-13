@@ -33,14 +33,14 @@ export default {
 
   contact: {
     // Shown in the footer and on /quote. Use international format.
-    phone: TODO('Sales phone number, e.g. +91 80 XXXX XXXX'),
+    phone: '+91 81056 67729',
     // Business email that receives enquiries.
-    email: TODO('Sales email address, e.g. sales@yourdomain.in'),
+    email: 'office@manzza.in',
     // WhatsApp number: digits only, with country code, no + or spaces.
     // e.g. '919876543210'
     whatsapp: TODO('WhatsApp business number, digits only with country code'),
     // Factory / office address, one line per array item.
-    address: TODO('Full postal address of the Bengaluru unit'),
+    address: ['Bommasandra Industrial Area', 'Bengaluru, Karnataka'],
     // Optional: office hours, e.g. 'Mon–Sat, 9:00–18:00'
     hours: TODO('Office hours (optional; delete this line to hide)'),
   },
