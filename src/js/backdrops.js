@@ -9,22 +9,36 @@ const LOOKS = {
   // lit satin folds in navy and steel: sheets of electrical steel, slowly turning
   hero: {
     style: 'silk',
-    colors: ['#06080d', '#08101e', '#0e1a33', '#18294f', '#2b4373'],
-    params: { folds: 2.2, angle: 24, warp: 0.5, sheen: 0.28, scale: 1.15 },
-    speed: 0.35, grain: 0.07, quality: 0.28,
+    colors: ['#06080d', '#0a1428', '#15274d', '#264380', '#4d72b8'],
+    params: { folds: 2.4, angle: 24, warp: 0.55, sheen: 0.45, scale: 1.1 },
+    speed: 0.35, grain: 0.07, quality: 0.3,
   },
-  // the close: a slow, low-contrast current of the brand blue under deep navy
+  // the products intro: navy and electric-blue light pooling, fading into the first band
+  products: {
+    style: 'mesh',
+    colors: ['#06080d', '#0e1c3a', '#1c3a7c', '#06080d', '#0a1530'],
+    params: { points: [[0.05, 0.1], [0.4, 0.55], [0.82, 0.5], [0.2, 0.98], [0.7, 0.98]], blend: 2.2, drift: 0.8, warp: 1 },
+    speed: 0.35, grain: 0.07,
+  },
+  // about: a dark current behind the statement, brightest on the open right side
+  about: {
+    style: 'flow',
+    colors: ['#06080d', '#0a1427', '#142a57', '#1f3d7c', '#06080d'],
+    params: { scale: 0.5, warp: 0.7, contrast: 0.85 },
+    speed: 0.22, grain: 0.07,
+  },
+  // the close: a slow current of the brand blue under deep navy
   cta: {
     style: 'flow',
-    colors: ['#0a1223', '#0c1730', '#10203f', '#172d5a', '#0c1730'],
-    params: { scale: 0.55, warp: 0.6, contrast: 0.68 },
-    speed: 0.2, grain: 0.07,
+    colors: ['#081022', '#0b1834', '#132a5a', '#21418a', '#0b1834'],
+    params: { scale: 0.6, warp: 0.7, contrast: 0.82 },
+    speed: 0.22, grain: 0.07,
   },
-  // inner-page heads: a barely-there haze
+  // inner-page heads: a navy haze with a blue lift top-right
   phero: {
     style: 'mesh',
-    colors: ['#06080d', '#0a1325', '#122244', '#06080d'],
-    params: { points: [[0.08, 0.2], [0.55, 0.15], [0.9, 0.35], [0.3, 0.9]], blend: 2.2, drift: 0.6, warp: 0.8 },
+    colors: ['#06080d', '#0c1a36', '#1d3a78', '#06080d'],
+    params: { points: [[0.08, 0.2], [0.55, 0.15], [0.9, 0.35], [0.3, 0.9]], blend: 2.2, drift: 0.7, warp: 0.9 },
     speed: 0.4, grain: 0.06,
   },
 };

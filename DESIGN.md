@@ -174,13 +174,15 @@ and is skipped entirely under `prefers-reduced-motion`.
 
 ## Atmosphere (Gradient Backdrops)
 `src/lib/backdrop` (nonlineartom/gradient-backdrops, MIT), mounted by `src/js/backdrops.js`
-on three sections only; every content section stays flat.
-- **Hero:** `silk` in a navy-to-steel ramp (#06080d → #2b4373), sheen 0.28, 2.2 folds:
-  lit sheet steel turning slowly on the right. Masked so the headline side stays at
-  5-12% and the top/bottom melt into the neighbouring sections.
-- **Closing CTA:** `flow`, navy-only ramp (#0a1223 → #172d5a), contrast 0.68, speed 0.2.
-- **Inner-page heads (materials, quote, 404):** `mesh`, a barely-there navy haze that
-  fades out before the content.
+on five sections (home: hero, products intro, about, closing CTA; inner pages: the head);
+the product bands, tables, capabilities, quality and the form stay flat.
+- **Hero:** `silk`, navy-to-steel lit folds (#06080d -> #4d72b8, sheen 0.45), strongest on
+  the right, masked to 25-40% behind the headline.
+- **Products intro:** `mesh`, navy and electric-blue light pooling mid-section, fading out
+  before the hero above and the first product band below.
+- **About:** `flow`, a dark current brightest on the open right side of the statement.
+- **Closing CTA:** `flow`, navy with a slow brand-blue current (contrast 0.82).
+- **Inner-page heads (materials, quote, 404):** `mesh`, navy haze with a blue lift top-right.
 - Grain 0.06-0.07 on all three. Motion 0.2-0.35 speed; frozen on one frame under
   `prefers-reduced-motion`; paused off-screen; mounted only when the section is near.
 - Phones: 250k-pixel cap and 80% speed; soft styles render at 0.28-0.5 scale.

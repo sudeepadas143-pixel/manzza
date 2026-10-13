@@ -547,8 +547,8 @@ html.motion [data-line]:not(.is-in)::before { background: var(--blue); }
    top and bottom melt into the film above and the products below */
 .hero { background: radial-gradient(45% 45% at 78% 48%, #101c36 0%, rgba(16, 28, 54, 0) 100%), var(--canvas); }
 .hero .gb-canvas {
-  -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.12) 34%, rgba(0,0,0,.6) 58%, #000 80%), linear-gradient(180deg, transparent 0%, #000 22%, #000 74%, transparent 100%);
-  -webkit-mask-composite: source-in; mask-image: linear-gradient(90deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.12) 34%, rgba(0,0,0,.6) 58%, #000 80%), linear-gradient(180deg, transparent 0%, #000 22%, #000 74%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,.25) 0%, rgba(0,0,0,.4) 30%, rgba(0,0,0,.85) 55%, #000 75%), linear-gradient(180deg, transparent 0%, #000 22%, #000 74%, transparent 100%);
+  -webkit-mask-composite: source-in; mask-image: linear-gradient(90deg, rgba(0,0,0,.25) 0%, rgba(0,0,0,.4) 30%, rgba(0,0,0,.85) 55%, #000 75%), linear-gradient(180deg, transparent 0%, #000 22%, #000 74%, transparent 100%);
   mask-composite: intersect;
 }
 @media (max-width: 760px) {
@@ -559,11 +559,23 @@ html.motion [data-line]:not(.is-in)::before { background: var(--blue); }
 
 /* the close: a deep navy current; the blue rule along the top stays the edge */
 .cta { background: radial-gradient(55% 55% at 78% 60%, rgba(23, 45, 90, .6) 0%, rgba(23, 45, 90, 0) 100%), var(--navy); }
-.cta .gb-canvas { -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,.45) 0%, #000 60%); mask-image: linear-gradient(90deg, rgba(0,0,0,.45) 0%, #000 60%); }
+.cta .gb-canvas { -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,.7) 0%, #000 55%); mask-image: linear-gradient(90deg, rgba(0,0,0,.7) 0%, #000 55%); }
+
+/* products intro: the light pools here and fades out into the first product band */
+#products { background: radial-gradient(40% 32% at 60% 50%, #0d1a36 0%, rgba(13, 26, 54, 0) 100%), var(--canvas); }
+#products .gb-canvas { -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 35%, #000 55%, transparent 92%); mask-image: linear-gradient(180deg, transparent 0%, #000 35%, #000 55%, transparent 92%); }
+
+/* about: brightest on the right, calm behind the statement, fading out at the top and bottom */
+#about { background: radial-gradient(45% 50% at 80% 40%, #0f1f40 0%, rgba(15, 31, 64, 0) 100%), var(--canvas); }
+#about .gb-canvas {
+  -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,.35) 0%, rgba(0,0,0,.5) 40%, #000 75%), linear-gradient(180deg, transparent 0%, #000 15%, #000 70%, transparent 100%);
+  -webkit-mask-composite: source-in; mask-image: linear-gradient(90deg, rgba(0,0,0,.35) 0%, rgba(0,0,0,.5) 40%, #000 75%), linear-gradient(180deg, transparent 0%, #000 15%, #000 70%, transparent 100%);
+  mask-composite: intersect;
+}
 
 /* inner-page heads: a barely-there haze that fades out before the content below */
 .phero { background: radial-gradient(50% 60% at 75% 25%, #0f1b34 0%, rgba(15, 27, 52, 0) 100%), var(--canvas); }
-.phero .gb-canvas { -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent 100%); mask-image: linear-gradient(180deg, #000 55%, transparent 100%); }
+.phero .gb-canvas { -webkit-mask-image: linear-gradient(180deg, #000 65%, transparent 100%); mask-image: linear-gradient(180deg, #000 65%, transparent 100%); }
 
 /* ==========================================================================
    Motion (motion.js adds html.motion; nothing here applies without it)
