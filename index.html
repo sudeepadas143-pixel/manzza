@@ -8,7 +8,7 @@
 <body class="page-home">
   {{> header active="home"}}
 
-  <main id="main">
+  <main id="main" tabindex="-1">
     {{> intro}}
     {{> hero}}
 
@@ -40,7 +40,7 @@
         </div>
         {{> process}}
         <section class="reel" role="region" aria-roledescription="carousel" aria-label="Manufacturing facility photographs" data-reel>
-          <div class="reel__stage" tabindex="0" aria-live="off">
+          <div class="reel__stage" tabindex="0" role="group" aria-label="Photographs. Use the left and right arrow keys to change photograph" aria-live="off">
             <figure class="reel__slide is-active" role="group" aria-roledescription="slide" aria-label="1 of 4"><img src="/images/factory-cnc-line.webp" srcset="/images/factory-cnc-line-640.webp 640w, /images/factory-cnc-line.webp 1280w" sizes="(max-width: 760px) 100vw, 1200px" alt="Automated transformer-lamination cutting line at the MANZZA facility in Bengaluru" width="1280" height="566" loading="eager" decoding="async" draggable="false"></figure>
             <figure class="reel__slide" role="group" aria-roledescription="slide" aria-label="2 of 4" aria-hidden="true"><img src="/images/product-mitre-core.webp" srcset="/images/product-mitre-core-640.webp 640w, /images/product-mitre-core.webp 1280w" sizes="(max-width: 760px) 100vw, 1200px" alt="Automated lamination cutting line at the MANZZA facility, with cut mitre core laminations laid out on the floor" width="1280" height="960" loading="lazy" decoding="async" draggable="false"></figure>
             <figure class="reel__slide" role="group" aria-roledescription="slide" aria-label="3 of 4" aria-hidden="true"><img src="/images/product-strip-laminations.webp" srcset="/images/product-strip-laminations-640.webp 640w, /images/product-strip-laminations.webp 1280w" sizes="(max-width: 760px) 100vw, 1200px" alt="A coil of electrical steel feeding strip into the automated cutting line at the MANZZA facility" width="1280" height="960" loading="lazy" decoding="async" draggable="false"></figure>

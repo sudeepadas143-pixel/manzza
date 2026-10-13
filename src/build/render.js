@@ -154,7 +154,9 @@ function photo(d, { id, label, alt, ratio = '4/3' }) {
   const dir = path.join(d.root, 'public', 'images');
   const file = ['webp', 'jpg', 'jpeg', 'png'].map((ext) => `${id}.${ext}`).find((f) => fs.existsSync(path.join(dir, f)));
   if (file) {
-    return `<figure class="photo" style="aspect-ratio:${ratio}"><img src="/images/${file}" alt="${esc(alt || label)}" width="1280" height="${id === 'factory-cnc-line' ? 566 : 960}" loading="lazy" decoding="async"><figcaption>${esc(label)}</figcaption></figure>`;
+    const small = file.replace(/\.(\w+)$/, '-640.$1');
+    const srcset = fs.existsSync(path.join(dir, small)) ? ` srcset="/images/${small} 640w, /images/${file} 1280w" sizes="(max-width: 900px) 100vw, 50vw"` : '';
+    return `<figure class="photo" style="aspect-ratio:${ratio}"><img src="/images/${file}"${srcset} alt="${esc(alt || label)}" width="1280" height="${id === 'factory-cnc-line' ? 566 : 960}" loading="lazy" decoding="async"><figcaption>${esc(label)}</figcaption></figure>`;
   }
   return `<figure class="photo photo--slot" style="aspect-ratio:${ratio}" data-photo-slot="${esc(id)}">
     <div class="photo__hatch" aria-hidden="true"></div>
@@ -358,7 +360,7 @@ function productCards(d) {
   <section class="band band--product${i === 1 ? ' band--flip' : i === 2 ? ' band--wide' : ''}" aria-labelledby="pb-${p.slug}">
     <a class="band__media" href="/products/${p.slug}" tabindex="-1" aria-hidden="true">${mini(p.cardVisual, 'band__mini', { frame: i === 1 ? 'left' : i === 2 ? '' : 'right' })}</a>
     <div class="container band__copy">
-      <h2 id="pb-${p.slug}" class="d-xl" data-rise>${esc(p.name)}</h2>
+      <h3 id="pb-${p.slug}" class="d-xl" data-rise>${esc(p.name)}</h3>
       <p class="band__line">${esc(p.cardLine)}</p>
       ${pill(`/products/${p.slug}`, 'Learn more', { attrs: ` aria-label="Learn more about ${esc(p.name.toLowerCase().replace('e&i', 'E&I'))}"` })}
     </div>
@@ -475,7 +477,7 @@ function productPage(d, a) {
   </section>
 ` : '';
 
-  return `<main id="main" class="product">
+  return `<main id="main" class="product" tabindex="-1">
   <section class="band band--phero">
     <div class="band__media">${mini(p.visual, 'band__mini', { frame: 'right' })}</div>
     <div class="container band__copy">
