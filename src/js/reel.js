@@ -53,11 +53,28 @@ function reel(root) {
     root.style.setProperty('--auto', 0);
   };
 
+  const play = root.querySelector('[data-reel-play]');
+  const syncPlay = () => {
+    if (!play) return;
+    play.hidden = reduced;
+    play.setAttribute('aria-label', auto ? 'Pause slideshow' : 'Play slideshow');
+    play.setAttribute('aria-pressed', auto ? 'false' : 'true');
+    play.classList.toggle('is-paused', !auto);
+    stage.setAttribute('aria-live', auto ? 'off' : 'polite');
+  };
   const takeOver = () => {
     if (!auto) return;
     auto = false;
     root.classList.remove('is-auto');
+    syncPlay();
   };
+  play?.addEventListener('click', () => {
+    if (auto) { takeOver(); return; }
+    auto = true; paused = 0; t0 = performance.now();
+    root.classList.add('is-auto');
+    syncPlay();
+    requestAnimationFrame(tick);
+  });
 
   root.querySelector('[data-reel-prev]').addEventListener('click', () => { takeOver(); show(index - 1, -1); });
   root.querySelector('[data-reel-next]').addEventListener('click', () => { takeOver(); show(index + 1, 1); });
@@ -68,7 +85,7 @@ function reel(root) {
   });
   root.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') hovered = true; });
   root.addEventListener('pointerleave', () => { hovered = false; });
-  root.addEventListener('focusin', takeOver);
+  root.addEventListener('focusin', (e) => { if (e.target !== play) takeOver(); });
 
   // swipe (touch) and drag (mouse) on the stage
   let drag = null;
@@ -98,8 +115,7 @@ function reel(root) {
     if (visible && !seen) { seen = true; t0 = performance.now(); }
   }, { threshold: 0.35 }).observe(root);
 
-  if (!auto) return;
-  const tick = () => {
+  function tick() {
     if (!auto) return;
     requestAnimationFrame(tick);
     if (!seen) return;
@@ -108,6 +124,7 @@ function reel(root) {
     const p = Math.min(1, (performance.now() - t0) / DWELL);
     root.style.setProperty('--auto', p.toFixed(4));
     if (p >= 1) show(index + 1, 1);
-  };
-  requestAnimationFrame(tick);
+  }
+  syncPlay();
+  if (auto) requestAnimationFrame(tick);
 }

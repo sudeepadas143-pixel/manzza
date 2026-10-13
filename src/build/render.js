@@ -633,7 +633,7 @@ function quoteForm(d) {
     <div class="field">
       <p class="label" id="lbl-file">Drawing or specification file</p>
       <label class="drop" for="f-file">
-        <input id="f-file" name="drawing" type="file" accept=".pdf,.dwg,.dxf,.step,.stp,.igs,.iges,.png,.jpg,.jpeg,.zip" aria-describedby="lbl-file h-file">
+        <input id="f-file" name="drawing" type="file" accept=".pdf,.dwg,.dxf,.step,.stp,.igs,.iges,.png,.jpg,.jpeg,.zip" aria-describedby="lbl-file">
         <span class="drop__icon">${icon.upload}</span>
         <span class="drop__text"><strong>Choose a file</strong> or drag it here</span>
         <span class="drop__file" data-file-name></span>
