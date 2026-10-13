@@ -138,8 +138,8 @@ function mini(type, cls = '', { frame = '', scrub = false } = {}) {
 }
 
 /** The one marketing CTA: a ghost pill (white fill wipes in on hover). */
-function pill(href, label, { cls = '', attrs: extra = '' } = {}) {
-  return `<a class="btn btn--ghost ${cls}" href="${esc(href)}"${extra}><span class="btn__label">${esc(label)}</span></a>`;
+function pill(href, label, { cls = '', attrs: extra = '', primary = false } = {}) {
+  return `<a class="btn ${primary ? 'btn--primary' : 'btn--ghost'} ${cls}" href="${esc(href)}"${extra}><span class="btn__label">${esc(label)}</span></a>`;
 }
 
 /** Real-photo slot: shows /images/<id>.(webp|jpg|png) when present, else a neutral placeholder. */
@@ -250,9 +250,10 @@ function header(d, a) {
           </div>
         </li>
         <li class="nav__item"><a class="nav__link" href="/materials"${cur('materials')}>Materials</a></li>
-        <li class="nav__item"><a class="nav__link" href="/quote"${cur('quote')}>Request a quote</a></li>
+        <li class="nav__item"><a class="nav__link nav__link--cta" href="/quote"${cur('quote')}>Request a quote</a></li>
       </ul>
     </nav>
+    <a class="header__cta" href="/quote"${cur('quote')}>Request a quote</a>
     <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu"><span class="menu-toggle__bars" aria-hidden="true"><i></i><i></i></span><span class="menu-toggle__label">Menu</span></button>
   </div>
 </header>
@@ -292,7 +293,7 @@ function footer(d) {
         <ul>
           <li>${phoneLink(d)}</li>
           <li>${emailLink(d)}</li>
-          <li>${wa ? `<a href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>` : tbc('WhatsApp number')}</li>
+          ${wa ? `<li><a href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a></li>` : ''}
           <li>${addressHTML(d)}</li>
         </ul>
         ${isTodo(c.contact.hours) || !c.contact.hours ? '' : `<p class="footer__hours">${esc(c.contact.hours)}</p>`}
@@ -339,7 +340,7 @@ function hero(d) {
     <p class="eyebrow" data-line>${esc(d.config.company.legalName)} · ${esc(d.config.company.city)}</p>
     <h1 id="hero-h" class="d-xxl" data-rise>${esc(ix.headline)}</h1>
     <p class="body-lg hero__lede">${esc(ix.lede)}</p>
-    ${pill('/quote', 'Request a quote')}
+    ${pill('/quote', 'Request a quote', { primary: true })}
   </div>
 </section>`;
 }
@@ -441,9 +442,9 @@ function cta(d, a) {
   const phone = d.config.contact.phone;
   return `<section class="band cta" aria-labelledby="cta-h">
   <div class="container cta__inner">
-    <h2 id="cta-h" class="d-xxl" data-rise>${esc(a.title || 'Discuss your next requirement with our team.')}</h2>
+    <h2 id="cta-h" class="d-xl cta__h" data-rise>${esc(a.title || 'Discuss your next requirement with our team.')}</h2>
     <p class="body-lg cta__p">${esc(a.text || 'Submit your requirements for an individual quotation.')}</p>
-    ${pill(`/quote${a.product ? `?product=${esc(a.product)}` : ''}`, 'Request a quote')}
+    ${pill(`/quote${a.product ? `?product=${esc(a.product)}` : ''}`, 'Request a quote', { primary: true })}
     ${wa || !isTodo(phone) ? `<p class="cta__alt">${wa ? `<a href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}${!isTodo(phone) ? phoneLink(d) : ''}</p>` : ''}
   </div>
 </section>`;
@@ -474,7 +475,7 @@ function productPage(d, a) {
       <nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/#products">Products</a></li><li aria-current="page">${esc(p.name)}</li></ol></nav>
       <h1 class="d-xxl" data-rise>${esc(p.headline)}</h1>
       <p class="body-lg band__lede">${esc(p.intro)}</p>
-      ${pill(quoteHref, 'Request a quote')}
+      ${pill(quoteHref, 'Request a quote', { primary: true })}
     </div>
   </section>
 
@@ -518,7 +519,7 @@ function productPage(d, a) {
   </section>
 
   ${cta(d, { product: p.slug })}
-  <div class="stickybar" data-stickybar>${pill(quoteHref, `Request a quote for ${p.name.replace(' laminations', '')}`, { cls: 'btn--block' })}</div>
+  <div class="stickybar" data-stickybar>${pill(quoteHref, `Request a quote for ${p.name.replace(' laminations', '')}`, { cls: 'btn--block', primary: true })}</div>
 </main>`;
 }
 
@@ -656,7 +657,7 @@ function contactCard(d) {
     <ul class="qside__list">
       <li>${phoneLink(d)}</li>
       <li>${emailLink(d)}</li>
-      <li>${wa ? `<a href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>` : tbc('WhatsApp number')}</li>
+      ${wa ? `<li><a href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a></li>` : ''}
       <li>${addressHTML(d)}</li>
     </ul>
   </aside>`;

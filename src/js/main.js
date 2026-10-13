@@ -35,6 +35,8 @@ function initNav() {
       toggle.querySelector('.menu-toggle__label').textContent = open ? 'Close' : 'Menu';
       menu.hidden = !open;
       document.documentElement.classList.toggle('menu-open', open);
+      // the full-screen menu is the only thing that can be reached while it is open
+      document.querySelectorAll('main, footer').forEach((el) => { el.inert = open; });
     };
     toggle.addEventListener('click', () => set(toggle.getAttribute('aria-expanded') !== 'true'));
     menu.addEventListener('click', (e) => { if (e.target.closest('a')) set(false); });
