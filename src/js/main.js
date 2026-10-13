@@ -45,11 +45,13 @@ function initNav() {
       document.documentElement.classList.toggle('menu-open', open);
       // the full-screen menu is the only thing that can be reached while it is open
       document.querySelectorAll('main, footer').forEach((el) => { el.inert = open; });
+      // move focus into the menu when it opens
+      if (open) requestAnimationFrame(() => menu.querySelector('a')?.focus());
     };
     toggle.addEventListener('click', () => set(toggle.getAttribute('aria-expanded') !== 'true'));
     menu.addEventListener('click', (e) => { if (e.target.closest('a')) set(false); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) { set(false); toggle.focus(); } });
-    window.matchMedia('(min-width: 961px)').addEventListener('change', (m) => { if (m.matches) set(false); });
+    window.matchMedia('(min-width: 768px)').addEventListener('change', (m) => { if (m.matches) set(false); });
   }
 
   // Overlay nav: transparent over the film, solid black after it; hides while

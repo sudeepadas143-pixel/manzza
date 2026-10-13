@@ -435,6 +435,7 @@ function capacity(d) {
     <p class="capacity__value d-xxl"><span class="num"${/^\d+$/.test(num) ? ` data-count="${num}"` : ''}>${esc(num)}</span></p>
     <p class="eyebrow">${esc(c.unit)}</p>
     ${c.note ? `<p class="note">${esc(c.note)}</p>` : ''}
+    ${pill('/quote', 'Request a quote', { primary: true, cls: 'capacity__cta' })}
   </div>`;
 }
 

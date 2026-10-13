@@ -71,7 +71,7 @@ function statement() {
       if (r.bottom < -vh || r.top > vh * 2) return;
       const prog = Math.min(1, Math.max(0, (vh * 0.85 - r.top) / (r.height + vh * 0.3)));
       const lit = prog * (n + 6);
-      words.forEach((w, i) => w.style.setProperty('--o', (0.22 + 0.78 * Math.min(1, Math.max(0, (lit - i) / 6))).toFixed(3)));
+      words.forEach((w, i) => w.style.setProperty('--o', (0.6 + 0.4 * Math.min(1, Math.max(0, (lit - i) / 6))).toFixed(3)));
     };
     const onScroll = () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } };
     window.addEventListener('scroll', onScroll, { passive: true });
