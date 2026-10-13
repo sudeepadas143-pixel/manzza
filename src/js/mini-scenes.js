@@ -92,7 +92,7 @@ function buildStrip(mat) {
   const m = new THREE.Mesh(extrudeLaminations(items), mat);
   m.position.set(-2.1, -0.31, -layers * t / 2);
   g.add(m);
-  return { group: g, tilt: 0.75, spin: 0.2, swing: 0.35 };
+  return { group: g, tilt: 0.5, spin: 0.2, swing: 0.3 };
 }
 
 const BUILDERS = { core: buildCore, 'mitre-corner': buildMitreCorner, ei: buildEI, strip: buildStrip };
@@ -117,7 +117,7 @@ export function startMinis(canvases) {
     scene.environmentRotation.set(rx, ry, 0);
     // small, tilted pieces need more of the studio to read as metal; the full core's
     // broad faces catch the soft box whole, so it gets less or they burn out to white
-    scene.environmentIntensity = canvas.dataset.mini === 'core' ? 0.85 : 2.2;
+    scene.environmentIntensity = { core: 0.85, strip: 3 }[canvas.dataset.mini] ?? 2.2;
     metalLights(scene);
     const uniforms = createSteelUniforms();
     const mat = createSteelMaterial(uniforms);
@@ -151,7 +151,7 @@ export function startMinis(canvases) {
       const fov = THREE.MathUtils.degToRad(v.camera.fov);
       const fitH = v.sphere.radius / Math.sin(fov / 2);
       const fitW = fitH / Math.min(1, side ? aspect / 2 : aspect);
-      const d = Math.max(fitH, fitW) * (side ? 0.86 : 1.08);
+      const d = Math.max(fitH, fitW) * (side ? 0.86 : aspect < 1 ? 1.3 : 0.8);
       v.camera.position.set(0, d * 0.18, d);
       v.camera.lookAt(0, 0, 0);
       if (side) v.camera.setViewOffset(w, h, -side * w * 0.22, 0, w, h);

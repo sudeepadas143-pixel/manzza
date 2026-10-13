@@ -324,6 +324,10 @@ function intro(d) {
       <img class="intro__m" src="/brand/manzza-m.webp" alt="" width="430" height="360" fetchpriority="high">
     </div>
     <p class="intro__tagline" aria-hidden="true">${esc(d.config.company.tagline)}</p>
+    <button class="intro__cue" type="button" data-cue aria-label="Scroll down">
+      <span class="intro__cue-track" aria-hidden="true"><i></i></span>
+      <span class="intro__cue-label" aria-hidden="true">Scroll</span>
+    </button>
   </div>
 </section>`;
 }
@@ -343,8 +347,8 @@ function hero(d) {
 /** Home: each product is a full-bleed band, the render as its photograph. */
 function productCards(d) {
   return d.products.map((p, i) => `
-  <section class="band band--product${i % 2 ? ' band--flip' : ''}" aria-labelledby="pb-${p.slug}">
-    <a class="band__media" href="/products/${p.slug}" tabindex="-1" aria-hidden="true">${mini(p.cardVisual, 'band__mini', { frame: i % 2 ? 'left' : 'right', scrub: true })}</a>
+  <section class="band band--product${i === 1 ? ' band--flip' : i === 2 ? ' band--wide' : ''}" aria-labelledby="pb-${p.slug}">
+    <a class="band__media" href="/products/${p.slug}" tabindex="-1" aria-hidden="true">${mini(p.cardVisual, 'band__mini', { frame: i === 1 ? 'left' : i === 2 ? '' : 'right', scrub: true })}</a>
     <div class="container band__copy">
       <h2 id="pb-${p.slug}" class="d-xl" data-rise>${esc(p.name)}</h2>
       <p class="band__line">${esc(p.cardLine)}</p>
@@ -429,7 +433,7 @@ function quality(d) {
 }
 
 function customers(d) {
-  return `<ul class="cols cols--3">${d.company.customers.map((c) => `<li class="col" data-line><h3 class="col__title">${esc(c.title)}</h3><p class="col__text">${esc(c.text)}</p></li>`).join('')}</ul>`;
+  return `<ul class="index">${d.company.customers.map((c) => `<li data-line><h3 class="index__title">${esc(c.title)}</h3><p class="index__text">${esc(c.text)}</p></li>`).join('')}</ul>`;
 }
 
 function cta(d, a) {

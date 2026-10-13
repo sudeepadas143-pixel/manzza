@@ -154,3 +154,20 @@ and is skipped entirely under `prefers-reduced-motion`.
 - Don't add colours beyond off-black, deep navy, electric blue and off-white; no glows,
   gradients, shadows, rounded tiles or glass.
 - Don't add copy that the client brief or the user did not supply.
+
+## Audit against the installed skills (what each one decided)
+- **awesome-design-md / SpaceX:** the base system: bands, condensed caps, one ghost pill per band.
+- **Client brief §8:** black, deep navy, electric blue; powerful, innovative, technical, dependable.
+- **taste-skill:** off-black/off-white in one cool family; one accent at < 80% saturation; no
+  glows; hero headline on two lines and inside the viewport; no split headers (a headline
+  and its paragraph stack); no three image/text zigzags in a row (the third product band
+  spans the width instead); no layout family used twice (process = columns, quality = two-up
+  rows, customers = index list); eyebrows kept to the hero.
+- **emil-design-eng / apple-design:** strong ease-out curves, press scale on buttons, hover
+  effects only on fine pointers, one-shot reveals, everything still under reduced motion.
+- **web-design-guidelines:** skip link, visible focus, labelled controls, 16px+ inputs,
+  tabular figures, `color-scheme`/`theme-color`, no `transition: all`.
+- **dark-mode-design-expert:** text tiers at 9:1 and 5.6:1 on navy; blue text tint at 7:1.
+- **de-slop:** copy is the client's own wording; nothing invented.
+- **Scroll cue:** a capsule with a dropping blue bead and "Scroll" at the foot of the opening
+  logo; pressing it glides one screen into the film; it fades at the first scroll.

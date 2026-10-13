@@ -38,10 +38,13 @@ export async function initIntro(section) {
   const word = section.querySelector('.intro__word');
   const mark = section.querySelector('.intro__m');
   const tagline = section.querySelector('.intro__tagline');
+  const cue = section.querySelector('[data-cue]');
   const framesEl = section.querySelector('.intro__frames');
 
   if (prefersReduced()) {
     section.classList.add('intro--static');
+    // no film: the cue jumps straight to what follows it
+    cue?.addEventListener('click', () => section.nextElementSibling?.scrollIntoView({ behavior: 'auto' }));
     return;
   }
 
@@ -72,6 +75,12 @@ export async function initIntro(section) {
     gsap.ticker.add((t) => lenis.raf(t * 1000));
     gsap.ticker.lagSmoothing(0);
   }
+  // the cue starts the film: a gentle glide of one screen into it
+  cue?.addEventListener('click', () => {
+    const to = window.scrollY + window.innerHeight;
+    if (lenis) lenis.scrollTo(to, { duration: 1.6 });
+    else window.scrollTo({ top: to, behavior: 'smooth' });
+  });
 
   const state = { p: 0 };
   let scene = null;
@@ -122,6 +131,13 @@ export async function initIntro(section) {
     mark.style.opacity = (1 - dissolve).toFixed(3);
     const hidden = dissolve >= 1;
     if (mark.hidden !== hidden) { mark.hidden = hidden; word.hidden = hidden; }
+
+    // the scroll cue says how to start, then gets out of the way at the first scroll
+    if (cue) {
+      const c = 1 - smooth(seg(p, 0, 0.012));
+      cue.style.opacity = c.toFixed(3);
+      cue.style.visibility = c > 0 ? 'visible' : 'hidden';
+    }
 
     // the close: the tagline settles in under the finished core
     if (tagline) {
