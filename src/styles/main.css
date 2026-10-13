@@ -33,6 +33,12 @@
   --brand-blue: var(--blue);
   --stage: var(--canvas); /* the intro studio (matches STUDIO in intro/scene.js) */
   --focus: var(--blue-text);
+  /* primary action: an off-white pill with an ink label, the brightest thing on the dark,
+     18.5:1 label contrast and 6-9:1 against the brightest backdrop (blue fills managed 1.3:1) */
+  --cta-bg: #f4f6fa;
+  --cta-hover: #fdfdff;
+  --cta-press: #dde3ee;
+  --cta-ink: #06080d;
 
   /* type: one family, two widths */
   --f-display: 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif;
@@ -123,25 +129,26 @@ html.menu-open { overflow: hidden; }
 .btn--ghost { background: transparent; color: var(--white); box-shadow: inset 0 0 0 1px var(--white); }
 .btn--ghost { transition: color 0.45s var(--ease-out), box-shadow 0.45s var(--ease-out), transform 0.16s var(--ease-out); }
 .btn--ghost::before {
-  content: ''; position: absolute; inset: 0; z-index: -1; background: var(--blue);
+  content: ''; position: absolute; inset: 0; z-index: -1; background: var(--cta-bg);
   transform: scaleX(0); transform-origin: left center; transition: transform 0.45s var(--ease-out);
 }
 @media (hover: hover) and (pointer: fine) {
-  .btn--ghost:hover { color: var(--white); box-shadow: inset 0 0 0 1px var(--blue); }
+  .btn--ghost:hover { color: var(--cta-ink); box-shadow: inset 0 0 0 1px var(--cta-bg); }
   .btn--ghost:hover::before { transform: scaleX(1); }
 }
 /* the primary action, 'Request a quote': filled electric blue, everywhere it appears
    (pixelslop: one ghost style for every CTA left the page with no primary). Ghost pills
    stay for secondary actions such as 'Learn more'. */
-.btn--primary { background: var(--blue); color: var(--white); transition: background-color 0.25s, transform 0.16s var(--ease-out); }
-@media (hover: hover) and (pointer: fine) { .btn--primary:hover { background: var(--blue-press); } }
+/* hover lifts it a pixel and draws the brand's electric blue as a fine inner ring */
+.btn--primary, .btn--filled { background: var(--cta-bg); color: var(--cta-ink); transition: background-color 0.25s, box-shadow 0.3s var(--ease-out), transform 0.2s var(--ease-out); }
+@media (hover: hover) and (pointer: fine) { .btn--primary:hover, .btn--filled:hover { background: var(--cta-hover); box-shadow: inset 0 0 0 2px var(--blue); transform: translateY(-1px); } }
+.btn--primary:active, .btn--filled:active { background: var(--cta-press); transform: scale(0.97); }
 /* the header's quote link as a compact filled pill */
-.nav__link--cta { margin-left: 8px; padding: 0 18px; height: 40px; border-radius: var(--r-pill); background: var(--blue); }
+.nav__link.nav__link--cta { margin-left: 8px; padding: 0 18px; height: 40px; border-radius: var(--r-pill); background: var(--cta-bg); color: var(--cta-ink); transition: background-color 0.25s, box-shadow 0.3s var(--ease-out); }
 .nav__link--cta::after { display: none; }
-@media (hover: hover) and (pointer: fine) { .nav__link--cta:hover { background: var(--blue-press); } }
+@media (hover: hover) and (pointer: fine) { .nav__link--cta:hover { background: var(--cta-hover); box-shadow: inset 0 0 0 2px var(--blue); } }
+.nav__link--cta[aria-current='page'] { box-shadow: inset 0 0 0 2px var(--blue); }
 /* the one filled button: the quote form's submit, in electric blue */
-.btn--filled { background: var(--blue); color: var(--white); transition: background-color 0.25s, transform 0.16s var(--ease-out); }
-@media (hover: hover) and (pointer: fine) { .btn--filled:hover { background: var(--blue-press); } }
 .btn--block { width: 100%; }
 .btn.is-busy { opacity: 0.7; cursor: progress; }
 .btn-row { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 32px; }
@@ -220,9 +227,10 @@ html:not(.rm) .mobile-menu:not([hidden]) .mobile-menu__list li { animation: rise
 .mobile-menu__contact a { display: inline-flex; align-items: center; min-height: 44px; color: var(--white); }
 
 /* phones: the quote action stays in the header next to Menu */
-.header__cta { display: inline-flex; align-items: center; height: 44px; padding: 0 16px; border-radius: var(--r-pill); background: var(--blue); color: var(--white); text-decoration: none; font: 700 0.6875rem/1 var(--f-body); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; position: relative; }
+.header__cta { display: inline-flex; align-items: center; height: 44px; padding: 0 16px; border-radius: var(--r-pill); background: var(--cta-bg); color: var(--cta-ink); text-decoration: none; font: 700 0.6875rem/1 var(--f-body); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; position: relative; }
 
-@media (hover: hover) and (pointer: fine) { .header__cta:hover { background: var(--blue-press); } }
+@media (hover: hover) and (pointer: fine) { .header__cta:hover { background: var(--cta-hover); box-shadow: inset 0 0 0 2px var(--blue); } }
+.header__cta:active { background: var(--cta-press); }
 @media (max-width: 359px) { .header__cta { display: none; } }
 
 @media (min-width: 961px) {

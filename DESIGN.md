@@ -75,10 +75,12 @@ components:
     typography: "{typography.button-cap}"
     rounded: "{rounded.pill}"
     padding: "18px 24px"
-    hover: "electric-blue fill wipes in from the left, outline turns blue"
-  button-filled:
-    backgroundColor: "{colors.electric-blue}"
-    textColor: "{colors.on-primary}"
+    hover: "off-white fill wipes in from the left, label turns ink"
+  button-primary:
+    backgroundColor: "#f4f6fa"
+    textColor: "#06080d"
+    hover: "lifts 1px; a 2px electric-blue inner ring draws in"
+    use: "Request a quote (hero, closing CTA, product pages, sticky bar, header pill) and the form submit"
     use: "quote form submit only"
   text-input:
     backgroundColor: "{colors.canvas-night}"
@@ -194,3 +196,12 @@ the head); the product bands, capabilities, quality and the form stay flat.
   and the capture view; the canvas fades in over it.
 - No auroras, no saturated glows, no neon; taste-skill's "no glows" rule still holds:
   these are deep, low-contrast tonal shifts, not lit halos.
+
+## Primary button (decided after the backdrops)
+Off-white pill (#f4f6fa) with an ink label (#06080d) for every "Request a quote" and the
+form submit; electric blue moves to the hover ring and stays the accent for rules,
+eyebrows and focus. Why: label contrast 18.5:1 (blue fill was 4.56:1), and the button
+stands 6-9:1 off the brightest backdrop where the blue fill fell to 1.3:1 on the blue
+current. Agreed by dark-mode-design-expert (the primary is the lightest element on dark),
+web-design-guidelines/pixelslop (contrast), taste-skill (one accent, used for detail not
+large fills) and the SpaceX/Apple reference (light pill on dark).
