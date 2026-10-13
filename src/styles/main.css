@@ -158,7 +158,7 @@ html.menu-open { overflow: hidden; }
 @media (hover: hover) and (pointer: fine) { .btn--primary:hover, .btn--filled:hover { background: var(--cta-hover); box-shadow: inset 0 0 0 2px var(--blue); transform: translateY(-1px); } }
 .btn--primary:active, .btn--filled:active { background: var(--cta-press); transform: scale(0.97); }
 /* the header's quote link as a compact filled pill */
-.nav__link.nav__link--cta { margin-left: 8px; padding: 0 20px; height: 48px; border-radius: var(--r-pill); background: var(--cta-bg); color: var(--cta-ink); transition: background-color 0.25s, box-shadow 0.3s var(--ease-out); }
+.nav__link.nav__link--cta { margin-left: 8px; padding: 0 16px; height: 36px; font-size: 0.8125rem; border-radius: var(--r-pill); background: var(--cta-bg); color: var(--cta-ink); transition: background-color 0.25s, box-shadow 0.3s var(--ease-out); }
 .nav__link--cta::after { display: none; }
 @media (hover: hover) and (pointer: fine) { .nav__link--cta:hover { background: var(--cta-hover); box-shadow: inset 0 0 0 2px var(--blue); } }
 .nav__link--cta[aria-current='page'] { box-shadow: inset 0 0 0 2px var(--blue); }
@@ -241,7 +241,7 @@ html:not(.rm) .mobile-menu:not([hidden]) .mobile-menu__list li { animation: rise
 .mobile-menu__contact a { display: inline-flex; align-items: center; min-height: 48px; color: var(--white); }
 
 /* phones: the quote action stays in the header next to Menu */
-.header__cta { display: inline-flex; align-items: center; height: 48px; padding: 0 16px; border-radius: var(--r-pill); background: var(--cta-bg); color: var(--cta-ink); text-decoration: none; font: 700 var(--t-ui)/1 var(--f-body); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; position: relative; }
+.header__cta { display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: var(--r-pill); background: var(--cta-bg); color: var(--cta-ink); text-decoration: none; font: 700 var(--t-ui)/1 var(--f-body); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; position: relative; }
 
 @media (hover: hover) and (pointer: fine) { .header__cta:hover { background: var(--cta-hover); box-shadow: inset 0 0 0 2px var(--blue); } }
 .header__cta:active { background: var(--cta-press); }
@@ -867,7 +867,6 @@ html.capture .site-header { display: none; }
 /* phones and tablets: every control at least 48px tall */
 @media (max-width: 768px) {
   .btn, .link, .header__cta, .menu-toggle, .brand, .footer__col a, .mobile-menu__list a, .mobile-menu__contact a, .cta__alt a, .crumbs a, .nav__link { min-height: 48px; }
-  .header__cta { height: 48px; }
   .band--product { padding-bottom: 56px; }
 }
 
@@ -876,3 +875,7 @@ html.capture .site-header { display: none; }
   content: ''; display: block; width: 40px; height: 2px; margin-bottom: 24px; background: var(--blue);
 }
 .capacity__cta { margin-top: 28px; }
+
+/* header CTA: compact 36px pill, 48px tap area kept by an invisible halo */
+.nav__link.nav__link--cta, .header__cta { font-size: 0.8125rem; min-height: 0; }
+.nav__link--cta::before, .header__cta::before { content: ''; position: absolute; inset: -6px -2px; }
