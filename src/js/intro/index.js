@@ -115,7 +115,7 @@ export async function initIntro(section) {
   let lastP = -1;
   // Time-warp: the logo -> coil -> slitting opening (film 0-0.38) plays over the
   // first 28% of the scroll, the rest keeps its pace. With the section 15% shorter
-  // (510vh / 390vh, main.css) only the opening speeds up (~37% faster).
+  // (460vh / 350vh, main.css) only the opening speeds up.
   const WARP_IN = 0.28, WARP_OUT = 0.38;
   const warp = (r) => (r <= WARP_IN ? r * (WARP_OUT / WARP_IN) : WARP_OUT + (r - WARP_IN) * ((1 - WARP_OUT) / (1 - WARP_IN)));
   function apply(raw) {
