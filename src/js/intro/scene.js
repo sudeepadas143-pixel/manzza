@@ -32,6 +32,10 @@ import {
   extrudeLaminations, createSteelUniforms, createSteelMaterial,
   brushedTexture, disposeTree, releaseShared, BRAND,
 } from '../lamination/three-kit.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { buildFrame, FRAME } from './frame.js';
 
 const easeOut = (t) => 1 - (1 - t) ** 3;
@@ -80,8 +84,8 @@ function navyStudio(renderer) {
   };
   // flat steel seen from above mirrors what is overhead: narrow lines with dark between
   // them give the sheets bands of light and shadow instead of one white glare
-  strip(20, 0.7, [0, 10, -5], 4.2); //                   key line, overhead, a little behind
-  strip(20, 0.45, [0, 10, -1], 2.4); //                  second line
+  strip(20, 0.7, [0, 10, -5], 3.0); //                   key line, overhead, a little behind
+  strip(20, 0.45, [0, 10, -1], 1.7); //                  second line
   strip(20, 0.35, [0, 9, 5], 1.6); //                    third, in front
   strip(12, 3.2, [-12, 2.5, 4], 2.4, '#eef3ff', Math.PI / 2); // big soft box, left: silver on faces turned to the viewer
   strip(11, 1.0, [12, 4, -8], 3.8, '#cfe0ff', Math.PI / 2); // rim strip, right and behind
@@ -103,9 +107,9 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   const maxRatio = capture ? 2 : 1.5;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxRatio));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  // AgX: filmic highlight roll-off without ACES's hue shifts on bright metal
-  renderer.toneMapping = THREE.AgXToneMapping;
-  renderer.toneMappingExposure = 1.0;
+  // ACES: more contrast than AgX, and the logo blue of the frame stays rich (A/B tested)
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; // OutputPass applies it
+  renderer.toneMappingExposure = 0.92;
   renderer.localClippingEnabled = true;
   renderer.shadowMap.enabled = true;
   // PCF with a radius: soft shadows from 5 hardware-filtered taps, no blur passes (VSM needed two per frame)
@@ -118,6 +122,20 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   scene.environment = envTex;
   // depth: what is far off sinks into the navy of the backdrop
   scene.fog = new THREE.Fog(0x0a1428, 16, 38);
+
+  // Post: the scene renders into a half-float (HDR) buffer, so highlights brighter
+  // than white survive to the bloom, which turns the strip-light glints on the steel
+  // and the cut lines into light that spills a little. OutputPass then tone-maps.
+  // Multisampled target: the composer bypasses the canvas's own antialiasing.
+  // Phones: bloom at half resolution and a lighter strength (its blurs are the cost).
+  const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: mobile ? 2 : 4 });
+  const composer = new EffectComposer(renderer, rt);
+  composer.addPass(new RenderPass(scene, camera));
+  // threshold in HDR units: only true glints (strip lights on steel, the cut lines) bloom
+  const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), mobile ? 0.2 : 0.26, 0.08, 4.2); // tight: glints, not fog
+  if (mobile) { const setSize = bloom.setSize.bind(bloom); bloom.setSize = (w, h) => setSize(Math.round(w / 2), Math.round(h / 2)); }
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
 
   // Metal three-point: warm key, cool fill, cool rim at 4:1:2 (blender-lighting 'metal' profile).
   // The warm/cool split is what gives bare steel its colour.
@@ -141,7 +159,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
 
   // the key mostly casts the shadow: on bare metal a strong direct light is one broad white
   // glare, so the steel's look comes from the strips it reflects (navyStudio)
-  const LIGHT = { key: 1.3, fill: 0.35, rim: 2.0, env: 1.0 };
+  const LIGHT = { key: 0.9, fill: 0.35, rim: 1.0, env: 1.0 };
 
   // Floor: a soft pool of light under the subject, plus the shadow it receives.
   const poolTex = (() => {
@@ -171,8 +189,10 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   const steel = createSteelMaterial(uniforms, STEEL);
 
   const W0 = 0.95; // widest lamination = strip width
+  // the cut lines are light, not paint: brighter than white (HDR), so the bloom
+  // gives them a real glow, white-hot in the core and the brand's blue around it
   const blueLine = (opacity = 1) => new THREE.MeshBasicMaterial({
-    color: BRAND.blue, transparent: true, opacity, toneMapped: false, depthWrite: false,
+    color: BRAND.blueGlow.clone().multiplyScalar(8), transparent: true, opacity, depthWrite: false, fog: false,
   });
 
   /* ----------------------------------------------------------------- coil */
@@ -309,7 +329,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
     const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
   })();
-  const headMat = new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, toneMapped: false });
+  const headMat = new THREE.SpriteMaterial({ map: glowTex, color: new THREE.Color().setScalar(5), transparent: true, depthWrite: false, fog: false });
   const heads = [];
   const mkHead = () => { const s = new THREE.Sprite(headMat); s.scale.setScalar(0.22); scene.add(s); heads.push(s); return s; };
 
@@ -422,6 +442,8 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   const tgtPath = new THREE.CatmullRomCurve3(KEYS.slice(holdEnd).map((k) => new THREE.Vector3(...k[2])), false, 'centripetal');
   const tmpP = new THREE.Vector3(), tmpT = new THREE.Vector3(), tmpL = new THREE.Vector3();
 
+  const look = { x: 0, y: 0 }; // cursor parallax, already damped (index.js)
+  const right = new THREE.Vector3(), upV = new THREE.Vector3();
   function placeCamera(p) {
     const ks = KEYS.slice(holdEnd);
     let i = 0;
@@ -437,6 +459,15 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     if (aspect < 1.25) tmpP.sub(tmpT).multiplyScalar((1.25 / aspect) ** 0.8).add(tmpT);
     camera.position.copy(tmpP);
     camera.lookAt(tmpT);
+    // a little parallax from the cursor, once the M has handed over to the 3D scene
+    // (before that the M sits exactly on the coil's face, so the camera keeps still)
+    const par = smooth(seg(p, 0.16, 0.22)) * tmpP.distanceTo(tmpT) * 0.035;
+    if (par && (look.x || look.y)) {
+      right.setFromMatrixColumn(camera.matrixWorld, 0);
+      upV.setFromMatrixColumn(camera.matrixWorld, 1);
+      camera.position.addScaledVector(right, look.x * par).addScaledVector(upV, -look.y * par * 0.6);
+      camera.lookAt(tmpT);
+    }
     // portrait screens: sit the subject a little lower, nearer the visual centre
     if (size.w < size.h) camera.setViewOffset(size.w, size.h, 0, -size.h * 0.08, size.w, size.h);
     else camera.clearViewOffset();
@@ -450,7 +481,9 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     const sweep = smooth(seg(p, 0.86, 1)) * 1.1;
     key.position.set(tmpL.x - 3.6 * Math.cos(sweep) + 4.6 * Math.sin(sweep), 9, tmpL.z + 5.2 * Math.cos(sweep) + 3.6 * Math.sin(sweep));
     rim.target.position.copy(tmpL);
-    rim.position.set(tmpL.x - 5, 7, tmpL.z - 8);
+    // low behind the subject: it traces the edges, but its mirror image off a flat
+    // face never reaches a camera looking down (high up, it flared off every lamination)
+    rim.position.set(tmpL.x - 5, 2.2, tmpL.z - 8);
     // fill from the camera's side, low: opens up the faces the key leaves dark
     fill.target.position.copy(tmpL);
     fill.position.copy(camera.position).sub(tmpL).applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.7).setY(2.5).add(tmpL);
@@ -474,7 +507,8 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     floorMat.opacity = 0.6 * level;
   }
 
-  function update(p) {
+  function update(p, lookX = 0, lookY = 0) {
+    look.x = lookX; look.y = lookY;
     /* lights up: the M (HTML) dissolves into the coil's end face */
     const lights = smooth(seg(p, 0.06, 0.13));
     setLights(lights);
@@ -637,7 +671,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     arrive(frame.lug, seg(p, 0.885, 0.925), v3.set(0, 1.6, 0));
 
     placeCamera(p);
-    renderer.render(scene, camera);
+    composer.render();
   }
 
   /** Screen position and radius (CSS px) of the coil's end face at progress p, for lining up the M. */
@@ -655,6 +689,8 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   function resize(w, h) {
     size.w = Math.max(1, w); size.h = Math.max(1, h);
     renderer.setSize(size.w, size.h, false);
+    composer.setPixelRatio(renderer.getPixelRatio());
+    composer.setSize(size.w, size.h);
     camera.aspect = size.w / size.h;
     camera.updateProjectionMatrix();
   }
@@ -662,9 +698,13 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   function setPixelRatio(ratio) {
     renderer.setPixelRatio(ratio);
     renderer.setSize(size.w, size.h, false);
+    composer.setPixelRatio(ratio);
+    composer.setSize(size.w, size.h);
   }
 
   function dispose() {
+    composer.dispose();
+    bloom.dispose();
     disposeTree(scene);
     frame.dispose();
     glowTex.dispose();
@@ -681,8 +721,8 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   scene.traverse((o) => { o.visible = true; });
   setLights(1);
   placeCamera(0.6);
-  renderer.setSize(64, 64, false);
-  renderer.render(scene, camera);
+  resize(64, 64);
+  composer.render();
   coilFadeLast = -1;
 
   return { update, resize, dispose, coilFace, setPixelRatio, pixelRatio: () => renderer.getPixelRatio(), ready: () => true };

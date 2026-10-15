@@ -123,8 +123,8 @@ export async function initIntro(section) {
   // (460vh / 350vh, main.css) only the opening speeds up.
   const WARP_IN = 0.28, WARP_OUT = 0.38;
   const warp = (r) => (r <= WARP_IN ? r * (WARP_OUT / WARP_IN) : WARP_OUT + (r - WARP_IN) * ((1 - WARP_OUT) / (1 - WARP_IN)));
-  function apply(raw) {
-    const p = warp(raw);
+  // apply() takes film progress (already warped and damped, see tick)
+  function apply(p) {
     window.__introP = p;
     window.__introReady = (!!scene && scene.ready()) || frameEls.length > 0;
     if (!geo) measure();
@@ -159,7 +159,7 @@ export async function initIntro(section) {
 
     if (atmos) atmos.set({ time: ATMOS_T0 + p * ATMOS_SPAN });
     if (scene) {
-      scene.update(p);
+      scene.update(p, look.x, look.y);
     } else if (frameEls.length) {
       frameEls.forEach((el, i) => {
         const [a, b] = FRAME_WINDOWS[i];
@@ -171,21 +171,47 @@ export async function initIntro(section) {
   /* -------------------------------------------- render loop + adaptive quality */
   // Render in the same ticker frame the scroll value changes (after Lenis), so
   // there is no extra frame of latency between the wheel and the picture.
+  //
+  // The lerp loop: nothing snaps. The film's progress chases the scroll position
+  // through a framerate-independent damping (factor = 1 - (1 - ease)^(dt * 60)),
+  // a second smoothing pass over Lenis on desktop and over uneven native touch
+  // scroll on phones; the cursor parallax is damped the same way.
+  const EASE = { film: mobile ? 0.12 : 0.14, look: 0.12 };
+  const damp = (cur, to, ease, dt) => cur + (to - cur) * (1 - Math.pow(1 - ease, dt * 60));
+  const film = { p: 0 };
+  const look = { x: 0, y: 0, tx: 0, ty: 0 };
+  if (!capture && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+    // parallax only with a mouse: on touch the "cursor" jumps with every tap
+    window.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      look.tx = (e.clientX / window.innerWidth) * 2 - 1;
+      look.ty = (e.clientY / window.innerHeight) * 2 - 1;
+    }, { passive: true });
+  }
   const samples = [];
-  let lastFrameAt = 0;
+  let lastFrameAt = 0, lastTick = 0;
   function tick() {
-    if (!dirty && state.p === lastP) return;
-    dirty = false;
-    lastP = state.p;
     const now = performance.now();
-    apply(state.p);
+    const dt = Math.min(0.1, (now - (lastTick || now)) / 1000);
+    lastTick = now;
+    const target = warp(state.p);
+    let moving = false;
+    if (capture) film.p = target;
+    else if (Math.abs(target - film.p) > 0.00002) { film.p = damp(film.p, target, EASE.film, dt); moving = true; } else film.p = target;
+    if (Math.abs(look.tx - look.x) + Math.abs(look.ty - look.y) > 0.0005) {
+      look.x = damp(look.x, look.tx, EASE.look, dt); look.y = damp(look.y, look.ty, EASE.look, dt); moving = true;
+    }
+    if (!dirty && !moving && film.p === lastP) return;
+    dirty = false;
+    lastP = film.p;
+    apply(film.p);
     if (!scene || capture) return;
     // While the scene renders frame after frame, watch the frame interval.
     // If it stays long, the GPU is the bottleneck: drop the resolution a step.
-    const dt = now - lastFrameAt;
+    const frameMs = now - lastFrameAt;
     lastFrameAt = now;
-    if (dt > 0 && dt < 120) {
-      samples.push(dt);
+    if (frameMs > 0 && frameMs < 120) {
+      samples.push(frameMs);
       if (samples.length >= 45) {
         samples.sort((a, b) => a - b);
         const median = samples[samples.length >> 1];
@@ -296,7 +322,7 @@ export async function initIntro(section) {
       end: 'bottom bottom',
       // Lenis already smooths the wheel on desktop. On touch, a short catch-up
       // turns uneven native scroll steps into continuous motion.
-      scrub: lenis || capture ? true : 0.6,
+      scrub: lenis || capture ? true : 0.35, // the lerp loop (tick) smooths the rest
       invalidateOnRefresh: true,
     },
   });

@@ -369,6 +369,7 @@ function intro(d) {
   <div class="intro__stage">
     <div class="intro__atmos" aria-hidden="true"></div>
     <canvas class="intro__canvas" aria-hidden="true"></canvas>
+    <div class="intro__grade" aria-hidden="true"></div>
     <div class="intro__frames" aria-hidden="true"></div>
     <div class="intro__brand">
       <div class="intro__lockup">
