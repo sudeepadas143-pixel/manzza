@@ -6,7 +6,7 @@
  * and freezes on one frame under prefers-reduced-motion.
  */
 import { whenEngaged } from './intent.js';
-const LOOKS = {
+export const LOOKS = {
   // lit satin folds in navy and steel: sheets of electrical steel, slowly turning
   hero: {
     style: 'silk',

@@ -1,5 +1,5 @@
 /**
- * Clamping structure for the assembled core: galvanised steel channel clamps on both
+ * Clamping structure for the assembled core: blue-painted steel channel clamps on both
  * yokes, front and back, vertical tie rods with nuts, through-bolts in the
  * yoke bolt holes, end tie bars, mounting feet and a lifting lug.
  *
@@ -94,12 +94,13 @@ export function buildFrame({ zT, mobile = false }) {
   const Lb = coreHalfW * 2 + 0.7; // beam length: overhangs the core at both ends
   const seg = mobile ? 16 : 28;
 
-  // Galvanised steel, not paint: fully metallic (blender-materials: metallic is a switch),
-  // light zinc reflectance, spangle roughness. Flat white paint on sharp boxes read as card.
+  // The frame (clamps, feet, lug) in the MANZZA logo blue: a metallic-flake paint
+  // under a hard clear coat, so the studio's strip lights run along it as crisp
+  // lines over a deeper, slightly sparkling blue. Core, rods and nuts stay bare metal.
   const spangle = spangleTextures();
   const paint = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color().setRGB(0.66, 0.67, 0.69), map: spangle.col,
-    metalness: 1, roughness: 0.42, roughnessMap: spangle.rough,
+    color: new THREE.Color('#3169e3'), metalness: 0.45, roughness: 0.42, roughnessMap: spangle.rough,
+    clearcoat: 1, clearcoatRoughness: 0.06,
   });
   const zinc = new THREE.MeshPhysicalMaterial({ color: new THREE.Color().setRGB(0.72, 0.73, 0.75), metalness: 1, roughness: 0.24 });
   const thread = threadTexture();

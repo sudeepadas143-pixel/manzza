@@ -6,10 +6,12 @@
  * places every object from scratch, so scrubbing backwards reverses exactly.
  * The scene renders on demand (only when p or the size changes).
  *
- * Look: a dark studio. Physically based brushed steel (the grain follows each
- * lamination's rolling direction) reflecting large soft boxes, one soft
- * shadow-casting key light, a cool rim light to draw edges out of the black,
- * and a pool of light on the floor under the subject.
+ * Look: the film plays over the site's own satin-navy backdrop (the canvas is
+ * transparent; index.js drives the backdrop's clock from the scroll). Brushed
+ * steel (the grain follows each lamination's rolling direction) reflects a navy
+ * room lit by long strip boxes (navyStudio), which turns slowly with the scroll
+ * so highlights glide across the metal. The clamping frame is painted in the
+ * logo blue under a clear coat; rods, bolts and nuts are bare zinc.
  *
  * Beats (keep in sync with ./index.js):
  *   0.00–0.075 the logo (HTML): the wordmark leaves, the M takes the centre
@@ -17,7 +19,7 @@
  *   0.13–0.22  the camera comes round to the coil
  *   0.22–0.38  the coil rolls out a sheet; slitting into strips
  *   0.38–0.50  45° mitre cuts
- *   0.50–0.62  the four laminations take their places in the core; the packets stack
+ *   0.50–0.62  the four laminations glide into the core's footprint; the packets drop in, bottom up
  *   0.62–0.70  the core is stood up and raised onto its feet
  *   0.70–0.92  the clamping frame assembles: clamps, bolts, tie rods, nuts, lug
  *   0.92–1.00  the finished core, turning under the lights; the tagline (HTML)
@@ -27,19 +29,75 @@ import {
   CORE, corePieces, cruciform, stepOffsets, clamp, smooth, seg, lerp,
 } from '../lamination/geometry.js';
 import {
-  extrudeLaminations, createSteelUniforms, createSteelMaterial, studioEnvironment,
-  brushedTexture, disposeTree, releaseShared, BRAND, loadStudioHDRI, STUDIO_HDRI,
+  extrudeLaminations, createSteelUniforms, createSteelMaterial,
+  brushedTexture, disposeTree, releaseShared, BRAND,
 } from '../lamination/three-kit.js';
 import { buildFrame, FRAME } from './frame.js';
 
 const easeOut = (t) => 1 - (1 - t) ** 3;
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
-export const STUDIO = new THREE.Color('#06080d'); // matches --stage (--canvas) in main.css
 
-export function createIntroScene(canvas, { mobile = false, capture = false, hdri = null, onChange = () => {} } = {}) {
+/**
+ * Reflections for the film: a room in the site's own navy (near-black underfoot,
+ * a blue lift overhead) lit by long, soft-edged strip boxes. Polished steel and
+ * the clear-coated blue frame read by the clean lines of light they pick up, and
+ * by the navy around them, which ties the metal to the backdrop it plays over.
+ */
+function navyStudio(renderer) {
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const env = new THREE.Scene();
+  const trash = [];
+  const dome = new THREE.SphereGeometry(20, 48, 24);
+  // a dusky steel-blue horizon (what the sides of the coil and the core's faces see),
+  // near-black underfoot, a cooler lift overhead
+  const bot = new THREE.Color('#04060b'), mid = new THREE.Color('#344055'), top = new THREE.Color('#4a5f86');
+  const pos = dome.attributes.position, cols = [], c = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i) / 20;
+    if (y < 0) c.copy(mid).lerp(bot, Math.min(1, -y * 2.2)); else c.copy(mid).lerp(top, y ** 0.8);
+    cols.push(c.r, c.g, c.b);
+  }
+  dome.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  trash.push(new THREE.Mesh(dome, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+  env.add(trash[0]);
+  // soft-edged strip: bright core, feathered ends and sides
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64;
+  const g = cv.getContext('2d');
+  const gx = g.createLinearGradient(0, 0, 256, 0);
+  gx.addColorStop(0, 'rgba(255,255,255,0)'); gx.addColorStop(0.12, '#fff'); gx.addColorStop(0.88, '#fff'); gx.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gx; g.fillRect(0, 0, 256, 64);
+  g.globalCompositeOperation = 'destination-in';
+  const gy = g.createLinearGradient(0, 0, 0, 64);
+  gy.addColorStop(0, 'rgba(0,0,0,0)'); gy.addColorStop(0.3, '#000'); gy.addColorStop(0.7, '#000'); gy.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = gy; g.fillRect(0, 0, 256, 64);
+  const soft = new THREE.CanvasTexture(cv);
+  const strip = (w, h, at, gain, color = '#ffffff', roll = 0) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: soft, transparent: true, side: THREE.DoubleSide }));
+    m.material.color.set(color).multiplyScalar(gain); // > 1: brighter than white (half-float target)
+    m.position.set(...at); m.lookAt(0, 0, 0); m.rotateZ(roll);
+    env.add(m); trash.push(m);
+  };
+  // flat steel seen from above mirrors what is overhead: narrow lines with dark between
+  // them give the sheets bands of light and shadow instead of one white glare
+  strip(20, 0.7, [0, 10, -5], 4.2); //                   key line, overhead, a little behind
+  strip(20, 0.45, [0, 10, -1], 2.4); //                  second line
+  strip(20, 0.35, [0, 9, 5], 1.6); //                    third, in front
+  strip(12, 3.2, [-12, 2.5, 4], 2.4, '#eef3ff', Math.PI / 2); // big soft box, left: silver on faces turned to the viewer
+  strip(11, 1.0, [12, 4, -8], 3.8, '#cfe0ff', Math.PI / 2); // rim strip, right and behind
+  strip(16, 4.5, [0, 3.5, 15], 2.0, '#e9efff'); //       large soft box behind the camera: end faces and front faces read silver
+  strip(26, 1.2, [0, -1.2, 14], 0.9, '#3169e3'); //      low blue bounce from the front: the brand on every edge
+  const rt = pmrem.fromScene(env, 0.035);
+  pmrem.dispose(); soft.dispose();
+  trash.forEach((m) => { m.geometry.dispose(); m.material.dispose(); });
+  return rt.texture;
+}
+
+export function createIntroScene(canvas, { mobile = false, capture = false } = {}) {
   /* ---------------------------------------------------------------- setup */
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  // transparent: the film plays over the site's own navy backdrop (index.js, .intro__atmos)
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+  renderer.setClearColor(0x000000, 0);
   // Pixel ratio is capped: a 2× full-screen buffer of physically based steel is
   // the single biggest cost per frame. index.js lowers it further if frames run long.
   const maxRatio = capture ? 2 : 1.5;
@@ -54,24 +112,12 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const scene = new THREE.Scene();
-  scene.background = STUDIO.clone();
   const camera = new THREE.PerspectiveCamera(32, 1, 0.05, 80);
-  let envTex = studioEnvironment(renderer, { dark: true }); // fallback until the HDRI arrives
+  // reflections: the site's navy as a room, lit by long strip softboxes (navyStudio)
+  const envTex = navyStudio(renderer);
   scene.environment = envTex;
-  let hdriReady = !hdri;
-  if (hdri) {
-    loadStudioHDRI(renderer, hdri).then((tex) => {
-      if (disposed) { tex.dispose(); return; }
-      envTex.dispose();
-      envTex = tex;
-      scene.environment = tex;
-      hdriReady = true;
-      onChange();
-    }).catch(() => { hdriReady = true; onChange(); });
-  }
-  let disposed = false;
-  // turned so a soft box sits behind the camera for the coil's end face
-  scene.environmentRotation.set(0, STUDIO_HDRI.rotation, 0);
+  // depth: what is far off sinks into the navy of the backdrop
+  scene.fog = new THREE.Fog(0x0a1428, 16, 38);
 
   // Metal three-point: warm key, cool fill, cool rim at 4:1:2 (blender-lighting 'metal' profile).
   // The warm/cool split is what gives bare steel its colour.
@@ -85,7 +131,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
   key.shadow.camera.far = 40;
   scene.add(key, key.target);
   // cool rim from behind: draws the edges out of the black
-  const rim = new THREE.DirectionalLight(new THREE.Color().setRGB(0.7, 0.85, 1.0), 0);
+  const rim = new THREE.DirectionalLight(new THREE.Color().setRGB(0.55, 0.72, 1.0), 0);
   scene.add(rim, rim.target);
   // electric-blue light, only for the moment the M becomes the coil
   const spark = new THREE.PointLight(BRAND.blueGlow, 0, 9, 1.4);
@@ -93,7 +139,9 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
   const fill = new THREE.DirectionalLight(new THREE.Color().setRGB(0.85, 0.9, 1.0), 0);
   scene.add(fill, fill.target);
 
-  const LIGHT = { key: 3.2, fill: 0.8, rim: 1.6, env: 0.9 };
+  // the key mostly casts the shadow: on bare metal a strong direct light is one broad white
+  // glare, so the steel's look comes from the strips it reflects (navyStudio)
+  const LIGHT = { key: 1.3, fill: 0.35, rim: 2.0, env: 1.0 };
 
   // Floor: a soft pool of light under the subject, plus the shadow it receives.
   const poolTex = (() => {
@@ -104,12 +152,12 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
     g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
   })();
-  const poolMat = new THREE.MeshBasicMaterial({ map: poolTex, color: 0x161b26, transparent: true, depthWrite: false, toneMapped: false });
+  const poolMat = new THREE.MeshBasicMaterial({ map: poolTex, color: 0x24427e, transparent: true, depthWrite: false, toneMapped: false, fog: false });
   const pool = new THREE.Mesh(new THREE.PlaneGeometry(13, 13), poolMat); // small enough that its edge never reads as a horizon on the black stage
   pool.rotation.x = -Math.PI / 2;
   pool.position.y = -0.002;
   scene.add(pool);
-  const floorMat = new THREE.ShadowMaterial({ color: 0x000000, opacity: 0.6 });
+  const floorMat = new THREE.ShadowMaterial({ color: 0x01030a, opacity: 0.6, fog: false });
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), floorMat);
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
@@ -138,8 +186,8 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
     // dark rolled steel, not a pale roll: low albedo, strong metallic reflections
     // the outer wrap: the same steel as every lamination (F0 reflectance, fully metallic)
     const outerMat = new THREE.MeshPhysicalMaterial({
-      color: BRAND.steel, metalness: 1, roughness: 0.28, roughnessMap: tex,
-      anisotropy: 0.5, clearcoat: 0.12, clearcoatRoughness: 0.2,
+      color: BRAND.steel, metalness: 1, roughness: 0.2, roughnessMap: tex,
+      anisotropy: 0.6, clearcoat: 0.08, clearcoatRoughness: 0.2,
     });
     const outer = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(R, R, CW, mobile ? 96 : 160, 1, true), outerMat));
     outer.rotation.x = Math.PI / 2;
@@ -213,7 +261,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
   scene.add(strips);
 
   const clip = new THREE.Plane(new THREE.Vector3(1, 0, 0), -XS1); // keeps x >= the coil's position
-  const SHEET = {};
+  const SHEET = { roughness: 0.17 }; // crisper bands of reflected light on the flat sheet
   const sheetMat = createSteelMaterial(uniforms, SHEET);
   sheetMat.clippingPlanes = [clip];
   sheetMat.clipShadows = true;
@@ -330,6 +378,9 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
     }
   });
   uniforms.uLayerMid.value = layerIndex / 2;
+  // building order: bottom packet first (packets are listed by height)
+  const zOrder = packets.map((pk, i) => [pk.z0, i]).sort((a, b) => a[0] - b[0]).map(([, i]) => i);
+  coreMeshes.forEach((m) => { m.userData.order = zOrder.indexOf(m.userData.pi) / Math.max(1, packets.length - 1); });
 
   // Where each of the four cut laminations goes in the core (strips-local
   // coordinates; the core lies flat under the strips with its bottom yoke
@@ -351,18 +402,20 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
   // camera glides through each one instead of stopping at it.
   const KEYS = [
     [0.0, [3.4, 1.0, 10.6], [3.4, 1.0, 0]],
-    [0.155, [3.4, 1.0, 10.6], [3.4, 1.0, 0]],
-    [0.215, [5.4, 2.4, 8.0], [3.4, 0.95, 0]],
-    [0.31, [0.9, 6.4, 9.6], [0.1, 0, 0.3]],
-    [0.37, [1.2, 7.6, 7.4], [0.6, 0, 0.2]],
-    [0.445, [3.1, 3.9, 5.4], [1.7, 0, 1.9]],
-    [0.505, [0.5, 6.6, 8.8], [0.2, 0, 1.2]],
-    [0.57, [0.2, 10.4, 4.0], [0, 0, 0.1]],
-    [0.63, [4.6, 4.8, 8.6], [0, 0.6, 0.8]],
-    [0.71, [5.8, 3.4, 11.6], [0, 2.1, 2.0]],
-    [0.8, [3.0, 3.7, 12.6], [0, 2.45, 2.0]],
-    [0.9, [-3.8, 3.6, 13.8], [0, 1.9, 2.0]],
-    [1.0, [-5.8, 3.3, 13.6], [0, 1.25, 2.0]],
+    [0.155, [3.4, 1.0, 10.6], [3.4, 1.0, 0]], //  the M lands on the coil's end face (coilFace)
+    [0.215, [6.6, 1.3, 6.2], [3.2, 0.95, 0]], //  low and close: the coil stands like a monument
+    [0.27, [5.6, 1.5, 5.0], [1.4, 0.4, 0]], //    alongside as it starts to roll
+    [0.315, [3.6, 3.4, 6.4], [-0.4, 0, 0.2]], //  rising over the sheet it lays down
+    [0.37, [6.2, 1.9, 2.4], [-1.2, 0, -0.1]], //  low at the strips' ends: the cuts run towards us
+    [0.445, [3.0, 3.1, 4.4], [1.6, 0, 0.9]], //   close on the 45° cuts
+    [0.505, [1.6, 5.6, 7.0], [0.3, 0, 1.0]], //   up and back as the laminations gather
+    [0.57, [3.2, 6.6, 5.6], [0, 0.2, 0.4]], //    the core builds, layer on layer, seen from above
+    [0.63, [4.2, 3.6, 6.8], [0, 0.5, 0.6]], //    coming down as it is stood up
+    [0.67, [5.0, 2.4, 9.4], [0, 1.4, 1.4]], //    following it up
+    [0.71, [5.4, 1.3, 10.8], [0, 2.0, 2.0]], //   low: the core rises over us
+    [0.8, [3.4, 2.4, 12.2], [0, 2.3, 2.0]], //    the frame closes in
+    [0.9, [-3.6, 3.0, 12.6], [0, 2.25, 2.0]], //  round to the other side
+    [1.0, [-5.2, 2.8, 12.4], [0, 2.1, 2.0]], //   the finished core, turning under the lights
   ];
   const holdEnd = 1; // keys[0..1] are a hold: keep that stretch still
   const camPath = new THREE.CatmullRomCurve3(KEYS.slice(holdEnd).map((k) => new THREE.Vector3(...k[1])), false, 'centripetal');
@@ -428,8 +481,8 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
     // The studio turns with the story: a soft box faces the coil's end at the start; by the
     // time the core stands, its polished faces see the darker side of the room (grey steel,
     // not a white glare), and a slow drift at the close slides a highlight across the core.
-    scene.environmentRotation.y = STUDIO_HDRI.rotation
-      + 2.2 * smooth(seg(p, 0.45, 0.7)) - 0.3 * smooth(seg(p, 0.86, 1));
+    // the studio turns slowly with the scroll, so reflections glide across the steel
+    scene.environmentRotation.y = -0.5 + p * 2.6;
     // the M collapses into the bore as a flash of the brand's blue
     const sp = Math.sin(Math.PI * seg(p, 0.085, 0.16));
     spark.intensity = 4 * sp * sp;
@@ -511,28 +564,27 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
     /* the four laminations become the first layer of the core: each glides,
        turns and rises to its place, the packets stack in beneath them */
     const form = easeInOut(seg(p, 0.5, 0.565));
-    const merge = smooth(seg(p, 0.6, 0.625));
+    const merge = smooth(seg(p, 0.55, 0.585));
     stripRows.forEach((row, k) => {
       const tg = LAM_TARGETS[k];
       const lam = row.userData.lam;
       const t = clamp(form * 1.25 - k * 0.08);
       const e = easeInOut(t);
-      lam.position.set(tg.x * e, (tg.y - row.position.y) * e, (zTop + 0.012) * easeOut(clamp(form * 1.6 - k * 0.1)));
+      lam.position.set(tg.x * e, (tg.y - row.position.y) * e, 0.004 + 0.35 * Math.sin(Math.PI * e));
       lam.rotation.z = tg.rot * e;
       lam.scale.x = lerp(1, tg.len, e);
       lam.visible = merge < 1;
     });
     sheetMat.opacity = 1 - merge;
 
-    /* core: stacking */
-    const stack = seg(p, 0.54, 0.615);
-    const nP = packets.length;
+    /* core: the packets drop into place one after another, building it upwards */
+    const stack = seg(p, 0.535, 0.615);
     coreMeshes.forEach((m) => {
-      const { pi, dir } = m.userData;
-      const t = clamp((stack - (pi / nP) * 0.72) / 0.28);
+      const { order } = m.userData;
+      const t = clamp((stack - order * 0.62) / 0.38);
       m.visible = t > 0;
       const e = 1 - easeOut(t);
-      m.position.set(dir[0] * e * 1.3, dir[1] * e * 1.3, e * 0.2);
+      m.position.set(0, 0, e * 0.9);
     });
 
     /* core: stood up, then raised onto its feet; a slow turn at the end */
@@ -552,15 +604,15 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
     };
     frame.feet.forEach((g, i) => {
       const { home } = g.userData;
-      arrive(g, clamp(seg(p, 0.715, 0.765) * 1.3 - i * 0.08), v3.set(home.x + Math.sign(home.x) * 14, home.y, home.z));
+      arrive(g, clamp(seg(p, 0.715, 0.765) * 1.3 - i * 0.08), v3.set(home.x + Math.sign(home.x) * 2.4, home.y, home.z));
     });
     frame.beams.forEach((g) => {
       const { home, which, front } = g.userData;
       const t = which === 'bottom'
         ? clamp(seg(p, 0.73, 0.785) * 1.2 - (front ? 0.2 : 0))
         : clamp(seg(p, 0.765, 0.82) * 1.2 - (front ? 0.2 : 0));
-      // bottom clamps slide in from the sides, top clamps drop in from above
-      const from = which === 'bottom' ? v3.set(front ? -8 : 8, home.y, 0) : v3.set(0, home.y + 5.5, 0);
+      // bottom clamps close in from front and back, top clamps come down onto the yoke
+      const from = which === 'bottom' ? v3.set(0, home.y, front ? 1.8 : -1.8) : v3.set(0, home.y + 2.4, 0);
       arrive(g, t, from);
     });
     frame.bolts.forEach((g, i) => {
@@ -582,7 +634,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
         nt.wsh.position.y = nt.wHome + nt.dir * (1 - tn) * 0.18;
       }
     });
-    arrive(frame.lug, seg(p, 0.89, 0.93), v3.set(0, 3.2, 0));
+    arrive(frame.lug, seg(p, 0.885, 0.925), v3.set(0, 1.6, 0));
 
     placeCamera(p);
     renderer.render(scene, camera);
@@ -613,7 +665,6 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
   }
 
   function dispose() {
-    disposed = true;
     disposeTree(scene);
     frame.dispose();
     glowTex.dispose();
@@ -634,5 +685,5 @@ export function createIntroScene(canvas, { mobile = false, capture = false, hdri
   renderer.render(scene, camera);
   coilFadeLast = -1;
 
-  return { update, resize, dispose, coilFace, setPixelRatio, pixelRatio: () => renderer.getPixelRatio(), ready: () => hdriReady };
+  return { update, resize, dispose, coilFace, setPixelRatio, pixelRatio: () => renderer.getPixelRatio(), ready: () => true };
 }

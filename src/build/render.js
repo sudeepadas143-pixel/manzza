@@ -367,6 +367,7 @@ function intro(d) {
   // hero section right after the animation.
   return `<section id="intro" class="intro" aria-label="Animation: the MANZZA mark becomes a coil of electrical steel, which is cut into laminations and assembled into a clamped transformer core">
   <div class="intro__stage">
+    <div class="intro__atmos" aria-hidden="true"></div>
     <canvas class="intro__canvas" aria-hidden="true"></canvas>
     <div class="intro__frames" aria-hidden="true"></div>
     <div class="intro__brand">

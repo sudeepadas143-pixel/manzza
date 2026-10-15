@@ -12,8 +12,11 @@
  */
 import { smooth, seg, lerp } from '../lamination/geometry.js';
 import { fallbackFrames } from '../lamination/svg.js';
-import { STUDIO_HDRI } from '../lamination/hdri.js';
 import { whenEngaged } from '../intent.js';
+import { LOOKS } from '../backdrops.js';
+
+// the stage's satin navy (the hero's backdrop look) drifts with the film: its clock is the scroll
+const ATMOS_T0 = 6, ATMOS_SPAN = 26;
 
 // frame windows for the SVG fallback: empty, coil, cut, mitre, step-lap (unused), core, outline (unused)
 const FRAME_WINDOWS = [[0, 0.1], [0.1, 0.22], [0.22, 0.38], [0.38, 0.52], [2, 2], [0.52, 1.01], [2, 2]];
@@ -41,6 +44,7 @@ export async function initIntro(section) {
   const tagline = section.querySelector('.intro__tagline');
   const cue = section.querySelector('[data-cue]');
   const framesEl = section.querySelector('.intro__frames');
+  const atmosEl = section.querySelector('.intro__atmos');
 
   if (prefersReduced()) {
     section.classList.add('intro--static');
@@ -153,6 +157,7 @@ export async function initIntro(section) {
       tagline.style.transform = `translate3d(0, ${((1 - t) * 14).toFixed(1)}px, 0)`;
     }
 
+    if (atmos) atmos.set({ time: ATMOS_T0 + p * ATMOS_SPAN });
     if (scene) {
       scene.update(p);
     } else if (frameEls.length) {
@@ -207,7 +212,8 @@ export async function initIntro(section) {
         canvas = fresh;
       }
       canvas.dataset.used = '1';
-      scene = createScene(canvas, { mobile, capture, hdri: STUDIO_HDRI.url, onChange: () => { dirty = true; } });
+      scene = createScene(canvas, { mobile, capture });
+      startAtmos();
       scene.resize(size.w, size.h);
       geo = null;
       section.classList.add('is-ready');
@@ -220,7 +226,31 @@ export async function initIntro(section) {
       dirty = true;
     }
   }
+  let atmos = null, atmosLib = null;
+  async function startAtmos() {
+    if (atmos || !atmosEl) return;
+    try {
+      atmosLib ||= import('../../lib/backdrop/backdrop.mjs');
+      const { createBackdrop } = await atmosLib;
+      if (!scene || atmos) return;
+      atmos = createBackdrop(atmosEl, {
+        ...LOOKS.hero,
+        animate: false, // its time is set from the scroll in apply()
+        respectReducedMotion: false,
+        time: ATMOS_T0,
+        ...(mobile ? { maxPixels: 2.5e5 } : { maxPixels: 9e5 }),
+        seed: 3,
+      });
+      atmos.set({ time: ATMOS_T0 + warp(state.p) * ATMOS_SPAN });
+      requestAnimationFrame(() => atmosEl.classList.add('is-live'));
+    } catch (err) {
+      console.warn('[intro] backdrop failed, keeping the static gradient', err);
+    }
+  }
   function stopScene() {
+    atmos?.destroy();
+    atmos = null;
+    atmosEl?.classList.remove('is-live');
     if (!scene) return;
     scene.dispose();
     scene = null;
@@ -231,8 +261,6 @@ export async function initIntro(section) {
   // visitor scrolls, so the scene is built on engagement, not during load (intent.js).
   let intent = capture;
   const intentReady = whenEngaged().then(() => { intent = true; });
-  // fetch the studio light early (no main-thread cost), so the steel is lit from its first frame
-  addEventListener('load', () => { fetch(STUDIO_HDRI.url, { priority: 'low' }).catch(() => {}); }, { once: true });
 
   // Lazy start; dispose when the section is well out of view, rebuild on return.
   let inView = false;

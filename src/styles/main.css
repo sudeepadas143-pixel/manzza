@@ -45,7 +45,7 @@
   --hairline: #1c2438;       /* cool hairline */
   --field-line: #5d6880;     /* form control borders: 3:1 on canvas and navy (WCAG 1.4.11) */
   --brand-blue: var(--blue);
-  --stage: var(--canvas); /* the intro studio (matches STUDIO in intro/scene.js) */
+  --stage: var(--canvas); /* the intro stage, under its satin-navy backdrop */
   --focus: var(--blue-text);
   /* primary action: an off-white pill with an ink label, the brightest thing on the dark,
      18.5:1 label contrast and 6-9:1 against the brightest backdrop (blue fills managed 1.3:1) */
@@ -690,8 +690,22 @@ html.motion [data-follow] { transition: opacity 0.8s var(--ease-out), transform 
 /* ==========================================================================
    Scroll intro: opens on the logo, then pure animation in a black studio
    ========================================================================== */
+/* the film plays in the site's own atmosphere: the hero's satin navy (backdrops.js
+   'hero'), static here and live once the scene starts, its folds drifting with the scroll */
 .intro { position: relative; background: var(--stage); }
-.intro__stage { position: relative; overflow: hidden; background: var(--stage); }
+.intro__stage { position: relative; overflow: hidden; background: radial-gradient(60% 55% at 50% 58%, var(--navy-haze) 0%, rgba(16, 28, 54, 0) 100%), var(--stage); }
+.intro__atmos { position: absolute; inset: 0; pointer-events: none; }
+.intro__atmos .gb-canvas, .intro__atmos .gb-grain { opacity: 0; transition: opacity 1.2s var(--ease-out); }
+.intro__atmos.is-live .gb-canvas { opacity: 0.62; }
+.intro__atmos.is-live .gb-grain { opacity: 1; }
+/* as in the hero: mostly deep navy, the satin brightest towards the edges, so the
+   steel in the middle keeps its contrast; fades top and bottom into the page */
+.intro__atmos .gb-canvas {
+  -webkit-mask-image: radial-gradient(70% 62% at 50% 54%, rgba(0,0,0,.22) 0%, rgba(0,0,0,.5) 55%, #000 100%), linear-gradient(180deg, rgba(0,0,0,.35) 0%, #000 26%, #000 70%, rgba(0,0,0,.4) 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: radial-gradient(70% 62% at 50% 54%, rgba(0,0,0,.22) 0%, rgba(0,0,0,.5) 55%, #000 100%), linear-gradient(180deg, rgba(0,0,0,.35) 0%, #000 26%, #000 70%, rgba(0,0,0,.4) 100%);
+  mask-composite: intersect;
+}
 .intro__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; }
 .intro__frames { position: absolute; inset: 0; display: none; background: var(--stage); }
 .intro--frames .intro__frames { display: block; }
