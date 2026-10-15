@@ -15,8 +15,9 @@
  * Vercel limits request bodies to about 4.5 MB, so keep quoteForm.maxFileMB at 4.
  */
 
-import { businessEmailError, testEmails } from '../src/lib/email-policy.js';
+import { businessEmailError, testEmails, spamTextError, MIN_FILL_MS } from '../src/lib/email-policy.js';
 import { check } from './_otp.js';
+import { mailDomainError, elapsedOf } from './_guard.js';
 
 const FIELDS = [
   ['company', 'Company'],
@@ -47,6 +48,9 @@ export async function POST(request) {
   // Honeypot: real visitors never fill this field.
   if (form.get('company_website')) return json(200, { ok: true });
 
+  // Too fast to be a person (the page reports how long it was open): pretend success, send nothing.
+  if (elapsedOf(form.get('elapsed')) < MIN_FILL_MS.submit) return json(200, { ok: true });
+
   for (const k of ['company', 'contact_person', 'email', 'phone', 'product', 'material', 'quantity']) {
     if (!String(form.get(k) || '').trim()) return json(422, { ok: false, error: `Missing ${k}` });
   }
@@ -54,6 +58,12 @@ export async function POST(request) {
   const bad = businessEmailError(email, testEmails(process.env));
   if (bad) return json(422, { ok: false, error: bad });
   if (!check(OTP_SECRET, email, form.get('otp_token'), form.get('otp_code'))) return json(403, { ok: false, error: 'Please verify your email address first.' });
+  const spam = spamTextError(form);
+  if (spam) return json(422, { ok: false, error: spam });
+  if (!testEmails(process.env).includes(email)) {
+    const noMail = await mailDomainError(email);
+    if (noMail) return json(422, { ok: false, error: noMail });
+  }
 
   const rows = FIELDS.map(([k, label]) => {
     const v = String(form.get(k) || '').trim();

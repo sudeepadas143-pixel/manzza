@@ -5,8 +5,9 @@
  * Environment: RESEND_API_KEY, QUOTE_FROM_EMAIL, OTP_SECRET (any long random string),
  *   optional OTP_TEST_EMAILS (comma-separated; accepted even on personal domains, for testing).
  */
-import { businessEmailError, testEmails } from '../src/lib/email-policy.js';
+import { businessEmailError, testEmails, MIN_FILL_MS } from '../src/lib/email-policy.js';
 import { issue, check } from './_otp.js';
+import { mailDomainError, elapsedOf } from './_guard.js';
 
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
@@ -22,6 +23,13 @@ export async function POST(request) {
 
   if (body.token) {
     return check(OTP_SECRET, email, body.token, body.code) ? json(200, { ok: true }) : json(422, { ok: false, error: 'That code is not right or has expired.' });
+  }
+
+  // spam checks before anything is emailed: too fast to be a person, or a domain that takes no mail
+  if (elapsedOf(body.elapsed) < MIN_FILL_MS.code) return json(429, { ok: false, error: 'Please wait a moment and try again.' });
+  if (!testEmails(process.env).includes(email)) {
+    const noMail = await mailDomainError(email);
+    if (noMail) return json(422, { ok: false, error: noMail });
   }
 
   const { code, token } = issue(OTP_SECRET, email);

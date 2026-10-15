@@ -17,6 +17,7 @@ if (form) {
   const endpoint = form.dataset.endpoint;
   const maxBytes = (Number(form.dataset.maxMb) || 10) * 1024 * 1024;
   const otpEndpoint = form.dataset.otp;
+  const openedAt = performance.now(); // how long the visitor has had the form open (spam check)
 
   // Pre-select product from ?product=slug (product pages link here)
   const pre = new URLSearchParams(location.search).get('product');
@@ -139,7 +140,7 @@ if (form) {
     if (!validateField('email')) { emailEl.focus(); return; }
     setBusy(sendBtn, true, 'Sending…');
     try {
-      const out = await post({ email: emailEl.value });
+      const out = await post({ email: emailEl.value, elapsed: Math.round(performance.now() - openedAt) });
       tokenEl.value = out.token;
       step.hidden = false;
       codeEl.value = '';
@@ -201,6 +202,7 @@ if (form) {
 
     const data = new FormData(form);
     data.delete('company_website');
+    data.append('elapsed', String(Math.round(performance.now() - openedAt))); // spam check (api/quote.js)
     data.append('_subject', `Quote request: ${data.get('product')} – ${data.get('company')}`);
     data.append('page', location.href);
 
@@ -220,11 +222,15 @@ if (form) {
     submitBtn.querySelector('.btn__label').textContent = 'Sending…';
     try {
       const res = await fetch(endpoint, { method: 'POST', body: data, headers: { Accept: 'application/json' } });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        // the server explains what to fix (a link in a field, an address that takes no mail)
+        const out = await res.json().catch(() => ({}));
+        throw Object.assign(new Error(`HTTP ${res.status}`), { shown: res.status === 422 ? out.error : '' });
+      }
       showDone();
     } catch (err) {
       console.warn('[quote] submit failed', err);
-      say('Sorry, your request could not be sent. Please try again, or email us.', 'error');
+      say(err.shown || 'Sorry, your request could not be sent. Please try again, or email us.', 'error');
     } finally {
       submitBtn.disabled = false;
       submitBtn.classList.remove('is-busy');
