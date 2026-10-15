@@ -744,9 +744,12 @@ html.capture .intro__cue { display: none; }
 .intro:not(.intro--live) .intro__tagline { display: none; }
 
 .intro__stage { min-height: min(78svh, 760px); }
-html.js:not(.rm) .intro--live { height: 460vh; }
-@media (max-width: 760px), (pointer: coarse) { html.js:not(.rm) .intro--live { height: 350vh; } }
-html.js:not(.rm) .intro--live .intro__stage { position: sticky; top: 0; height: 100vh; height: 100svh; min-height: 0; }
+/* The film's layout applies from the first paint (html.js is set in the head), not
+   when the script adds .intro--live: switching later moved the logo and pushed
+   the next section off screen, a 0.55 layout shift. */
+html.js:not(.rm) .intro { height: 460vh; }
+@media (max-width: 760px), (pointer: coarse) { html.js:not(.rm) .intro { height: 350vh; } }
+html.js:not(.rm) .intro .intro__stage { position: sticky; top: 0; height: 100vh; height: 100svh; min-height: 0; }
 html.js:not(.rm) .intro--live .intro__word { will-change: transform, opacity; }
 html.js:not(.rm) .intro--gl .intro__canvas { display: block; opacity: 0; transition: opacity 0.4s var(--ease-out); }
 html.js:not(.rm) .intro--gl.is-ready .intro__canvas { opacity: 1; }

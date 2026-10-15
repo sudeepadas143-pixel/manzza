@@ -5,6 +5,7 @@
  * (main.css), which is also what shows without WebGL. The runtime pauses off-screen
  * and freezes on one frame under prefers-reduced-motion.
  */
+import { whenEngaged } from './intent.js';
 const LOOKS = {
   // lit satin folds in navy and steel: sheets of electrical steel, slowly turning
   hero: {
@@ -65,6 +66,8 @@ export function initBackdrops() {
   const phone = window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;
   let lib = null;
   const mount = async (el) => {
+    // the static CSS gradient stands in until the visitor engages or the page settles (intent.js)
+    await whenEngaged();
     lib ||= import('../lib/backdrop/backdrop.mjs');
     const { createBackdrop } = await lib;
     const look = LOOKS[el.dataset.atmos];

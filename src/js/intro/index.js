@@ -13,6 +13,7 @@
 import { smooth, seg, lerp } from '../lamination/geometry.js';
 import { fallbackFrames } from '../lamination/svg.js';
 import { STUDIO_HDRI } from '../lamination/hdri.js';
+import { whenEngaged } from '../intent.js';
 
 // frame windows for the SVG fallback: empty, coil, cut, mitre, step-lap (unused), core, outline (unused)
 const FRAME_WINDOWS = [[0, 0.1], [0.1, 0.22], [0.22, 0.38], [0.38, 0.52], [2, 2], [0.52, 1.01], [2, 2]];
@@ -226,9 +227,22 @@ export async function initIntro(section) {
     section.classList.remove('is-ready');
   }
 
+  // The film opens on the logo (plain HTML); the coil only appears once the
+  // visitor scrolls, so the scene is built on engagement, not during load (intent.js).
+  let intent = capture;
+  const intentReady = whenEngaged().then(() => { intent = true; });
+  // fetch the studio light early (no main-thread cost), so the steel is lit from its first frame
+  addEventListener('load', () => { fetch(STUDIO_HDRI.url, { priority: 'low' }).catch(() => {}); }, { once: true });
+
   // Lazy start; dispose when the section is well out of view, rebuild on return.
+  let inView = false;
   const io = new IntersectionObserver((entries) => {
-    for (const e of entries) { if (e.isIntersecting) startScene(); else stopScene(); }
+    for (const e of entries) {
+      inView = e.isIntersecting;
+      if (!inView) stopScene();
+      else if (intent) startScene();
+      else intentReady.then(() => { if (inView) startScene(); });
+    }
   }, { rootMargin: '25% 0px 25% 0px' });
   io.observe(section);
 

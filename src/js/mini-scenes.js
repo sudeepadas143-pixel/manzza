@@ -206,12 +206,18 @@ export function startMinis(canvases) {
   window.addEventListener('resize', () => views.forEach((v) => v.visible && draw(v, performance.now())));
   if (reduced) return;
 
-  let last = 0;
+  // ~30 fps is plenty for a slow turn. Where a frame is expensive (a weak GPU, or
+  // software WebGL) wait at least four frames' worth of drawing time, so the turn
+  // slows down instead of the page: the main thread stays mostly free.
+  let last = 0, cost = 0;
   function loop(now) {
     requestAnimationFrame(loop);
-    if (document.hidden || now - last < 33) return; // ~30 fps is plenty for a slow turn
+    if (document.hidden || now - last < Math.max(33, cost * 4)) return;
     last = now;
+    const t0 = performance.now();
     for (const v of views) if (v.visible) draw(v, now);
+    const dt = performance.now() - t0;
+    cost = cost ? cost * 0.8 + dt * 0.2 : dt;
   }
   requestAnimationFrame(loop);
 }
