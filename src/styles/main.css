@@ -684,8 +684,8 @@ html.motion [data-follow]:not(.is-in) { opacity: 0; transform: translateY(16px);
 html.motion [data-follow] { transition: opacity 0.8s var(--ease-out), transform 0.8s var(--ease-out); transition-delay: 0.18s; }
 
 /* page change: a short cross-fade */
-@view-transition { navigation: auto; }
-::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.35s; animation-timing-function: var(--ease-in-out); }
+/* no cross-page fade (@view-transition): it replayed the text reveals after every link click */
+@view-transition { navigation: none; }
 
 /* ==========================================================================
    Scroll intro: opens on the logo, then pure animation in a black studio
@@ -758,7 +758,6 @@ html.js:not(.rm) .intro--gl.is-ready .intro__canvas { opacity: 1; }
   .stickybar { transform: none; opacity: 0; visibility: hidden; transition: opacity 0.2s, visibility 0s 0.2s; }
   .stickybar.is-visible { opacity: 1; visibility: visible; transition-delay: 0s; }
   .qdone { @starting-style { transform: none; } }
-  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 }
 
 /* phones: 16px body in a 16px gutter keeps paragraphs at ~45+ characters a line
