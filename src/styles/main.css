@@ -689,8 +689,8 @@ html.capture .intro__cue { display: none; }
 .intro:not(.intro--live) .intro__tagline { display: none; }
 
 .intro__stage { min-height: min(78svh, 760px); }
-html.js:not(.rm) .intro--live { height: 600vh; }
-@media (max-width: 760px), (pointer: coarse) { html.js:not(.rm) .intro--live { height: 460vh; } }
+html.js:not(.rm) .intro--live { height: 510vh; }
+@media (max-width: 760px), (pointer: coarse) { html.js:not(.rm) .intro--live { height: 390vh; } }
 html.js:not(.rm) .intro--live .intro__stage { position: sticky; top: 0; height: 100vh; height: 100svh; min-height: 0; }
 html.js:not(.rm) .intro--live .intro__word { will-change: transform, opacity; }
 html.js:not(.rm) .intro--gl .intro__canvas { display: block; opacity: 0; transition: opacity 0.4s var(--ease-out); }
