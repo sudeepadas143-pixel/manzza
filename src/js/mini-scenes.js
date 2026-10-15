@@ -187,7 +187,9 @@ export function startMinis(canvases) {
   }
 
   // swap in the photographed studio once it has loaded, so the steel matches the intro
-  loadStudioHDRI(renderer, STUDIO_HDRI.url).then((hdr) => {
+  // pages with the intro film already load the full map: share it instead of fetching both
+  const hdrUrl = document.querySelector('.intro') ? STUDIO_HDRI.url : STUDIO_HDRI.miniUrl;
+  loadStudioHDRI(renderer, hdrUrl).then((hdr) => {
     views.forEach((v) => { v.scene.environment = hdr; });
     env.dispose();
     views.forEach((v) => v.visible && draw(v, performance.now()));
