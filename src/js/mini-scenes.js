@@ -2,28 +2,36 @@
  * One offscreen WebGL renderer draws every small product visual on the page
  * and copies each frame into that visual's 2D canvas. Only visible visuals
  * animate, at a gentle frame rate; with reduced motion they render once.
+ *
+ * Lit like the intro film: the navy strip-light studio (navyStudio), ACES, and
+ * low direct lights (on bare steel a direct light is only a hot spot). Motion
+ * follows the lerp-loop rule: the scroll turn and the cursor lean are damped
+ * (framerate-independent), and each part settles in the first time it is seen.
  */
 import * as THREE from 'three';
 import {
   corePieces, cruciform, stepOffsets, eShape, iShape, stripShape, CORE,
 } from './lamination/geometry.js';
 import {
-  extrudeLaminations, createSteelUniforms, createSteelMaterial, studioEnvironment,
-  loadStudioHDRI, STUDIO_HDRI,
+  extrudeLaminations, createSteelUniforms, createSteelMaterial, navyStudio,
 } from './lamination/three-kit.js';
 
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** Metal three-point, as in the intro: warm key, cool fill, cool rim (4:1:2). */
+/** As in the intro: low direct lights, the steel lit by what it reflects; the rim low behind. */
 function metalLights(scene) {
-  const key = new THREE.DirectionalLight(new THREE.Color().setRGB(1.0, 0.95, 0.85), 2.4);
+  const key = new THREE.DirectionalLight(new THREE.Color().setRGB(1.0, 0.96, 0.9), 0.45);
   key.position.set(4, 7, 6);
-  const fill = new THREE.DirectionalLight(new THREE.Color().setRGB(0.85, 0.9, 1.0), 0.6);
+  const fill = new THREE.DirectionalLight(new THREE.Color().setRGB(0.85, 0.9, 1.0), 0.15);
   fill.position.set(-6, 2, 5);
-  const rim = new THREE.DirectionalLight(new THREE.Color().setRGB(0.7, 0.85, 1.0), 1.2);
-  rim.position.set(-3, 5, -7);
+  const rim = new THREE.DirectionalLight(new THREE.Color().setRGB(0.55, 0.72, 1.0), 0.4);
+  rim.position.set(-3, 1.5, -7);
   scene.add(key, fill, rim);
 }
+
+const easeOut = (t) => 1 - (1 - t) ** 3; // power3.out
+const damp = (cur, to, ease, dt) => cur + (to - cur) * (1 - Math.pow(1 - ease, dt * 60));
+const REVEAL_MS = 1400;
 
 function buildCore(mat) {
   const g = new THREE.Group();
@@ -88,21 +96,19 @@ export function startMinis(canvases) {
   renderer.setPixelRatio(1);
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.AgXToneMapping; // same colour pipeline as the intro
-  renderer.toneMappingExposure = 1.1;
-  const env = studioEnvironment(renderer, { dark: true }); // same black studio as the intro
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; // same colour pipeline as the intro
+  renderer.toneMappingExposure = 1.05;
+  const env = navyStudio(renderer, { steel: true }); // the intro's strip lights, in a neutral room
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
   const views = canvases.map((canvas) => {
     const scene = new THREE.Scene();
     scene.environment = env;
     // these pieces are tilted towards the camera, so their faces reflect the studio from
-    // higher up than the intro's upright core: tip the studio to put a soft box there
-    const [rx, ry] = STUDIO_HDRI.miniRotation;
-    scene.environmentRotation.set(rx, ry, 0);
-    // small, tilted pieces need more of the studio to read as metal; the full core's
-    // broad faces catch the soft box whole, so it gets less or they burn out to white
-    scene.environmentIntensity = { core: 0.85, strip: 3 }[canvas.dataset.mini] ?? 2.2;
+    // higher up: tip the studio so the strip lines run across them
+    scene.environmentRotation.set(-0.12, 0.25, 0);
+    // small parts away from the film's camera path: more of the studio, so the steel reads silver
+    scene.environmentIntensity = { core: 1.8, strip: 2.0 }[canvas.dataset.mini] ?? 1.9;
     metalLights(scene);
     const uniforms = createSteelUniforms();
     const mat = createSteelMaterial(uniforms);
@@ -115,7 +121,10 @@ export function startMinis(canvases) {
     const box = new THREE.Box3().setFromObject(pivot);
     const sphere = box.getBoundingSphere(new THREE.Sphere());
     const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 100);
-    const view = { canvas, ctx: canvas.getContext('2d'), scene, camera, pivot, build, sphere, visible: false, w: 0, h: 0, phase: Math.random() * 6 };
+    const view = {
+      canvas, ctx: canvas.getContext('2d'), scene, camera, pivot, build, sphere, visible: false, w: 0, h: 0, phase: Math.random() * 6,
+      scrub: null, lean: { x: 0, y: 0 }, seenAt: 0, lastDraw: 0,
+    };
     canvas.closest('.mini')?.classList.add('is-live');
     return view;
   });
@@ -155,12 +164,39 @@ export function startMinis(canvases) {
     return (prog - 0.5) * 1.4;
   }
 
+  // cursor lean (mouse only: on touch the "cursor" jumps with every tap)
+  const pointer = { x: 0, y: 0 };
+  if (!reduced && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+    window.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+      pointer.y = (e.clientY / window.innerHeight) * 2 - 1;
+    }, { passive: true });
+  }
+
   function draw(v, time) {
     fit(v);
+    const dt = Math.min(0.1, v.lastDraw ? (time - v.lastDraw) / 1000 : 0.016);
+    v.lastDraw = time;
     const t = reduced ? 0.6 : time * 0.001 + v.phase;
-    const scrub = reduced ? 0 : scrubOf(v);
+    // the scroll turn is damped: it glides after the scroll instead of stepping with it
+    const scrubTo = reduced ? 0 : scrubOf(v);
+    v.scrub = v.scrub === null ? scrubTo : damp(v.scrub, scrubTo, 0.1, dt);
+    const scrub = v.scrub;
+    if (!reduced) {
+      v.lean.x = damp(v.lean.x, pointer.x, 0.08, dt);
+      v.lean.y = damp(v.lean.y, pointer.y, 0.08, dt);
+    }
+    // first sight: the part settles in, from a little smaller and turned (never from nothing)
+    if (!v.seenAt) v.seenAt = time;
+    const r = reduced ? 1 : easeOut(Math.min(1, (time - v.seenAt) / REVEAL_MS));
+    v.pivot.scale.setScalar(0.92 + 0.08 * r);
     const idle = Math.sin(t * v.build.spin) * v.build.swing * (scrub ? 0.35 : 1);
-    v.pivot.rotation.set(-v.build.tilt + scrub * 0.12, idle - 0.3 + scrub, 0);
+    v.pivot.rotation.set(
+      -v.build.tilt + scrub * 0.12 + v.lean.y * 0.12,
+      idle - 0.3 + scrub + v.lean.x * 0.22 - (1 - r) * 0.6,
+      0,
+    );
     const W = glCanvas.width, H = glCanvas.height;
     if (v.w > W || v.h > H) renderer.setSize(Math.max(W, v.w), Math.max(H, v.h), false);
     renderer.setViewport(0, 0, v.w, v.h);
@@ -170,13 +206,6 @@ export function startMinis(canvases) {
     v.ctx.clearRect(0, 0, v.w, v.h);
     v.ctx.drawImage(glCanvas, 0, glCanvas.height - v.h, v.w, v.h, 0, 0, v.w, v.h);
   }
-
-  // swap in the photographed studio once it has loaded, so the steel matches the intro
-  loadStudioHDRI(renderer, STUDIO_HDRI.miniUrl).then((hdr) => {
-    views.forEach((v) => { v.scene.environment = hdr; });
-    env.dispose();
-    views.forEach((v) => v.visible && draw(v, performance.now()));
-  }).catch(() => {});
 
   const io = new IntersectionObserver((entries) => {
     for (const e of entries) {

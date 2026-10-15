@@ -4,8 +4,6 @@
  */
 import * as THREE from 'three';
 import { ShapeUtils } from 'three';
-import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
-export { STUDIO_HDRI } from './hdri.js';
 import { ccw, signedArea } from './geometry.js';
 
 export const BRAND = {
@@ -185,72 +183,63 @@ export function createSteelMaterial(uniforms, opts = {}) {
 /* ------------------------------------------------------------------------ */
 
 /**
- * Product-photography studio for reflections: a mid-grey room with a few large,
- * soft-edged softboxes. Polished steel reads by the bands of light and dark it
- * reflects, so the room is deliberately not uniformly bright.
+ * Reflections for the film and the product visuals: a room in the site's own navy (near-black underfoot,
+ * a blue lift overhead) lit by long, soft-edged strip boxes. Polished steel and
+ * the clear-coated blue frame read by the clean lines of light they pick up, and
+ * by the navy around them, which ties the metal to the backdrop it plays over.
  */
-export function studioEnvironment(renderer, { dark = false } = {}) {
+export function navyStudio(renderer, { steel = false } = {}) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   const env = new THREE.Scene();
-  const disposables = [];
-  // dark: a black room, so steel reads as black with bright soft-box streaks
-  const tone = (light, black) => (dark ? black : light);
-  const room = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: tone(0x59606b, 0x0b0c0e), side: THREE.BackSide }));
-  room.scale.set(30, 16, 30);
-  env.add(room);
-  disposables.push(room);
-  // floor slightly darker, ceiling slightly lighter: a gentle vertical gradient
-  const band = (y, h, c) => {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(60, h), new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide }));
-    m.position.set(0, y, 0); m.rotation.x = Math.PI / 2; env.add(m); disposables.push(m);
+  const trash = [];
+  const dome = new THREE.SphereGeometry(20, 48, 24);
+  // a dusky steel-blue horizon (what the sides of the coil and the core's faces see),
+  // near-black underfoot, a cooler lift overhead
+  // steel: a neutral grey room for small parts on the page, so they read silver, not navy
+  const bot = new THREE.Color(steel ? '#08090c' : '#04060b');
+  const mid = new THREE.Color(steel ? '#5a606b' : '#344055');
+  const top = new THREE.Color(steel ? '#7a8496' : '#4a5f86');
+  const pos = dome.attributes.position, cols = [], c = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i) / 20;
+    if (y < 0) c.copy(mid).lerp(bot, Math.min(1, -y * 2.2)); else c.copy(mid).lerp(top, y ** 0.8);
+    cols.push(c.r, c.g, c.b);
+  }
+  dome.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  trash.push(new THREE.Mesh(dome, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+  env.add(trash[0]);
+  // soft-edged strip: bright core, feathered ends and sides
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64;
+  const g = cv.getContext('2d');
+  const gx = g.createLinearGradient(0, 0, 256, 0);
+  gx.addColorStop(0, 'rgba(255,255,255,0)'); gx.addColorStop(0.12, '#fff'); gx.addColorStop(0.88, '#fff'); gx.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gx; g.fillRect(0, 0, 256, 64);
+  g.globalCompositeOperation = 'destination-in';
+  const gy = g.createLinearGradient(0, 0, 0, 64);
+  gy.addColorStop(0, 'rgba(0,0,0,0)'); gy.addColorStop(0.3, '#000'); gy.addColorStop(0.7, '#000'); gy.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = gy; g.fillRect(0, 0, 256, 64);
+  const soft = new THREE.CanvasTexture(cv);
+  const strip = (w, h, at, gain, color = '#ffffff', roll = 0) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: soft, transparent: true, side: THREE.DoubleSide }));
+    m.material.color.set(color).multiplyScalar(gain); // > 1: brighter than white (half-float target)
+    m.position.set(...at); m.lookAt(0, 0, 0); m.rotateZ(roll);
+    env.add(m); trash.push(m);
   };
-  band(-7.9, 60, tone(0x2c3139, 0x040405));
-  band(7.9, 60, tone(0x737a86, 0x16181b));
-  // soft-edged softbox texture
-  const c = document.createElement('canvas'); c.width = c.height = 256;
-  const g = c.getContext('2d');
-  const gr = g.createRadialGradient(128, 128, 30, 128, 128, 128);
-  gr.addColorStop(0, '#fff'); gr.addColorStop(0.6, '#fff'); gr.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
-  const soft = new THREE.CanvasTexture(c);
-  const box = (w, h, pos, look, gain) => {
-    const mat = new THREE.MeshBasicMaterial({ map: soft, transparent: true, side: THREE.DoubleSide });
-    mat.color.setScalar(gain * (dark ? 0.6 : 1)); // > 1: brighter than white (the env is rendered in half float)
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
-    m.position.set(...pos); m.lookAt(...look); env.add(m); disposables.push(m);
-  };
-  // seen from above, flat steel reflects what is high and behind it, so the
-  // main light is a large softbox up and behind the subject
-  box(26, 9, [0, 6.5, -12], [0, 0, 0], 3.6); //  main: large, high, behind
-  box(14, 6, [0, 7.8, 0], [0, 0, 0], 2.2); //    overhead
-  box(5, 12, [-13, 2, 3], [0, 0, 0], 2.0); //    tall strip, left
-  box(4, 10, [13, 3, -4], [0, 0, 0], 2.6); //    rim strip, right
-  box(16, 4, [0, 1, 13], [0, 0, 0], 1.1); //     front fill, for faces turned to the viewer
-  const rt = pmrem.fromScene(env, 0.02);
-  pmrem.dispose();
-  soft.dispose();
-  disposables.forEach((m) => { m.geometry.dispose(); m.material.dispose(); });
+  // flat steel seen from above mirrors what is overhead: narrow lines with dark between
+  // them give the sheets bands of light and shadow instead of one white glare
+  strip(20, 0.7, [0, 10, -5], 3.0); //                   key line, overhead, a little behind
+  strip(20, 0.45, [0, 10, -1], 1.7); //                  second line
+  strip(20, 0.35, [0, 9, 5], 1.6); //                    third, in front
+  strip(12, 3.2, [-12, 2.5, 4], 2.4, '#eef3ff', Math.PI / 2); // big soft box, left: silver on faces turned to the viewer
+  strip(11, 1.0, [12, 4, -8], 3.8, '#cfe0ff', Math.PI / 2); // rim strip, right and behind
+  strip(16, 4.5, [0, 3.5, 15], 2.0, '#e9efff'); //       large soft box behind the camera: end faces and front faces read silver
+  strip(26, 1.2, [0, -1.2, 14], 0.9, '#3169e3'); //      low blue bounce from the front: the brand on every edge
+  const rt = pmrem.fromScene(env, 0.035);
+  pmrem.dispose(); soft.dispose();
+  trash.forEach((m) => { m.geometry.dispose(); m.material.dispose(); });
   return rt.texture;
 }
 
-/**
- * A photographed studio (equirectangular HDR) for reflections. Metal has no
- * colour of its own beyond its reflectance: what makes it read as metal is the
- * world it reflects, with real gradients, warm and cool light, soft boxes.
- * Resolves to a PMREM texture; the caller keeps its fallback until then.
- */
-export function loadStudioHDRI(renderer, url) {
-  return new Promise((resolve, reject) => {
-    new HDRLoader().load(url, (tex) => {
-      tex.mapping = THREE.EquirectangularReflectionMapping;
-      const pmrem = new THREE.PMREMGenerator(renderer);
-      const env = pmrem.fromEquirectangular(tex).texture;
-      tex.dispose();
-      pmrem.dispose();
-      resolve(env);
-    }, undefined, reject);
-  });
-}
 
 export function addLights(scene) {
   const key = new THREE.DirectionalLight(0xffffff, 1.6);

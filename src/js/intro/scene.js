@@ -30,7 +30,7 @@ import {
 } from '../lamination/geometry.js';
 import {
   extrudeLaminations, createSteelUniforms, createSteelMaterial,
-  brushedTexture, disposeTree, releaseShared, BRAND,
+  brushedTexture, disposeTree, releaseShared, BRAND, navyStudio,
 } from '../lamination/three-kit.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -41,61 +41,6 @@ import { buildFrame, FRAME } from './frame.js';
 const easeOut = (t) => 1 - (1 - t) ** 3;
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
-
-/**
- * Reflections for the film: a room in the site's own navy (near-black underfoot,
- * a blue lift overhead) lit by long, soft-edged strip boxes. Polished steel and
- * the clear-coated blue frame read by the clean lines of light they pick up, and
- * by the navy around them, which ties the metal to the backdrop it plays over.
- */
-function navyStudio(renderer) {
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  const env = new THREE.Scene();
-  const trash = [];
-  const dome = new THREE.SphereGeometry(20, 48, 24);
-  // a dusky steel-blue horizon (what the sides of the coil and the core's faces see),
-  // near-black underfoot, a cooler lift overhead
-  const bot = new THREE.Color('#04060b'), mid = new THREE.Color('#344055'), top = new THREE.Color('#4a5f86');
-  const pos = dome.attributes.position, cols = [], c = new THREE.Color();
-  for (let i = 0; i < pos.count; i++) {
-    const y = pos.getY(i) / 20;
-    if (y < 0) c.copy(mid).lerp(bot, Math.min(1, -y * 2.2)); else c.copy(mid).lerp(top, y ** 0.8);
-    cols.push(c.r, c.g, c.b);
-  }
-  dome.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
-  trash.push(new THREE.Mesh(dome, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
-  env.add(trash[0]);
-  // soft-edged strip: bright core, feathered ends and sides
-  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64;
-  const g = cv.getContext('2d');
-  const gx = g.createLinearGradient(0, 0, 256, 0);
-  gx.addColorStop(0, 'rgba(255,255,255,0)'); gx.addColorStop(0.12, '#fff'); gx.addColorStop(0.88, '#fff'); gx.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = gx; g.fillRect(0, 0, 256, 64);
-  g.globalCompositeOperation = 'destination-in';
-  const gy = g.createLinearGradient(0, 0, 0, 64);
-  gy.addColorStop(0, 'rgba(0,0,0,0)'); gy.addColorStop(0.3, '#000'); gy.addColorStop(0.7, '#000'); gy.addColorStop(1, 'rgba(0,0,0,0)');
-  g.fillStyle = gy; g.fillRect(0, 0, 256, 64);
-  const soft = new THREE.CanvasTexture(cv);
-  const strip = (w, h, at, gain, color = '#ffffff', roll = 0) => {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: soft, transparent: true, side: THREE.DoubleSide }));
-    m.material.color.set(color).multiplyScalar(gain); // > 1: brighter than white (half-float target)
-    m.position.set(...at); m.lookAt(0, 0, 0); m.rotateZ(roll);
-    env.add(m); trash.push(m);
-  };
-  // flat steel seen from above mirrors what is overhead: narrow lines with dark between
-  // them give the sheets bands of light and shadow instead of one white glare
-  strip(20, 0.7, [0, 10, -5], 3.0); //                   key line, overhead, a little behind
-  strip(20, 0.45, [0, 10, -1], 1.7); //                  second line
-  strip(20, 0.35, [0, 9, 5], 1.6); //                    third, in front
-  strip(12, 3.2, [-12, 2.5, 4], 2.4, '#eef3ff', Math.PI / 2); // big soft box, left: silver on faces turned to the viewer
-  strip(11, 1.0, [12, 4, -8], 3.8, '#cfe0ff', Math.PI / 2); // rim strip, right and behind
-  strip(16, 4.5, [0, 3.5, 15], 2.0, '#e9efff'); //       large soft box behind the camera: end faces and front faces read silver
-  strip(26, 1.2, [0, -1.2, 14], 0.9, '#3169e3'); //      low blue bounce from the front: the brand on every edge
-  const rt = pmrem.fromScene(env, 0.035);
-  pmrem.dispose(); soft.dispose();
-  trash.forEach((m) => { m.geometry.dispose(); m.material.dispose(); });
-  return rt.texture;
-}
 
 export function createIntroScene(canvas, { mobile = false, capture = false } = {}) {
   /* ---------------------------------------------------------------- setup */
