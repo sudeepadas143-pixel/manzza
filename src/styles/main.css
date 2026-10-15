@@ -677,6 +677,9 @@ html.motion [data-rise] .rw > span { transition: transform 0.9s var(--ease-out);
 html.motion-pending:not(.motion) [data-rise],
 html.motion-pending:not(.motion) [data-rise] + :not(section, ul, ol, table, figure, .table-wrap, dl, [data-rise]),
 html.motion-pending:not(.motion) [data-rise] + :not(section, ul, ol, table, figure, .table-wrap, dl, [data-rise]) + :not(section, ul, ol, table, figure, .table-wrap, dl, [data-rise]) { opacity: 0; }
+html.motion-pending:not(.motion) [data-line]::before { transform: scaleX(0); }
+/* one frame while the hidden state is applied: no transition, so nothing animates out */
+html.motion-init [data-rise] .rw > span, html.motion-init [data-follow], html.motion-init [data-line]::before { transition: none !important; }
 html.motion [data-follow]:not(.is-in) { opacity: 0; transform: translateY(16px); }
 html.motion [data-follow] { transition: opacity 0.8s var(--ease-out), transform 0.8s var(--ease-out); transition-delay: 0.18s; }
 

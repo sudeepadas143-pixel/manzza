@@ -47,15 +47,18 @@ function reveals() {
       n = n.nextElementSibling;
     }
   });
-  const targets = document.querySelectorAll('[data-rise], [data-follow], [data-line]');
-  const io = new IntersectionObserver((entries) => {
-    for (const e of entries) {
-      if (!e.isIntersecting) continue;
-      e.target.classList.add('is-in');
-      io.unobserve(e.target);
-    }
-  }, { rootMargin: '0px 0px -10% 0px' });
-  targets.forEach((t) => io.observe(t));
+  // observing starts later, once the hidden state is in place without a transition
+  return () => {
+    const targets = document.querySelectorAll('[data-rise], [data-follow], [data-line]');
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        e.target.classList.add('is-in');
+        io.unobserve(e.target);
+      }
+    }, { rootMargin: '0px 0px -10% 0px' });
+    targets.forEach((t) => io.observe(t));
+  };
 }
 
 /** The About statement: words light up as it scrolls through the viewport. */
@@ -107,11 +110,18 @@ function counters() {
 export function initMotion() {
   const root = document.documentElement;
   if (reduced || root.classList.contains('capture')) { root.classList.remove('motion-pending'); return; }
-  // split and mark everything first, then switch to html.motion in the same frame:
-  // the head script's motion-pending already hid the headlines, so nothing flashes
-  reveals();
-  root.classList.add('motion');
+  // 1. split and mark everything; 2. switch to the hidden state with transitions
+  // off (motion-init), so text already on screen does not animate OUT first;
+  // 3. next frame, transitions back on and the reveals start. Without step 2 every
+  // visible paragraph and rule faded out, then faded back in: a double animation.
+  const start = reveals();
+  root.classList.add('motion-init', 'motion');
   root.classList.remove('motion-pending');
+  void document.body.offsetHeight; // commit the hidden state before transitions return
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    root.classList.remove('motion-init');
+    start();
+  }));
   statement();
   counters();
 }
