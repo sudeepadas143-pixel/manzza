@@ -1,7 +1,8 @@
 /**
  * About transition: a dotted-steel Earth that turns to India and dollies into
  * Bengaluru, then dissolves into the page. Plays on every load of the About page
- * (the head script sets html.globe-intro and window.__revealGo). ~2.6 s, no text.
+ * (the head script sets html.globe-intro and window.__revealGo). ~4.1 s; the only
+ * text is the city's pin.
  *
  * Motion review (animate / animation-performance / emil-design-eng / apple-design):
  * the site's own curves (--ease-in-out for the flight, --ease-out for fades and the
@@ -11,11 +12,16 @@
  *
  * Pacing: one continuous move. Distance is eased in log space, so the zoom
  * reads at a constant perceived speed instead of lurching at the end; the turn
- * finishes early (by 70%) so the last stretch is a straight push-in.
+ * finishes early (by 70%) so the last stretch is a straight push-in. The clock
+ * slows into two lingering moments, India lit up and Bengaluru pinned, then
+ * picks up again: the flight never stops, it eases into slow motion (TIME).
  */
 import * as THREE from 'three';
 
-const DURATION = 2600;
+const DURATION = 2600; // the flight at full speed; the lingers add to it (LINGER)
+// Slow-motion moments as [film position, half-width, extra ms]: India fully lit
+// with its states drawn, then Bengaluru risen and pinned, just before the exit.
+const LINGER = [[0.47, 0.06, 700], [0.79, 0.05, 800]];
 const BLR = [12.9716, 77.5946];
 const START = [14, 38];
 
@@ -38,6 +44,29 @@ function bezier(x1, y1, x2, y2) {
 const easeInOut = bezier(0.65, 0, 0.35, 1);
 const easeOut = bezier(0.16, 1, 0.3, 1);
 const seg = (p, a, b) => Math.min(1, Math.max(0, (p - a) / (b - a)));
+
+/**
+ * Wall-clock → film position. Time per unit of film is DURATION plus a raised-cosine
+ * bump per linger (each adds its extra ms), so speed eases down and back up with no
+ * corner. Tabulated once, then inverted by lookup.
+ */
+const TIME = (() => {
+  const N = 2000, T = new Float64Array(N + 1);
+  const rate = (p) => DURATION * (1 + LINGER.reduce((a, [c, h, ms]) => {
+    const x = (p - c) / h;
+    return Math.abs(x) >= 1 ? a : a + (ms / (DURATION * h)) * 0.5 * (1 + Math.cos(Math.PI * x));
+  }, 0));
+  for (let i = 1; i <= N; i++) T[i] = T[i - 1] + rate((i - 0.5) / N) / N;
+  const total = T[N];
+  const at = (ms) => {
+    if (ms <= 0) return 0;
+    if (ms >= total) return 1;
+    let lo = 0, hi = N;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (T[mid] <= ms) lo = mid; else hi = mid; }
+    return (lo + (ms - T[lo]) / (T[hi] - T[lo])) / N;
+  };
+  return { total, at };
+})();
 
 /** lat/lon (deg) -> unit vector; lon 0 faces +z, north is +y. */
 function dir(lat, lon, out = new THREE.Vector3()) {
@@ -262,6 +291,14 @@ export async function playGlobe() {
     marker.add(core, ring);
     scene.add(marker);
 
+    // the pin: an HTML overlay anchored to the city each frame, in the site's own type
+    const pin = document.createElement('div');
+    pin.className = 'globe-pin';
+    pin.setAttribute('aria-hidden', 'true');
+    pin.innerHTML = '<svg class="globe-pin__mark" viewBox="0 0 24 32" aria-hidden="true"><path d="M12 31s10-11.1 10-18.5C22 6.2 17.5 1.5 12 1.5S2 6.2 2 12.5C2 19.9 12 31 12 31z"/><circle cx="12" cy="12.5" r="4"/></svg><span class="globe-pin__label">Bengaluru</span>';
+    veil.append(pin);
+    const pinAt = blr.clone().multiplyScalar(1.0065), pinScreen = new THREE.Vector3();
+
     const onResize = () => {
       renderer.setSize(innerWidth, innerHeight, false);
       camera.aspect = innerWidth / innerHeight;
@@ -302,7 +339,7 @@ export async function playGlobe() {
         if (held) p = window.__globeP;
         else if (reduced) p = STILL;
         else if (skipAt) p = skipFrom + (1 - skipFrom) * easeOut(Math.min(1, (now - skipAt) / SKIP));
-        else p = Math.min(1, (now - t0) / DURATION);
+        else p = TIME.at(now - t0);
         lastP = p;
         // turn toward Bengaluru, settled by 70% so the end is a straight push
         qa.slerpQuaternions(q0, q1, easeInOut(seg(p, 0, 0.7)));
@@ -319,7 +356,7 @@ export async function playGlobe() {
 
         const fadeIn = reduced ? 1 : easeOut(seg(p, 0, 0.14));
         // leaving: ease-out, and the veil pushes in a touch so the crossfade reads as one forward move
-        const out = reduced ? easeOut(Math.min(1, Math.max(0, (now - t0 - 700) / 600))) : easeOut(seg(p, 0.84, 1));
+        const out = reduced ? easeOut(Math.min(1, Math.max(0, (now - t0 - 1700) / 600))) : easeOut(seg(p, 0.84, 1));
         const fadeOut = 1 - out;
         canvas.style.transform = out > 0 ? `scale(${1 + out * 0.06})` : '';
         uniforms.uFade.value = fadeIn;
@@ -340,7 +377,17 @@ export async function playGlobe() {
         core.material.opacity = 0; // the city's own boundary marks the place
         const r = seg(p, 0.66, 0.97);
         ring.scale.setScalar(s * (3.2 + easeOut(r) * 6));
-        ring.material.opacity = r > 0 ? (1 - r) * 0.7 : 0;
+        ring.material.opacity = r > 0 ? (1 - r) * 0.35 : 0; // softer: the pin marks the place
+        // the pin drops onto the city once its boundary has risen; the label follows
+        const drop = easeOut(seg(p, 0.66, 0.74));
+        const label = easeOut(seg(p, 0.7, 0.78));
+        if (drop > 0) {
+          pinScreen.copy(pinAt).project(camera);
+          const x = (pinScreen.x * 0.5 + 0.5) * innerWidth, y = (-pinScreen.y * 0.5 + 0.5) * innerHeight;
+          pin.style.transform = `translate3d(${x.toFixed(1)}px, ${(y - (1 - drop) * 18).toFixed(1)}px, 0)`;
+          pin.style.opacity = String(drop);
+          pin.style.setProperty('--label', label.toFixed(3));
+        } else pin.style.opacity = '0';
         veil.style.opacity = String(fadeOut);
         // the page's text starts rising while the veil dissolves
         if ((p >= 0.88 || out > 0.3) && window.__revealGo) { window.__revealGo(); window.__revealGo = null; }

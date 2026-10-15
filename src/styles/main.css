@@ -1016,6 +1016,18 @@ html.capture .site-header { display: none; }
 .globe-veil { display: none; }
 html.globe-intro .globe-veil { display: block; position: fixed; inset: 0; z-index: 200; background: #06080d; }
 html.globe-intro .globe-veil canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* the city's pin: tip on the point, label to its right; it rides with the veil's fade */
+.globe-pin { position: absolute; left: 0; top: 0; opacity: 0; pointer-events: none; will-change: transform, opacity; }
+.globe-pin__mark { position: absolute; left: -13px; top: -35px; width: 26px; height: 35px; max-width: none; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45)); }
+.globe-pin__mark path { fill: var(--blue); stroke: rgba(255, 255, 255, 0.85); stroke-width: 1.2; }
+.globe-pin__mark circle { fill: #f4f6fa; }
+.globe-pin__label {
+  position: absolute; left: 20px; top: -30px; white-space: nowrap;
+  font: 600 var(--t-label)/1 var(--f-body); letter-spacing: 0.22em; text-transform: uppercase; color: #f4f6fa;
+  padding: 7px 12px 7px 13px; border-radius: var(--r-pill); background: rgba(6, 8, 13, 0.55);
+  border: 1px solid rgba(128, 163, 239, 0.35); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  opacity: var(--label, 0); transform: translate3d(calc((1 - var(--label, 0)) * -8px), 0, 0);
+}
 html.globe-intro .globe-veil::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(120% 90% at 50% 50%, transparent 55%, rgba(6, 8, 13, 0.7) 100%);
