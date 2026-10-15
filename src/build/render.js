@@ -328,7 +328,7 @@ function footer(d) {
   <div class="container">
     <div class="footer__grid">
       <div class="footer__brand">
-        <a href="/" class="footer__logo" aria-label="MANZZA – home"><img src="/brand/manzza-logo.webp" alt="MANZZA" width="930" height="205" loading="lazy"></a>
+        <a href="/" class="footer__logo" aria-label="MANZZA – home"><img src="/brand/manzza-logo-300.webp" alt="MANZZA" width="300" height="66" loading="lazy" decoding="async"></a>
         <p class="footer__sub">A ${esc(c.company.city)}-based manufacturer of transformer laminations.</p>
       </div>
       <nav class="footer__col" aria-label="Products">
