@@ -1,8 +1,7 @@
 /**
  * About transition: a dotted-steel Earth that turns to India and dollies into
- * Bengaluru, then dissolves into the page. Plays only when the visitor arrived
- * by clicking an About link (main.js sets the flag, the head script sets
- * html.globe-intro and window.__revealGo). ~2.6 s, no text.
+ * Bengaluru, then dissolves into the page. Plays on every load of the About page
+ * (the head script sets html.globe-intro and window.__revealGo). ~2.6 s, no text.
  *
  * Motion review (animate / animation-performance / emil-design-eng / apple-design):
  * the site's own curves (--ease-in-out for the flight, --ease-out for fades and the
