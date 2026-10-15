@@ -2,9 +2,10 @@
  * Email verification for the quote form.
  *   POST { email }               -> emails a 6-digit code, returns { ok, token }
  *   POST { email, token, code }  -> returns { ok } when the code is right
- * Environment: RESEND_API_KEY, QUOTE_FROM_EMAIL, OTP_SECRET (any long random string).
+ * Environment: RESEND_API_KEY, QUOTE_FROM_EMAIL, OTP_SECRET (any long random string),
+ *   optional OTP_TEST_EMAILS (comma-separated; accepted even on personal domains, for testing).
  */
-import { businessEmailError } from '../src/lib/email-policy.js';
+import { businessEmailError, testEmails } from '../src/lib/email-policy.js';
 import { issue, check } from './_otp.js';
 
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -16,7 +17,7 @@ export async function POST(request) {
   let body;
   try { body = await request.json(); } catch { return json(400, { ok: false, error: 'Bad request' }); }
   const email = String(body.email || '').trim().toLowerCase();
-  const bad = businessEmailError(email);
+  const bad = businessEmailError(email, testEmails(process.env));
   if (bad) return json(422, { ok: false, error: bad });
 
   if (body.token) {

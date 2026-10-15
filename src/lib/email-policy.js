@@ -14,11 +14,16 @@ export const FREE_EMAIL_DOMAINS = new Set([
 
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-/** '' when the address is an acceptable business email, otherwise the reason. */
-export function businessEmailError(email) {
+/** '' when the address is an acceptable business email, otherwise the reason.
+ *  `allow`: addresses accepted even on a personal domain (testing, OTP_TEST_EMAILS). */
+export function businessEmailError(email, allow = []) {
   const e = String(email || '').trim().toLowerCase();
   if (!EMAIL_RE.test(e)) return 'Please enter a valid email address, for example name@company.com.';
+  if (allow.includes(e)) return '';
   const domain = e.split('@')[1];
   if (FREE_EMAIL_DOMAINS.has(domain)) return 'Please use your company email address. Personal addresses (Gmail, Yahoo, Outlook and similar) are not accepted.';
   return '';
 }
+
+/** OTP_TEST_EMAILS: comma-separated addresses allowed through the business-email rule (server only). */
+export const testEmails = (env) => String(env.OTP_TEST_EMAILS || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);

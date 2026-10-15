@@ -3,7 +3,7 @@
  * endpoint configured in site.config.js (quoteForm.endpoint), success state.
  */
 import './main.js';
-import { businessEmailError } from '../lib/email-policy.js';
+import { businessEmailError, EMAIL_RE } from '../lib/email-policy.js';
 
 const form = document.getElementById('quote-form');
 const done = document.getElementById('quote-done');
@@ -69,7 +69,11 @@ if (form) {
     }
     const el = els[0];
     if (name === 'email') {
-      const bad = businessEmailError(el.value);
+      // with verification on, the server has the final say on personal domains (it may
+      // allow test addresses); here only flag them once it has refused, via the send step
+      const bad = otpEndpoint
+        ? (EMAIL_RE.test(el.value.trim().toLowerCase()) ? '' : businessEmailError(el.value))
+        : businessEmailError(el.value);
       setError(name, bad);
       return !bad;
     }

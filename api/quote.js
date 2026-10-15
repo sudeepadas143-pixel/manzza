@@ -15,7 +15,7 @@
  * Vercel limits request bodies to about 4.5 MB, so keep quoteForm.maxFileMB at 4.
  */
 
-import { businessEmailError } from '../src/lib/email-policy.js';
+import { businessEmailError, testEmails } from '../src/lib/email-policy.js';
 import { check } from './_otp.js';
 
 const FIELDS = [
@@ -51,7 +51,7 @@ export async function POST(request) {
     if (!String(form.get(k) || '').trim()) return json(422, { ok: false, error: `Missing ${k}` });
   }
   const email = String(form.get('email')).trim().toLowerCase();
-  const bad = businessEmailError(email);
+  const bad = businessEmailError(email, testEmails(process.env));
   if (bad) return json(422, { ok: false, error: bad });
   if (!check(OTP_SECRET, email, form.get('otp_token'), form.get('otp_code'))) return json(403, { ok: false, error: 'Please verify your email address first.' });
 
