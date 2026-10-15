@@ -672,6 +672,11 @@ html.motion [data-line]:not(.is-in)::before { background: var(--blue); }
 html.motion [data-rise]:not(.is-in) .rw > span { transform: translateY(110%); }
 html.motion [data-rise] .rw > span { transition: transform 0.9s var(--ease-out); transition-delay: calc(var(--i, 0) * 45ms); }
 /* body copy and pills under a headline follow it in */
+/* until motion.js has split the headlines, keep them (and the copy that follows them)
+   hidden from the first paint, so text never shows, vanishes, then animates in again */
+html.motion-pending:not(.motion) [data-rise],
+html.motion-pending:not(.motion) [data-rise] + :not(section, ul, ol, table, figure, .table-wrap, dl, [data-rise]),
+html.motion-pending:not(.motion) [data-rise] + :not(section, ul, ol, table, figure, .table-wrap, dl, [data-rise]) + :not(section, ul, ol, table, figure, .table-wrap, dl, [data-rise]) { opacity: 0; }
 html.motion [data-follow]:not(.is-in) { opacity: 0; transform: translateY(16px); }
 html.motion [data-follow] { transition: opacity 0.8s var(--ease-out), transform 0.8s var(--ease-out); transition-delay: 0.18s; }
 

@@ -105,9 +105,13 @@ function counters() {
 }
 
 export function initMotion() {
-  if (reduced || document.documentElement.classList.contains('capture')) return;
-  document.documentElement.classList.add('motion');
+  const root = document.documentElement;
+  if (reduced || root.classList.contains('capture')) { root.classList.remove('motion-pending'); return; }
+  // split and mark everything first, then switch to html.motion in the same frame:
+  // the head script's motion-pending already hid the headlines, so nothing flashes
   reveals();
+  root.classList.add('motion');
+  root.classList.remove('motion-pending');
   statement();
   counters();
 }

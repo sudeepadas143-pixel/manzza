@@ -213,7 +213,7 @@ function head(d, a) {
   }
   return `<meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-  <script>(function(d){d.classList.add('js');if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)d.classList.add('rm')})(document.documentElement)</script>
+  <script>(function(d){d.classList.add('js');if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches){d.classList.add('rm');return}d.classList.add('motion-pending');setTimeout(function(){d.classList.remove('motion-pending')},2500)})(document.documentElement)</script>
   <title>${esc(title)}</title>
   <meta name="description" content="${esc(description)}">
   ${base ? `<link rel="canonical" href="${esc(abs(pathName))}">` : ''}
