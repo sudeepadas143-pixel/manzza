@@ -113,9 +113,10 @@ export function initMotion() {
   // Arriving by link runs the cross-page fade (@view-transition). Revealing during it
   // shows the animation in the fade's snapshot, then again on the live page: the
   // "pops twice". Keep the text hidden until the fade is done, then reveal once.
-  const fade = window.__vtDone;
-  if (fade) {
-    Promise.race([fade.catch(() => {}), new Promise((r) => setTimeout(r, 1200))]).then(begin);
+  // the About globe transition (globe.js) and the cross-page fade both hold the reveal
+  const wait = window.__revealAfter || window.__vtDone;
+  if (wait) {
+    Promise.race([wait.catch(() => {}), new Promise((r) => setTimeout(r, window.__revealAfter ? 3500 : 1200))]).then(begin);
   } else {
     begin();
   }

@@ -87,6 +87,16 @@ function initStickyBar() {
   window.addEventListener('scroll', () => bar.classList.toggle('is-visible', seen.size === 0 && window.scrollY > 200), { passive: true });
 }
 
+/** Clicking an About link plays the globe transition on arrival (globe.js). */
+function flagAboutTransition() {
+  document.addEventListener('click', (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest?.('a[href="/about"], a[href="/about/"]');
+    if (!a || /^\/about\/?$/.test(location.pathname)) return;
+    try { sessionStorage.setItem('mz:globe', '1'); } catch {}
+  }, true);
+}
+
 export function initCommon() {
   document.documentElement.classList.add('js');
   initNav();
@@ -96,6 +106,7 @@ export function initCommon() {
   initGlass();
   initReels();
   initStickyBar();
+  flagAboutTransition();
   document.querySelectorAll('[data-year]').forEach((el) => { el.textContent = new Date().getFullYear(); });
 }
 

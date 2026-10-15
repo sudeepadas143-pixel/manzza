@@ -213,7 +213,7 @@ function head(d, a) {
   }
   return `<meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-  <script>(function(d){d.classList.add('js');if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches){d.classList.add('rm');return}d.classList.add('motion-pending');setTimeout(function(){d.classList.remove('motion-pending')},2500);addEventListener('pagereveal',function(e){if(e.viewTransition)window.__vtDone=e.viewTransition.finished})})(document.documentElement)</script>
+  <script>(function(d){d.classList.add('js');if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches){d.classList.add('rm');return}d.classList.add('motion-pending');setTimeout(function(){d.classList.remove('motion-pending')},2500);addEventListener('pagereveal',function(e){if(e.viewTransition)window.__vtDone=e.viewTransition.finished});try{if(sessionStorage.getItem('mz:globe')==='1'&&(location.pathname==='/about'||location.pathname==='/about/')){d.classList.add('globe-intro');window.__revealAfter=new Promise(function(r){window.__revealGo=r})}sessionStorage.removeItem('mz:globe')}catch(e){}})(document.documentElement)</script>
   <title>${esc(title)}</title>
   <meta name="description" content="${esc(description)}">
   ${base ? `<link rel="canonical" href="${esc(abs(pathName))}">` : ''}
