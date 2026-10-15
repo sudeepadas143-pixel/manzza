@@ -55,6 +55,11 @@ function webgl() {
 }
 
 export function initBackdrops() {
+  // the About globe owns the GPU while it plays; start the backdrops once it is done
+  if (document.documentElement.classList.contains('globe-intro')) {
+    addEventListener('globe:done', initBackdrops, { once: true });
+    return;
+  }
   const els = [...document.querySelectorAll('[data-atmos]')];
   if (!els.length || !webgl() || document.documentElement.classList.contains('capture')) return;
   const phone = window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;

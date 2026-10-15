@@ -2,7 +2,13 @@
  * About transition: a dotted-steel Earth that turns to India and dollies into
  * Bengaluru, then dissolves into the page. Plays only when the visitor arrived
  * by clicking an About link (main.js sets the flag, the head script sets
- * html.globe-intro and window.__revealGo). ~1.8 s, no text.
+ * html.globe-intro and window.__revealGo). ~2.6 s, no text.
+ *
+ * Motion review (animate / animation-performance / emil-design-eng / apple-design):
+ * the site's own curves (--ease-in-out for the flight, --ease-out for fades and the
+ * exit); any tap, key or scroll skips from the current frame in 260 ms; phones
+ * render at <=1.5x without MSAA; the page's backdrops wait for the globe; reduced
+ * motion gets a still frame that cross-fades instead of a camera flight.
  *
  * Pacing: one continuous move. Distance is eased in log space, so the zoom
  * reads at a constant perceived speed instead of lurching at the end; the turn
@@ -14,8 +20,24 @@ const DURATION = 2600;
 const BLR = [12.9716, 77.5946];
 const START = [14, 38];
 
-const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-const easeOut = (t) => 1 - (1 - t) ** 3;
+/** cubic-bezier(x1, y1, x2, y2) as a function of t, like CSS. */
+function bezier(x1, y1, x2, y2) {
+  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+  const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+  const X = (u) => ((ax * u + bx) * u + cx) * u;
+  const Y = (u) => ((ay * u + by) * u + cy) * u;
+  const dX = (u) => (3 * ax * u + 2 * bx) * u + cx;
+  return (t) => {
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    let u = t;
+    for (let i = 0; i < 6; i++) { const d = dX(u); if (Math.abs(d) < 1e-6) break; u -= (X(u) - t) / d; }
+    return Y(Math.min(1, Math.max(0, u)));
+  };
+}
+// the site's tokens (main.css): --ease-in-out for movement on screen, --ease-out for entering/leaving
+const easeInOut = bezier(0.65, 0, 0.35, 1);
+const easeOut = bezier(0.16, 1, 0.3, 1);
 const seg = (p, a, b) => Math.min(1, Math.max(0, (p - a) / (b - a)));
 
 /** lat/lon (deg) -> unit vector; lon 0 faces +z, north is +y. */
@@ -170,8 +192,10 @@ export async function playGlobe() {
     root.classList.remove('globe-intro');
     veil?.remove();
     window.__revealGo?.();
+    dispatchEvent(new Event('globe:done'));
   };
   if (!veil) return done();
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   try {
     const [world, india, lines] = await Promise.all([
@@ -179,8 +203,10 @@ export async function playGlobe() {
       fetch('/globe/lines.json').then((r) => { if (!r.ok) throw new Error('lines'); return r.json(); }),
     ]);
     const canvas = veil.querySelector('canvas');
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // phones: a full-screen canvas at 3x on a 120 Hz panel blows the frame budget; 1.5x is indistinguishable here
+    const touch = matchMedia('(pointer: coarse)').matches;
+    const dpr = Math.min(window.devicePixelRatio || 1, touch ? 1.5 : 2);
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: dpr < 1.5, alpha: false, powerPreference: 'high-performance' });
     renderer.setPixelRatio(dpr);
     renderer.setSize(innerWidth, innerHeight, false);
     renderer.setClearColor(0x06080d, 1);
@@ -261,11 +287,24 @@ export async function playGlobe() {
     const target = new THREE.Vector3();
 
     const t0 = performance.now();
+    // any input skips: the flight continues from the current frame and finishes in 260 ms
+    const SKIP = 260;
+    let skipAt = 0, skipFrom = 0, lastP = 0;
+    const skip = () => { if (!skipAt) { skipAt = performance.now(); skipFrom = lastP; } };
+    const skipEvents = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
+    skipEvents.forEach((ev) => addEventListener(ev, skip, { passive: true }));
+    // reduced motion: hold one still frame over Bengaluru, then cross-fade (no camera flight)
+    const STILL = 0.82;
     await new Promise((resolve) => {
       const frame = (now) => {
         // window.__globeP (0..1) freezes the film at a point: used for frame review
         const held = typeof window.__globeP === 'number';
-        const p = held ? window.__globeP : Math.min(1, (now - t0) / DURATION);
+        let p;
+        if (held) p = window.__globeP;
+        else if (reduced) p = STILL;
+        else if (skipAt) p = skipFrom + (1 - skipFrom) * easeOut(Math.min(1, (now - skipAt) / SKIP));
+        else p = Math.min(1, (now - t0) / DURATION);
+        lastP = p;
         // turn toward Bengaluru, settled by 70% so the end is a straight push
         qa.slerpQuaternions(q0, q1, easeInOut(seg(p, 0, 0.7)));
         camDir.copy(startDir).applyQuaternion(qa);
@@ -279,8 +318,11 @@ export async function playGlobe() {
         camera.up.copy(north);
         camera.lookAt(target);
 
-        const fadeIn = easeOut(seg(p, 0, 0.14));
-        const fadeOut = 1 - easeInOut(seg(p, 0.84, 1));
+        const fadeIn = reduced ? 1 : easeOut(seg(p, 0, 0.14));
+        // leaving: ease-out, and the veil pushes in a touch so the crossfade reads as one forward move
+        const out = reduced ? easeOut(Math.min(1, Math.max(0, (now - t0 - 700) / 600))) : easeOut(seg(p, 0.84, 1));
+        const fadeOut = 1 - out;
+        canvas.style.transform = out > 0 ? `scale(${1 + out * 0.06})` : '';
         uniforms.uFade.value = fadeIn;
         rimU.uFade.value = fadeIn * (1 - seg(p, 0.55, 0.85));
         uniforms.uIndia.value = easeInOut(seg(p, 0.16, 0.46));
@@ -302,15 +344,17 @@ export async function playGlobe() {
         ring.material.opacity = r > 0 ? (1 - r) * 0.7 : 0;
         veil.style.opacity = String(fadeOut);
         // the page's text starts rising while the veil dissolves
-        if (p >= 0.88 && window.__revealGo) { window.__revealGo(); window.__revealGo = null; }
+        if ((p >= 0.88 || out > 0.3) && window.__revealGo) { window.__revealGo(); window.__revealGo = null; }
 
         renderer.render(scene, camera);
-        if (p < 1 || held) requestAnimationFrame(frame); else resolve();
+        const finished = reduced ? out >= 1 : p >= 1;
+        if (!finished || held) requestAnimationFrame(frame); else resolve();
       };
       requestAnimationFrame(frame);
     });
 
     removeEventListener('resize', onResize);
+    skipEvents.forEach((ev) => removeEventListener(ev, skip));
     renderer.dispose();
   } catch (err) {
     console.warn('[globe] skipped', err);
