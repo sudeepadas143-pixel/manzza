@@ -319,7 +319,10 @@ html:not(.rm) .mobile-menu:not([hidden]) :is(.mobile-menu__prods li, .mobile-men
 .band--product, .band--phero, .band--capacity { min-height: 100vh; min-height: 100svh; display: flex; align-items: flex-end; padding: calc(var(--header-h) + 40px) 0 clamp(56px, 9vh, 112px); }
 /* phones: the render takes the top of the band, the copy the bottom */
 @media (max-width: 719px) {
-  .band--product .band__media, .band--capacity .band__media { bottom: 38%; }
+  .band--product .band__media { bottom: 38%; }
+  /* plant band carries more copy: stack the render above it so they never overlap */
+  .band--capacity { flex-direction: column; align-items: stretch; justify-content: flex-start; min-height: 0; padding-top: 24px; }
+  .band--capacity .band__media { position: relative; inset: auto; height: clamp(220px, 34svh, 320px); flex: none; margin-bottom: 8px; }
 }
 @media (max-width: 899px) {
   .band--phero .band__media { bottom: 38%; }
