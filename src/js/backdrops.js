@@ -66,7 +66,7 @@ export function initBackdrops() {
   const phone = window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;
   let lib = null;
   const mount = async (el) => {
-    // the static CSS gradient stands in until the visitor engages or the page settles (intent.js)
+    // the static CSS gradient stands in until the visitor engages (intent.js)
     await whenEngaged();
     lib ||= import('../lib/backdrop/backdrop.mjs');
     const { createBackdrop } = await lib;
