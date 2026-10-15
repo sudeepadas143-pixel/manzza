@@ -9,8 +9,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { stepLapFaceSVG, stepLapSectionSVG, pathD, piecePathD, coreFace, coreAnatomySVG } from '../js/lamination/svg.js';
-import { CORE, eShape, iShape, stripShape, corePieces, stepOffsets, clipHalfPlane, holesLeftOf, bounds } from '../js/lamination/geometry.js';
+import { stepLapFaceSVG, stepLapSectionSVG, pathD, coreFace, coreAnatomySVG } from '../js/lamination/svg.js';
+import { eShape, iShape, stripShape } from '../js/lamination/geometry.js';
 
 /* ------------------------------------------------------------------ data */
 
@@ -101,27 +101,10 @@ const icon = {
 function miniSVG(type) {
   const V = (vb, body) => `<svg viewBox="${vb}" aria-hidden="true" focusable="false">${body}</svg>`;
   if (type === 'core') return V('0 0 800 600', coreFace({ box: { x: 60, y: 40, w: 680, h: 520 }, cls: 'f-steel' }));
-  if (type === 'mitre-corner') {
-    const offs = stepOffsets(5, 0.07);
-    const top = corePieces({ w: 0.95, o: offs[4], gap: 0.014 });
-    const limb = clipHalfPlane(top.find((p) => p.id === 'limb-l').poly, 0, 1, 1.9);
-    const yokePc = top.find((p) => p.id === 'yoke-b');
-    const yoke = clipHalfPlane(yokePc.poly, 1, 0, -0.7);
-    const yokeHoles = holesLeftOf(yokePc.holes, -0.7);
-    const b = bounds([limb, yoke]);
-    const k = 440 / Math.max(b.w, b.h);
-    const map = ([x, y]) => [180 + (x - b.x0) * k, 520 - (y - b.y0) * k];
-    const ox = CORE.limbX[0] - 0.95 / 2;
-    const joints = offs.slice(0, 4).map((o) => {
-      const a = map([ox + Math.max(0, -o), Math.max(0, -o) + o]);
-      const c = map([ox + 0.95, 0.95 + o]);
-      return `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${c[0].toFixed(1)}" y2="${c[1].toFixed(1)}" class="f-hidden"/>`;
-    }).join('');
-    return V('0 0 800 600', `<path d="${pathD(limb, map)}" class="f-steel"/><path d="${piecePathD(yoke, yokeHoles, map)}" class="f-steel" fill-rule="evenodd"/>${joints}`);
-  }
   if (type === 'ei') {
-    const map = (dx, dy) => ([x, y]) => [250 + (x + dx) * 100, 470 - (y + dy) * 100];
-    return V('0 0 800 600', `<path d="${pathD(eShape(1), map(0, 0))}" class="f-steel"/><path d="${pathD(iShape(1), map(0, 2.25))}" class="f-steel"/>`);
+    // upright, as in the 3D visual: the E's back on the left, legs to the right, the I beside them
+    const map = (dy) => ([x, y]) => [194 + (y + dy) * 150, 75 + x * 150];
+    return V('0 0 800 600', `<path d="${pathD(eShape(1), map(0))}" class="f-steel"/><path d="${pathD(iShape(1), map(2.25))}" class="f-steel"/>`);
   }
   const s = stripShape({ length: 4.2, width: 0.62, holes: 3, holeR: 0.085 });
   const map = ([x, y]) => [85 + x * 150, 345 - y * 150];
@@ -142,11 +125,13 @@ function pill(href, label, { cls = '', attrs: extra = '', primary = false } = {}
   return `<a class="btn ${primary ? 'btn--primary' : 'btn--ghost'} ${cls}" href="${esc(href)}"${extra}><span class="btn__label">${esc(label)}</span></a>`;
 }
 
-/** What each factory photograph actually shows (alt text). */
+/** What each photograph shows (alt text). These are the machine line used for
+ *  MANZZA orders, photographed at another site: never captioned as MANZZA's own plant. */
+const PHOTO_CAPTION = 'The machine line for your orders';
 const PHOTO_ALT = {
-  'mitre-core': 'Automated lamination cutting line at the MANZZA facility, with cut mitre core laminations laid out on the floor',
-  'strip-laminations': 'A coil of electrical steel feeding strip into the automated cutting line at the MANZZA facility',
-  'ei-laminations': 'The stacking end of an automated lamination cutting line at the MANZZA facility',
+  'mitre-core': 'The automated lamination cutting line for MANZZA orders, with cut mitre core laminations laid out on the floor',
+  'strip-laminations': 'A coil of electrical steel feeding strip into the automated cutting line for MANZZA orders',
+  'ei-laminations': 'The stacking end of the automated lamination cutting line for MANZZA orders',
 };
 
 /** Real-photo slot: shows /images/<id>.(webp|jpg|png) when present, else a neutral placeholder. */
@@ -570,7 +555,7 @@ function productPage(d, a) {
       <h2 id="cust-h" class="d-lg section__h" data-rise>Customisation</h2>
       <div class="custom-grid">
         <ul class="rows rows--2">${p.customisation.map((c) => `<li data-line><h3 class="rows__title">${esc(c.title)}</h3>${c.text ? `<p>${esc(c.text)}</p>` : ''}</li>`).join('')}</ul>
-        ${photo(d, { id: `product-${p.slug}`, label: 'Manufacturing facility, Bengaluru', alt: PHOTO_ALT[p.slug], ratio: '4/3' })}
+        ${photo(d, { id: `product-${p.slug}`, label: PHOTO_CAPTION, alt: PHOTO_ALT[p.slug], ratio: '4/3' })}
       </div>
     </div>
   </section>

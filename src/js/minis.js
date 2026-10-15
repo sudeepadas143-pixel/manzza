@@ -3,7 +3,7 @@
  * Lazy: Three.js is only fetched once a visual is close to the viewport and the
  * visitor has engaged (intent.js); until then the static
  * drawing shows, and the live visual cross-fades in over it.
- * Each <canvas data-mini="core|mitre-corner|ei|strip"> sits inside a figure
+ * Each <canvas data-mini="core|ei|strip"> sits inside a figure
  * that also contains a static SVG, shown when WebGL is unavailable.
  */
 import { whenEngaged } from './intent.js';

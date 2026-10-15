@@ -5,7 +5,7 @@
  */
 import * as THREE from 'three';
 import {
-  corePieces, cruciform, stepOffsets, eShape, iShape, stripShape, clipHalfPlane, holesLeftOf, CORE,
+  corePieces, cruciform, stepOffsets, eShape, iShape, stripShape, CORE,
 } from './lamination/geometry.js';
 import {
   extrudeLaminations, createSteelUniforms, createSteelMaterial, studioEnvironment,
@@ -47,31 +47,14 @@ function buildCore(mat) {
   return { group: g, tilt: 0.42, spin: 0.22, swing: 0.45, half };
 }
 
-function buildMitreCorner(mat) {
-  const g = new THREE.Group();
-  const offsets = stepOffsets(5, 0.07);
-  const items = [];
-  const layers = 12, t = 0.05;
-  for (let k = 0; k < layers; k++) {
-    const o = offsets[k % 5];
-    for (const p of corePieces({ w: 0.95, o, gap: 0.014 })) {
-      if (p.id === 'limb-l') items.push({ poly: clipHalfPlane(p.poly, 0, 1, 1.9), z: k * t, t: t * 0.78, layer: k, dir: 'y' });
-      if (p.id === 'yoke-b') items.push({ poly: clipHalfPlane(p.poly, 1, 0, -0.7), holes: holesLeftOf(p.holes, -0.7), z: k * t, t: t * 0.78, layer: k, dir: 'x' });
-    }
-  }
-  const m = new THREE.Mesh(extrudeLaminations(items), mat);
-  m.position.set(0, 0, -layers * t / 2); // recentred by its bounding box
-  g.add(m);
-  return { group: g, tilt: 0.6, spin: 0.25, swing: 0.35 };
-}
-
 function buildEI(mat) {
   const g = new THREE.Group();
   const a = 1;
   const items = [];
   const layers = 14, t = 0.045;
+  // grain along the E's legs, and along the length of the I
   for (let k = 0; k < layers; k++) {
-    items.push({ poly: eShape(a), z: k * t, t: t * 0.8, layer: k, dir: 'x' });
+    items.push({ poly: eShape(a), z: k * t, t: t * 0.8, layer: k, dir: 'y' });
   }
   const iItems = [];
   for (let k = 0; k < layers; k++) iItems.push({ poly: iShape(a), z: k * t, t: t * 0.8, layer: k, dir: 'x' });
@@ -80,7 +63,9 @@ function buildEI(mat) {
   e.position.set(-1.5, -1.25, -layers * t / 2);
   i.position.set(-1.5, 0.95, -layers * t / 2);
   g.add(e, i);
-  return { group: g, tilt: 0.35, spin: 0.3, swing: 0.35 };
+  // upright, as the letters read: the E's back on the left, legs to the right, the I beside them
+  g.rotation.z = -Math.PI / 2;
+  return { group: g, tilt: 0.3, spin: 0.3, swing: 0.35 };
 }
 
 function buildStrip(mat) {
@@ -95,7 +80,7 @@ function buildStrip(mat) {
   return { group: g, tilt: 0.5, spin: 0.2, swing: 0.3 };
 }
 
-const BUILDERS = { core: buildCore, 'mitre-corner': buildMitreCorner, ei: buildEI, strip: buildStrip };
+const BUILDERS = { core: buildCore, ei: buildEI, strip: buildStrip };
 
 export function startMinis(canvases) {
   const glCanvas = document.createElement('canvas');
