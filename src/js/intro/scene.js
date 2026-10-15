@@ -127,14 +127,14 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   // than white survive to the bloom, which turns the strip-light glints on the steel
   // and the cut lines into light that spills a little. OutputPass then tone-maps.
   // Multisampled target: the composer bypasses the canvas's own antialiasing.
-  // Phones: bloom at half resolution and a lighter strength (its blurs are the cost).
+  // Phones: no bloom (its blurs are the main cost, and on a small screen it read as flare).
   const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: mobile ? 2 : 4 });
   const composer = new EffectComposer(renderer, rt);
   composer.addPass(new RenderPass(scene, camera));
   // threshold in HDR units: only true glints (strip lights on steel, the cut lines) bloom
-  const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), mobile ? 0.2 : 0.26, 0.08, 4.2); // tight: glints, not fog
-  if (mobile) { const setSize = bloom.setSize.bind(bloom); bloom.setSize = (w, h) => setSize(Math.round(w / 2), Math.round(h / 2)); }
-  composer.addPass(bloom);
+  // a trace only, and only on desktop: stronger, it flared off every glint
+  const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.08, 0.05, 9.0);
+  if (!mobile) composer.addPass(bloom);
   composer.addPass(new OutputPass());
 
   // Metal three-point: warm key, cool fill, cool rim at 4:1:2 (blender-lighting 'metal' profile).
@@ -159,7 +159,10 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
 
   // the key mostly casts the shadow: on bare metal a strong direct light is one broad white
   // glare, so the steel's look comes from the strips it reflects (navyStudio)
-  const LIGHT = { key: 0.9, fill: 0.35, rim: 1.0, env: 1.0 };
+  // Bare steel takes no diffuse light: a direct light only adds a hot spot. So the
+  // lights are low; they cast the shadow and lift the painted frame, and the steel
+  // is lit by what it reflects (navyStudio).
+  const LIGHT = { key: 0.32, fill: 0.14, rim: 0.4, env: 1.0 };
 
   // Floor: a soft pool of light under the subject, plus the shadow it receives.
   const poolTex = (() => {
@@ -281,7 +284,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   scene.add(strips);
 
   const clip = new THREE.Plane(new THREE.Vector3(1, 0, 0), -XS1); // keeps x >= the coil's position
-  const SHEET = { roughness: 0.17 }; // crisper bands of reflected light on the flat sheet
+  const SHEET = { roughness: 0.22 }; // bands of reflected light on the flat sheet, without a hot spot
   const sheetMat = createSteelMaterial(uniforms, SHEET);
   sheetMat.clippingPlanes = [clip];
   sheetMat.clipShadows = true;
