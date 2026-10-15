@@ -42,14 +42,22 @@ const easeOut = (t) => 1 - (1 - t) ** 3;
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
 
-export function createIntroScene(canvas, { mobile = false, capture = false } = {}) {
+// hand the main thread back between build steps, so input and scrolling never wait on the build
+const breathe = () => new Promise((r) => { setTimeout(r, 0); });
+
+/**
+ * Built in steps (breathe() between them) and resolved once every shader is
+ * compiled: compileAsync lets the browser compile them off the main thread, so
+ * starting the film never freezes the page. index.js fades the canvas in after.
+ */
+export async function createIntroScene(canvas, { mobile = false, capture = false } = {}) {
   /* ---------------------------------------------------------------- setup */
   // transparent: the film plays over the site's own navy backdrop (index.js, .intro__atmos)
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
   renderer.setClearColor(0x000000, 0);
   // Pixel ratio is capped: a 2× full-screen buffer of physically based steel is
   // the single biggest cost per frame. index.js lowers it further if frames run long.
-  const maxRatio = capture ? 2 : 1.5;
+  const maxRatio = capture ? 2 : mobile ? 1.25 : 1.5;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxRatio));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   // ACES: more contrast than AgX, and the logo blue of the frame stays rich (A/B tested)
@@ -62,8 +70,10 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(32, 1, 0.05, 80);
+  await breathe();
   // reflections: the site's navy as a room, lit by long strip softboxes (navyStudio)
   const envTex = navyStudio(renderer);
+  await breathe();
   scene.environment = envTex;
   // depth: what is far off sinks into the navy of the backdrop
   scene.fog = new THREE.Fog(0x0a1428, 16, 38);
@@ -72,15 +82,17 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   // than white survive to the bloom, which turns the strip-light glints on the steel
   // and the cut lines into light that spills a little. OutputPass then tone-maps.
   // Multisampled target: the composer bypasses the canvas's own antialiasing.
-  // Phones: no bloom (its blurs are the main cost, and on a small screen it read as flare).
-  const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: mobile ? 2 : 4 });
-  const composer = new EffectComposer(renderer, rt);
-  composer.addPass(new RenderPass(scene, camera));
-  // threshold in HDR units: only true glints (strip lights on steel, the cut lines) bloom
-  // a trace only, and only on desktop: stronger, it flared off every glint
-  const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.08, 0.05, 9.0);
-  if (!mobile) composer.addPass(bloom);
-  composer.addPass(new OutputPass());
+  // Phones skip the chain entirely and render straight to the canvas (tone mapping
+  // applies there too): no HDR target, no resolve, no extra full-screen passes.
+  const composer = mobile ? null : new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }));
+  // threshold in HDR units: a trace on the hottest glints only; stronger, it flared
+  const bloom = composer ? new UnrealBloomPass(new THREE.Vector2(256, 256), 0.08, 0.05, 9.0) : null;
+  if (composer) {
+    composer.addPass(new RenderPass(scene, camera));
+    composer.addPass(bloom);
+    composer.addPass(new OutputPass());
+  }
+  const draw = () => (composer ? composer.render() : renderer.render(scene, camera));
 
   // Metal three-point: warm key, cool fill, cool rim at 4:1:2 (blender-lighting 'metal' profile).
   // The warm/cool split is what gives bare steel its colour.
@@ -216,6 +228,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   const feed = shadowed(new THREE.Mesh(feedGeo, feedMat), false);
   coil.add(feed);
 
+  await breathe();
   /* ---------------------------------------------- sheet → strips → laminations */
   // 2D layout: x along the strip (rolling direction), y across. Group is laid
   // flat on the floor: (x, y, z) → world (x, z, -y).
@@ -308,6 +321,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   }
   stripRows[0].add(dim);
 
+  await breathe();
   /* ------------------------------------------------------------------ core */
   // turn (about vertical) → upend (about the bottom edge) → packets + frame
   const turn = new THREE.Group();
@@ -361,6 +375,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     { x: 0, y: cy2 - PIVOT_Z, rot: Math.PI, len: (CORE.limbX[2] - CORE.limbX[0] + W0) / (XB - XA + W0) },
   ];
 
+  await breathe();
   /* ---------------------------------------------------------- clamp frame */
   const frame = buildFrame({ zT: zTop, mobile });
   upend.add(frame.group);
@@ -619,7 +634,7 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     arrive(frame.lug, seg(p, 0.885, 0.925), v3.set(0, 1.6, 0));
 
     placeCamera(p);
-    composer.render();
+    draw();
   }
 
   /** Screen position and radius (CSS px) of the coil's end face at progress p, for lining up the M. */
@@ -637,8 +652,8 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   function resize(w, h) {
     size.w = Math.max(1, w); size.h = Math.max(1, h);
     renderer.setSize(size.w, size.h, false);
-    composer.setPixelRatio(renderer.getPixelRatio());
-    composer.setSize(size.w, size.h);
+    composer?.setPixelRatio(renderer.getPixelRatio());
+    composer?.setSize(size.w, size.h);
     camera.aspect = size.w / size.h;
     camera.updateProjectionMatrix();
   }
@@ -646,13 +661,13 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
   function setPixelRatio(ratio) {
     renderer.setPixelRatio(ratio);
     renderer.setSize(size.w, size.h, false);
-    composer.setPixelRatio(ratio);
-    composer.setSize(size.w, size.h);
+    composer?.setPixelRatio(ratio);
+    composer?.setSize(size.w, size.h);
   }
 
   function dispose() {
-    composer.dispose();
-    bloom.dispose();
+    composer?.dispose();
+    bloom?.dispose();
     disposeTree(scene);
     frame.dispose();
     glowTex.dispose();
@@ -664,13 +679,17 @@ export function createIntroScene(canvas, { mobile = false, capture = false } = {
     renderer.forceContextLoss();
   }
 
-  // Warm-up: compile every shader (including the shadow passes) now, with
-  // everything visible, so nothing stalls the first time it appears mid-scroll.
+  // Warm-up: compile every shader with everything visible, so nothing stalls the
+  // first time it appears mid-scroll; off the main thread where the browser can
+  // (KHR_parallel_shader_compile), then one tiny frame uploads the buffers.
+  await breathe();
   scene.traverse((o) => { o.visible = true; });
   setLights(1);
   placeCamera(0.6);
   resize(64, 64);
-  composer.render();
+  if (renderer.compileAsync) await renderer.compileAsync(scene, camera);
+  await breathe();
+  draw();
   coilFadeLast = -1;
 
   return { update, resize, dispose, coilFace, setPixelRatio, pixelRatio: () => renderer.getPixelRatio(), ready: () => true };

@@ -234,7 +234,8 @@ export function navyStudio(renderer, { steel = false } = {}) {
   strip(11, 1.0, [12, 4, -8], 3.8, '#cfe0ff', Math.PI / 2); // rim strip, right and behind
   strip(16, 4.5, [0, 3.5, 15], 2.0, '#e9efff'); //       large soft box behind the camera: end faces and front faces read silver
   strip(26, 1.2, [0, -1.2, 14], 0.9, '#3169e3'); //      low blue bounce from the front: the brand on every edge
-  const rt = pmrem.fromScene(env, 0.035);
+  // 128px: soft strips over a smooth gradient look the same, at a quarter of the work
+  const rt = pmrem.fromScene(env, 0.035, 0.1, 100, { size: 128 });
   pmrem.dispose(); soft.dispose();
   trash.forEach((m) => { m.geometry.dispose(); m.material.dispose(); });
   return rt.texture;

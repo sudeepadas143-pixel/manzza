@@ -65,6 +65,22 @@ export function initBackdrops() {
   if (!els.length || !webgl() || document.documentElement.classList.contains('capture')) return;
   const phone = window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;
   let lib = null;
+  // The satin drifts slowly, so the backdrops run on one shared clock at 24 fps
+  // (the library's own loop draws every display frame) and stop while off screen:
+  // less GPU work competing with scrolling.
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const live = [];
+  const seen = new IntersectionObserver((entries) => {
+    for (const e of entries) { const b = live.find((x) => x.el === e.target); if (b) b.visible = e.isIntersecting; }
+  });
+  let last = 0;
+  const tick = (now) => {
+    requestAnimationFrame(tick);
+    if (document.hidden || now - last < 1000 / 24) return;
+    const dt = Math.min(0.1, (now - (last || now)) / 1000);
+    last = now;
+    for (const b of live) if (b.visible) { b.t += dt * b.speed; b.bd.set({ time: b.t }); }
+  };
   const mount = async (el) => {
     // the static CSS gradient stands in until the visitor engages (intent.js)
     await whenEngaged();
@@ -72,12 +88,19 @@ export function initBackdrops() {
     const { createBackdrop } = await lib;
     const look = LOOKS[el.dataset.atmos];
     if (!look) return;
-    createBackdrop(el, {
+    const speed = phone ? look.speed * 0.8 : look.speed;
+    const bd = createBackdrop(el, {
       ...look,
+      animate: false, // driven by the shared clock above
       // phones: fewer pixels and a slower drift; soft styles look the same at low resolution
-      ...(phone ? { maxPixels: 2.5e5, speed: look.speed * 0.8 } : { maxPixels: 9e5 }),
+      ...(phone ? { maxPixels: 1.8e5 } : { maxPixels: 7e5 }),
       seed: 3,
     });
+    if (!reduced) {
+      live.push({ el, bd, speed, t: bd.time, visible: true });
+      seen.observe(el);
+      if (live.length === 1) requestAnimationFrame(tick);
+    }
     // fade the canvas in once it has drawn, over the static CSS fallback
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('atmos-live')));
   };

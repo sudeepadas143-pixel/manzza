@@ -157,7 +157,8 @@ export async function initIntro(section) {
       tagline.style.transform = `translate3d(0, ${((1 - t) * 14).toFixed(1)}px, 0)`;
     }
 
-    if (atmos) atmos.set({ time: ATMOS_T0 + p * ATMOS_SPAN });
+    // the satin drifts slowly: skip redraws for changes too small to see
+    if (atmos && Math.abs(p - atmosP) > 0.0012) { atmosP = p; atmos.set({ time: ATMOS_T0 + p * ATMOS_SPAN }); }
     if (scene) {
       scene.update(p, look.x, look.y);
     } else if (frameEls.length) {
@@ -226,11 +227,16 @@ export async function initIntro(section) {
 
   /* ------------------------------------------------------------- 3D scene */
   let createScene = null;
+  // The scene builds asynchronously (scene.js: stepped, shaders compiled off the main
+  // thread). Leaving the section mid-build cancels it: the result is disposed on arrival.
+  let building = false, wanted = false;
   async function startScene() {
-    if (scene || !useGL) return;
+    wanted = true;
+    if (scene || building || !useGL) return;
+    building = true;
     try {
+      startAtmos();
       if (!createScene) ({ createIntroScene: createScene } = await import('./scene.js'));
-      if (scene) return;
       if (canvas.dataset.used) {
         // a disposed context cannot be revived: swap in a fresh canvas
         const fresh = canvas.cloneNode(false);
@@ -238,13 +244,16 @@ export async function initIntro(section) {
         canvas = fresh;
       }
       canvas.dataset.used = '1';
-      scene = createScene(canvas, { mobile, capture });
-      startAtmos();
+      const built = await createScene(canvas, { mobile, capture });
+      building = false;
+      if (!wanted) { built.dispose(); return; }
+      scene = built;
       scene.resize(size.w, size.h);
       geo = null;
       section.classList.add('is-ready');
       dirty = true;
     } catch (err) {
+      building = false;
       console.warn('[intro] WebGL scene failed, using fallback frames', err);
       section.classList.remove('intro--gl');
       section.classList.add('intro--frames');
@@ -252,19 +261,19 @@ export async function initIntro(section) {
       dirty = true;
     }
   }
-  let atmos = null, atmosLib = null;
+  let atmos = null, atmosLib = null, atmosP = -1;
   async function startAtmos() {
     if (atmos || !atmosEl) return;
     try {
       atmosLib ||= import('../../lib/backdrop/backdrop.mjs');
       const { createBackdrop } = await atmosLib;
-      if (!scene || atmos) return;
+      if (!wanted || atmos) return;
       atmos = createBackdrop(atmosEl, {
         ...LOOKS.hero,
         animate: false, // its time is set from the scroll in apply()
         respectReducedMotion: false,
         time: ATMOS_T0,
-        ...(mobile ? { maxPixels: 2.5e5 } : { maxPixels: 9e5 }),
+        ...(mobile ? { maxPixels: 1.6e5 } : { maxPixels: 7e5 }), // soft folds: low resolution is invisible
         seed: 3,
       });
       atmos.set({ time: ATMOS_T0 + warp(state.p) * ATMOS_SPAN });
@@ -274,6 +283,7 @@ export async function initIntro(section) {
     }
   }
   function stopScene() {
+    wanted = false;
     atmos?.destroy();
     atmos = null;
     atmosEl?.classList.remove('is-live');

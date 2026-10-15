@@ -90,7 +90,7 @@ function buildStrip(mat) {
 
 const BUILDERS = { core: buildCore, ei: buildEI, strip: buildStrip };
 
-export function startMinis(canvases) {
+export async function startMinis(canvases) {
   const glCanvas = document.createElement('canvas');
   const renderer = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: true, alpha: true, preserveDrawingBuffer: false });
   renderer.setPixelRatio(1);
@@ -125,7 +125,6 @@ export function startMinis(canvases) {
       canvas, ctx: canvas.getContext('2d'), scene, camera, pivot, build, sphere, visible: false, w: 0, h: 0, phase: Math.random() * 6,
       scrub: null, lean: { x: 0, y: 0 }, seenAt: 0, lastDraw: 0,
     };
-    canvas.closest('.mini')?.classList.add('is-live');
     return view;
   });
 
@@ -205,7 +204,13 @@ export function startMinis(canvases) {
     renderer.render(v.scene, v.camera);
     v.ctx.clearRect(0, 0, v.w, v.h);
     v.ctx.drawImage(glCanvas, 0, glCanvas.height - v.h, v.w, v.h, 0, 0, v.w, v.h);
+    // the drawing stays until the 3D has actually drawn, then cross-fades out
+    if (!v.live) { v.live = true; v.canvas.closest('.mini')?.classList.add('is-live'); }
   }
+
+  // compile every part's shaders off the main thread before the first frame
+  // (KHR_parallel_shader_compile), so starting the visuals never freezes the page
+  if (renderer.compileAsync) await Promise.all(views.map((v) => renderer.compileAsync(v.scene, v.camera)));
 
   const io = new IntersectionObserver((entries) => {
     for (const e of entries) {

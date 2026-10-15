@@ -116,8 +116,11 @@ export function buildFrame({ zT, mobile = false }) {
   const box = (w, h, d, mat) => shadowed(new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 2, Math.min(0.012, Math.min(w, h, d) * 0.3)), mat));
   const nutGeo = new THREE.CylinderGeometry(F.nutR, F.nutR, 0.06, 6);
   const washerGeo = new THREE.CylinderGeometry(F.nutR * 1.25, F.nutR * 1.25, 0.012, seg);
-  const nut = () => shadowed(new THREE.Mesh(nutGeo, zinc));
-  const washer = () => shadowed(new THREE.Mesh(washerGeo, zinc));
+  // small parts receive shadows but cast none: their shadows are too small to see,
+  // and skipping them halves their draw calls (the shadow pass draws every caster again)
+  const small = (m) => { m.castShadow = false; m.receiveShadow = true; return m; };
+  const nut = () => small(new THREE.Mesh(nutGeo, zinc));
+  const washer = () => small(new THREE.Mesh(washerGeo, zinc));
 
   // front web sits at z = zT + gap; back web mirrors it at z = -gap
   const zWebF = zT + F.gap + F.tw / 2;
@@ -160,11 +163,11 @@ export function buildFrame({ zT, mobile = false }) {
   for (const yc of [y1, y2]) {
     for (const x of [(x1 + 0) / 2, (x3 + 0) / 2]) {
       const g = new THREE.Group();
-      const shank = shadowed(new THREE.Mesh(boltGeo, rodMat));
+      const shank = small(new THREE.Mesh(boltGeo, rodMat));
       shank.position.z = zT / 2;
-      const head = shadowed(new THREE.Mesh(headGeo, zinc));
+      const head = small(new THREE.Mesh(headGeo, zinc));
       head.position.z = zT + F.gap + F.tw + 0.03;
-      const back = shadowed(new THREE.Mesh(headGeo, zinc));
+      const back = small(new THREE.Mesh(headGeo, zinc));
       back.position.z = -(F.gap + F.tw + 0.03);
       g.add(shank, head, back);
       g.userData = { home: new THREE.Vector3(x, yc, 0), from: new THREE.Vector3(x, yc, 2.4) };
@@ -180,7 +183,7 @@ export function buildFrame({ zT, mobile = false }) {
   for (const yc of [y1, y2]) {
     for (const x of [-(coreHalfW + 0.17), coreHalfW + 0.17]) {
       const g = new THREE.Group();
-      const bar = shadowed(new THREE.Mesh(tieGeo, rodMat));
+      const bar = small(new THREE.Mesh(tieGeo, rodMat));
       bar.position.z = zT / 2;
       g.add(bar);
       for (const z of [zWebF + F.tw / 2 + 0.03, zWebB - F.tw / 2 - 0.03]) {
@@ -204,7 +207,7 @@ export function buildFrame({ zT, mobile = false }) {
   for (const z of [zRodF, zRodB]) {
     rodXs.forEach((x, i) => {
       const g = new THREE.Group();
-      const rod = shadowed(new THREE.Mesh(rodGeo, rodMat));
+      const rod = small(new THREE.Mesh(rodGeo, rodMat));
       rod.position.y = (yTopFl + yBotFl) / 2;
       g.add(rod);
       const nuts = [];
@@ -235,7 +238,7 @@ export function buildFrame({ zT, mobile = false }) {
       rib.position.set(0, up.position.y, 0);
       g.add(base, up, rib);
       for (const dx of [-0.22, 0.22]) {
-        const b = shadowed(new THREE.Mesh(headGeo, zinc));
+        const b = small(new THREE.Mesh(headGeo, zinc));
         b.rotation.x = 0;
         b.position.set(dx, -F.lift + 0.065, z > 0 ? 0.12 : -0.12);
         b.rotation.set(Math.PI / 2, 0, 0);
