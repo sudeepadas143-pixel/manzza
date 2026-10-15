@@ -243,7 +243,13 @@ function head(d, a) {
 function header(d, a) {
   const active = a.active || '';
   const cur = (k) => (k === active ? ' aria-current="page"' : '');
-  const prodLinks = d.products.map((p) => `<li><a href="/products/${p.slug}"${a.product === p.slug ? ' aria-current="page"' : ''}>${esc(p.navLabel)}</a></li>`).join('');
+  const prodLinks = d.products.map((p, i) => `<li class="dd__item"><a class="dd__tile" href="/products/${p.slug}"${a.product === p.slug ? ' aria-current="page"' : ''}>
+              <span class="dd__art" aria-hidden="true">${miniSVG(p.cardVisual)}</span>
+              <span class="dd__idx" aria-hidden="true">0${i + 1}</span>
+              <span class="dd__name">${esc(p.name)}</span>
+              <span class="dd__note">${esc(p.navNote)}</span>
+              <span class="dd__go" aria-hidden="true">${icon.arrow}</span>
+            </a></li>`).join('');
   return `<a class="skip-link" href="#main">Skip to main content</a>
 <header class="site-header" data-header>
   <div class="container header__inner">
@@ -256,6 +262,10 @@ function header(d, a) {
           <button class="nav__link dd-toggle${active === 'products' ? ' is-current' : ''}" type="button" aria-expanded="false" aria-controls="dd-products">Products ${icon.chevron}</button>
           <div class="dd" id="dd-products">
             <ul class="dd__list">${prodLinks}</ul>
+            <div class="dd__foot">
+              <a href="/materials">Compare CRGO and CRNO ${icon.arrow}</a>
+              <a href="/quote">Not sure which? Send us your drawing ${icon.arrow}</a>
+            </div>
           </div>
         </li>
         <li class="nav__item"><a class="nav__link" href="/materials"${cur('materials')}>Materials</a></li>
@@ -270,14 +280,25 @@ function header(d, a) {
 </header>
   <div class="mobile-menu" id="mobile-menu" hidden>
     <div class="container">
+      <p class="mobile-menu__label">Products</p>
+      <ul class="mobile-menu__prods">
+        ${d.products.map((p) => `<li><a class="mm-prod" href="/products/${p.slug}">
+          <span class="mm-prod__art" aria-hidden="true">${miniSVG(p.cardVisual)}</span>
+          <span class="mm-prod__name">${esc(p.name)}</span>
+          <span class="mm-prod__note">${esc(p.navNote)}</span>
+        </a></li>`).join('')}
+      </ul>
       <ul class="mobile-menu__list">
-        ${d.products.map((p) => `<li><a href="/products/${p.slug}">${esc(p.navLabel)}</a></li>`).join('')}
         <li><a href="/materials">Materials</a></li>
         <li><a href="/plant">Plant</a></li>
         <li><a href="/about">About</a></li>
-        <li><a href="/quote">Request a quote</a></li>
       </ul>
-      <p class="mobile-menu__contact">${isTodo(d.config.contact.phone) ? emailLink(d) : phoneLink(d)}</p>
+      <a class="btn btn--primary mobile-menu__cta" href="/quote"><span class="btn__label">Request a quote</span></a>
+      <div class="mobile-menu__contact">
+        ${isTodo(d.config.contact.phone) ? '' : `<p>${phoneLink(d)}</p>`}
+        <p>${emailLink(d)}</p>
+        <p class="mobile-menu__addr">${esc(d.config.contact.address.join(', '))}</p>
+      </div>
     </div>
   </div>
 `;
