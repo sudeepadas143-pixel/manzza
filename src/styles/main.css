@@ -911,3 +911,25 @@ html.capture .site-header { display: none; }
 .keylines li > span:not(.keylines__k) { color: var(--body); }
 .keylines--plant { margin-top: 8px; }
 .band--capacity .band__copy > .btn { margin-top: 8px; }
+
+/* home: products as one row of cards */
+.pgrid { list-style: none; margin: clamp(32px, 4vw, 56px) 0 0; padding: 0; display: grid; gap: clamp(16px, 2vw, 24px); grid-template-columns: 1fr; }
+@media (min-width: 720px) { .pgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.pcard {
+  position: relative; display: grid; gap: 10px; align-content: start; padding: 0 0 22px; border-radius: var(--r-xs);
+  border-top: 1px solid var(--hairline); transition: border-color 0.35s var(--ease-out);
+}
+.pcard__mini { position: relative; aspect-ratio: 4 / 3; margin-bottom: 8px; }
+.pcard__mini canvas, .pcard__mini .mini__fallback { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pcard__name { font-size: var(--t-h3); line-height: 1.05; letter-spacing: 0.02em; }
+.pcard__link { color: inherit; text-decoration: none; }
+.pcard__link::after { content: ''; position: absolute; inset: 0; z-index: 1; }
+.pcard__link:focus-visible { outline: none; }
+.pcard:has(.pcard__link:focus-visible) { box-shadow: 0 0 0 2px var(--canvas), 0 0 0 4px var(--blue-text); }
+.pcard__line { color: var(--body); max-width: 40ch; }
+.pcard__more { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font: 700 var(--t-label)/1 var(--f-body); letter-spacing: 0.09em; text-transform: uppercase; color: var(--white); }
+.pcard__more .i { width: 14px; height: 14px; transition: transform 0.35s var(--ease-out); }
+@media (hover: hover) and (pointer: fine) {
+  .pcard:hover { border-top-color: var(--blue); }
+  .pcard:hover .pcard__more .i { transform: translateX(4px); }
+}

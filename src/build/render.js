@@ -260,6 +260,7 @@ function header(d, a) {
         </li>
         <li class="nav__item"><a class="nav__link" href="/materials"${cur('materials')}>Materials</a></li>
         <li class="nav__item"><a class="nav__link" href="/plant"${cur('plant')}>Plant</a></li>
+        <li class="nav__item"><a class="nav__link" href="/about"${cur('about')}>About</a></li>
         <li class="nav__item"><a class="nav__link nav__link--cta" href="/quote"${cur('quote')}>Request a quote</a></li>
       </ul>
     </nav>
@@ -273,6 +274,7 @@ function header(d, a) {
         ${d.products.map((p) => `<li><a href="/products/${p.slug}">${esc(p.navLabel)}</a></li>`).join('')}
         <li><a href="/materials">Materials</a></li>
         <li><a href="/plant">Plant</a></li>
+        <li><a href="/about">About</a></li>
         <li><a href="/quote">Request a quote</a></li>
       </ul>
       <p class="mobile-menu__contact">${isTodo(d.config.contact.phone) ? emailLink(d) : phoneLink(d)}</p>
@@ -297,7 +299,7 @@ function footer(d) {
       </nav>
       <nav class="footer__col" aria-label="Company">
         <p class="footer__h">Information</p>
-        <ul><li><a href="/materials">Materials: CRGO and CRNO</a></li><li><a href="/plant">Plant and machinery</a></li><li><a href="/quote">Request a quote</a></li></ul>
+        <ul><li><a href="/materials">Materials: CRGO and CRNO</a></li><li><a href="/plant">Plant and machinery</a></li><li><a href="/about">About MANZZA</a></li><li><a href="/quote">Request a quote</a></li></ul>
       </nav>
       <div class="footer__col">
         <p class="footer__h">Contact</p>
@@ -367,6 +369,17 @@ function productCards(d) {
       ${pill(`/products/${p.slug}`, 'Learn more', { attrs: ` aria-label="Learn more about ${esc(p.name.toLowerCase().replace('e&i', 'E&I'))}"` })}
     </div>
   </section>`).join('');
+}
+
+/** Home: the three products as one compact row of cards (each opens its page). */
+function productGrid(d) {
+  return `<ul class="pgrid">${d.products.map((p) => `
+    <li class="pcard">
+      ${mini(p.cardVisual, 'pcard__mini')}
+      <h3 class="pcard__name"><a class="pcard__link" href="/products/${p.slug}">${esc(p.name)}</a></h3>
+      <p class="pcard__line">${esc(p.cardLine)}</p>
+      <span class="pcard__more" aria-hidden="true">View and customise ${icon.arrow || '&rarr;'}</span>
+    </li>`).join('')}</ul>`;
 }
 
 /** Thickness scale: positions only at the values stated in materials.json. */
@@ -694,6 +707,7 @@ const PARTIALS = {
   thicknessScale: (d) => thicknessScale(d),
   process: (d) => process(d),
   capacity: (d) => capacity(d),
+  productGrid: (d) => productGrid(d),
   machines: (d) => d.company.machines.map((m) => `<li><span class="keylines__k">${esc(m.name)}</span>${m.text ? `<span>${esc(m.text)}</span>` : ''}</li>`).join(''),
   quality: (d) => quality(d),
   customers: (d) => customers(d),

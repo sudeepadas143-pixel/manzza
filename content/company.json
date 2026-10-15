@@ -91,6 +91,10 @@
     "plant": {
       "title": "Plant and Machinery | Transformer Laminations | MANZZA, Bengaluru",
       "description": "MANZZA's Bengaluru plant: a fully automatic CNC step-lap lamination line and a cut-to-length machine, with a production capacity of 200 tonnes per month."
+    },
+    "about": {
+      "title": "About MANZZA Industry | Transformer Lamination Manufacturer, Bengaluru",
+      "description": "MANZZA Industry Pvt. Ltd. is a Bengaluru-based manufacturer of electrical steel laminations for transformer cores, serving transformer manufacturers across Karnataka, Andhra Pradesh, Telangana and Tamil Nadu."
     }
   },
   "machines": [

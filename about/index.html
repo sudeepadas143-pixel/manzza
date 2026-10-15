@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+  {{> head page="about" path="/about"}}
+  <link rel="stylesheet" href="/src/styles/main.css">
+  <script type="module" src="/src/js/main.js"></script>
+</head>
+<body class="page-about">
+  {{> header active="about"}}
+
+  <main id="main" tabindex="-1">
+    <section class="phero" data-atmos="phero">
+      <div class="container">
+        <nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li aria-current="page">About</li></ol></nav>
+        <h1 class="d-xxl" data-rise>About MANZZA</h1>
+      </div>
+    </section>
+
+    <section id="about" class="section" data-atmos="about" aria-labelledby="about-h">
+      <div class="container">
+        <h2 id="about-h" class="sr-only">Company</h2>
+        {{> about}}
+      </div>
+    </section>
+
+    <section class="section section--soft" aria-labelledby="customers-h">
+      <div class="container">
+        <h2 id="customers-h" class="d-xl section__h" data-rise>Who we serve</h2>
+        {{> customers}}
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="contact-h">
+      <div class="container split">
+        <h2 id="contact-h" class="d-xl" data-rise>Location and contact</h2>
+        {{> contactCard}}
+      </div>
+    </section>
+
+    {{> cta}}
+  </main>
+
+  {{> footer}}
+</body>
+</html>

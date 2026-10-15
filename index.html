@@ -12,13 +12,15 @@
     {{> intro}}
     {{> hero}}
 
-    <section id="products" class="band band--head" data-atmos="products" aria-labelledby="products-h">
+    <section id="products" class="section" data-atmos="products" aria-labelledby="products-h">
       <div class="container">
-        <h2 id="products-h" class="d-xl" data-rise>Products</h2>
-        <p class="body-lg band__lede">Mitre-core step-lap laminations, E&amp;I laminations and customized strip laminations, manufactured to meet customer drawings, material specifications and production requirements.</p>
+        <div class="section__head">
+          <h2 id="products-h" class="d-xl" data-rise>Products</h2>
+          <p class="body-lg">Mitre-core step-lap laminations, E&amp;I laminations and customized strip laminations, manufactured to meet customer drawings, material specifications and production requirements.</p>
+        </div>
+        {{> productGrid}}
       </div>
     </section>
-    {{> productCards}}
 
     <section id="materials" class="section" data-atmos="materials" aria-labelledby="materials-h">
       <div class="container summary">
