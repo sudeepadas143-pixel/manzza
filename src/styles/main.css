@@ -883,3 +883,31 @@ html.capture .site-header { display: none; }
   .header__cta { height: 30px; padding: 0 11px; font-size: 0.6875rem; letter-spacing: 0.07em; }
   .header__cta::before { inset: -9px -4px; }
 }
+
+/* quote form: business email verification */
+.verify { display: flex; gap: 10px; align-items: stretch; }
+.verify input { flex: 1; min-width: 0; }
+.verify--code { margin-top: 10px; }
+.verify--code input { letter-spacing: 0.3em; font-variant-numeric: tabular-nums; max-width: 14ch; }
+.verify__btn {
+  flex: none; padding: 0 18px; min-height: 54px; border-radius: var(--r-xs); border: 1px solid var(--field-line, var(--line-hover)); background: rgba(244, 246, 250, 0.06);
+  color: var(--white); cursor: pointer; font: 700 var(--t-label)/1 var(--f-body); letter-spacing: 0.09em; text-transform: uppercase; transition: border-color 0.25s, background 0.25s;
+}
+.verify__btn:hover { border-color: var(--blue-text); background: rgba(244, 246, 250, 0.1); }
+.verify__btn:disabled { opacity: 0.6; cursor: progress; }
+.verify__btn[hidden] { display: none; }
+.hint { margin-top: 8px; font-size: var(--t-label); color: var(--note); }
+.verify__ok { margin-top: 10px; font: 700 var(--t-label)/1.4 var(--f-body); letter-spacing: 0.09em; text-transform: uppercase; color: var(--blue-text); }
+.verify__ok::before { content: '\2713\00a0'; }
+
+/* home summaries: short materials block and plant keylines */
+.summary { display: grid; gap: 28px; }
+@media (min-width: 900px) { .summary { grid-template-columns: 1fr 1.1fr; align-items: start; gap: 64px; } }
+.summary__body { display: grid; gap: 24px; justify-items: start; }
+.keylines { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; width: 100%; max-width: 640px; }
+.keylines li { display: grid; gap: 4px; padding: 16px 0; border-top: 1px solid var(--hairline); }
+.keylines li:last-child { border-bottom: 1px solid var(--hairline); }
+.keylines__k { font: 700 var(--t-h4)/1.1 var(--f-display); letter-spacing: 0.02em; text-transform: uppercase; color: var(--white); }
+.keylines li > span:not(.keylines__k) { color: var(--body); }
+.keylines--plant { margin-top: 8px; }
+.band--capacity .band__copy > .btn { margin-top: 8px; }

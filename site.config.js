@@ -33,9 +33,9 @@ export default {
 
   contact: {
     // Shown in the footer and on /quote. Use international format.
-    phone: '+91 81056 67729',
+    phone: TODO('Office phone number, international format'),
     // Business email that receives enquiries.
-    email: 'office@manzza.in',
+    email: 'purchase@manzza.in',
     // WhatsApp number: digits only, with country code, no + or spaces.
     // e.g. '919876543210'
     whatsapp: TODO('WhatsApp business number, digits only with country code'),
@@ -49,7 +49,9 @@ export default {
     // Where the quote form is POSTed (multipart/form-data, with file upload).
     // Formspree:  'https://formspree.io/f/xxxxxxxx'
     // Vercel fn:  '/api/quote'   (see api/quote.js and the README)
-    endpoint: TODO('Form endpoint URL – see README "Quote form"'),
+    endpoint: '/api/quote',
+    // Emails a 6-digit code to the visitor's business address before an enquiry can be sent.
+    otpEndpoint: '/api/otp',
     // Largest drawing file the form will accept, in megabytes.
     // Keep at 4 with the Vercel function (Vercel caps request bodies at ~4.5 MB).
     // With Formspree, check your plan's upload limit.
@@ -62,9 +64,9 @@ export default {
   // ---------------------------------------------------------------------------
   capacity: {
     show: true,
-    value: 'Production capacity 160',
+    value: 'Production capacity 200',
     unit: 'metric tonnes per month',
     note: '',
-    confirmed: true, // 160 MT/month per the client content brief
+    confirmed: true, // 200 tonnes per month, supplied by the client
   },
 };

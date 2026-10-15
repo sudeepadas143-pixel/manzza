@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+  {{> head page="plant" path="/plant"}}
+  <link rel="stylesheet" href="/src/styles/main.css">
+  <script type="module" src="/src/js/main.js"></script>
+</head>
+<body class="page-plant">
+  {{> header active="plant"}}
+
+  <main id="main" tabindex="-1">
+    <section class="phero" data-atmos="phero">
+      <div class="container">
+        <nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li aria-current="page">Plant</li></ol></nav>
+        <h1 class="d-xxl" data-rise>Plant and machinery</h1>
+        <p class="body-lg phero__lede">MANZZA uses a combination of automated cutting equipment and supporting manufacturing machinery to produce electrical steel laminations.</p>
+      </div>
+    </section>
+
+    <section class="band band--capacity" aria-labelledby="machines-h">
+      <div class="band__media" aria-hidden="true"><div class="mini band__mini"><canvas data-mini="core" data-frame="right" aria-hidden="true"></canvas></div></div>
+      <div class="container band__copy">
+        <h2 id="machines-h" class="d-xl" data-rise>Machinery</h2>
+        {{> capacity}}
+        <ul class="keylines keylines--plant">
+          {{> machines}}
+        </ul>
+      </div>
+    </section>
+
+    <section id="process" class="section" aria-labelledby="process-h">
+      <div class="container">
+        <div class="section__head">
+          <h2 id="process-h" class="d-xl" data-rise>Manufacturing capabilities</h2>
+        </div>
+        {{> process}}
+        <section class="reel" role="region" aria-roledescription="carousel" aria-label="Manufacturing facility photographs" data-reel>
+          <div class="reel__stage" tabindex="0" role="group" aria-label="Photographs. Use the left and right arrow keys to change photograph" aria-live="off">
+            <figure class="reel__slide is-active" role="group" aria-roledescription="slide" aria-label="1 of 4"><img src="/images/factory-cnc-line.webp" srcset="/images/factory-cnc-line-640.webp 640w, /images/factory-cnc-line.webp 1280w" sizes="(max-width: 760px) 100vw, 1200px" alt="Automated transformer-lamination cutting line at the MANZZA facility in Bengaluru" width="1280" height="566" loading="eager" decoding="async" draggable="false"></figure>
+            <figure class="reel__slide" role="group" aria-roledescription="slide" aria-label="2 of 4" aria-hidden="true"><img src="/images/product-mitre-core.webp" srcset="/images/product-mitre-core-640.webp 640w, /images/product-mitre-core.webp 1280w" sizes="(max-width: 760px) 100vw, 1200px" alt="Automated lamination cutting line at the MANZZA facility, with cut mitre core laminations laid out on the floor" width="1280" height="960" loading="lazy" decoding="async" draggable="false"></figure>
+            <figure class="reel__slide" role="group" aria-roledescription="slide" aria-label="3 of 4" aria-hidden="true"><img src="/images/product-strip-laminations.webp" srcset="/images/product-strip-laminations-640.webp 640w, /images/product-strip-laminations.webp 1280w" sizes="(max-width: 760px) 100vw, 1200px" alt="A coil of electrical steel feeding strip into the automated cutting line at the MANZZA facility" width="1280" height="960" loading="lazy" decoding="async" draggable="false"></figure>
+            <figure class="reel__slide" role="group" aria-roledescription="slide" aria-label="4 of 4" aria-hidden="true"><img src="/images/product-ei-laminations.webp" srcset="/images/product-ei-laminations-640.webp 640w, /images/product-ei-laminations.webp 1280w" sizes="(max-width: 760px) 100vw, 1200px" alt="The stacking end of an automated lamination cutting line at the MANZZA facility" width="1280" height="960" loading="lazy" decoding="async" draggable="false"></figure>
+          </div>
+          <div class="reel__bar">
+            <p class="reel__count" aria-hidden="true"><span class="reel__now" data-reel-now>01</span><span class="reel__sep"></span><span>04</span></p>
+            <div class="reel__thumbs">
+              <button type="button" class="reel__thumb" data-reel-go="0" aria-label="Show photograph 1 of 4" aria-current="true"><img src="/images/factory-cnc-line-640.webp" alt="" width="160" height="90" loading="lazy" decoding="async" draggable="false"><span class="reel__fill" aria-hidden="true"></span></button>
+              <button type="button" class="reel__thumb" data-reel-go="1" aria-label="Show photograph 2 of 4"><img src="/images/product-mitre-core-640.webp" alt="" width="160" height="90" loading="lazy" decoding="async" draggable="false"><span class="reel__fill" aria-hidden="true"></span></button>
+              <button type="button" class="reel__thumb" data-reel-go="2" aria-label="Show photograph 3 of 4"><img src="/images/product-strip-laminations-640.webp" alt="" width="160" height="90" loading="lazy" decoding="async" draggable="false"><span class="reel__fill" aria-hidden="true"></span></button>
+              <button type="button" class="reel__thumb" data-reel-go="3" aria-label="Show photograph 4 of 4"><img src="/images/product-ei-laminations-640.webp" alt="" width="160" height="90" loading="lazy" decoding="async" draggable="false"><span class="reel__fill" aria-hidden="true"></span></button>
+            </div>
+            <div class="reel__nav">
+              <button type="button" class="reel__btn reel__play" data-reel-play aria-label="Pause slideshow" aria-pressed="false"><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5v11M15 6.5v11"/></svg><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 6.2v11.6L18 12z"/></svg></button>
+              <button type="button" class="reel__btn" data-reel-prev aria-label="Previous photograph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6 8.5 12l6 6"/></svg></button>
+              <button type="button" class="reel__btn" data-reel-next aria-label="Next photograph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 6 6 6-6 6"/></svg></button>
+            </div>
+          </div>
+        </section>      </div>
+    </section>
+
+    <section class="section section--soft" aria-labelledby="quality-h">
+      <div class="container">
+        <h2 id="quality-h" class="d-xl section__h" data-rise>Quality and engineering approach</h2>
+        {{> quality}}
+      </div>
+    </section>
+
+    {{> cta}}
+  </main>
+
+  {{> footer}}
+</body>
+</html>

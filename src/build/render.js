@@ -259,6 +259,7 @@ function header(d, a) {
           </div>
         </li>
         <li class="nav__item"><a class="nav__link" href="/materials"${cur('materials')}>Materials</a></li>
+        <li class="nav__item"><a class="nav__link" href="/plant"${cur('plant')}>Plant</a></li>
         <li class="nav__item"><a class="nav__link nav__link--cta" href="/quote"${cur('quote')}>Request a quote</a></li>
       </ul>
     </nav>
@@ -271,9 +272,10 @@ function header(d, a) {
       <ul class="mobile-menu__list">
         ${d.products.map((p) => `<li><a href="/products/${p.slug}">${esc(p.navLabel)}</a></li>`).join('')}
         <li><a href="/materials">Materials</a></li>
+        <li><a href="/plant">Plant</a></li>
         <li><a href="/quote">Request a quote</a></li>
       </ul>
-      <p class="mobile-menu__contact">${phoneLink(d)}</p>
+      <p class="mobile-menu__contact">${isTodo(d.config.contact.phone) ? emailLink(d) : phoneLink(d)}</p>
     </div>
   </div>
 `;
@@ -295,12 +297,12 @@ function footer(d) {
       </nav>
       <nav class="footer__col" aria-label="Company">
         <p class="footer__h">Information</p>
-        <ul><li><a href="/materials">Materials: CRGO and CRNO</a></li><li><a href="/quote">Request a quote</a></li><li><a href="/#about">About MANZZA</a></li></ul>
+        <ul><li><a href="/materials">Materials: CRGO and CRNO</a></li><li><a href="/plant">Plant and machinery</a></li><li><a href="/quote">Request a quote</a></li></ul>
       </nav>
       <div class="footer__col">
         <p class="footer__h">Contact</p>
         <ul>
-          <li>${phoneLink(d)}</li>
+          ${isTodo(d.config.contact.phone) ? '' : `<li>${phoneLink(d)}</li>`}
           <li>${emailLink(d)}</li>
           ${wa ? `<li><a href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a></li>` : ''}
           <li>${addressHTML(d)}</li>
@@ -435,7 +437,6 @@ function capacity(d) {
     <p class="capacity__value d-xxl"><span class="num"${/^\d+$/.test(num) ? ` data-count="${num}"` : ''}>${esc(num)}</span></p>
     <p class="eyebrow">${esc(c.unit)}</p>
     ${c.note ? `<p class="note">${esc(c.note)}</p>` : ''}
-    ${pill('/quote', 'Request a quote', { primary: true, cls: 'capacity__cta' })}
   </div>`;
 }
 
@@ -587,7 +588,7 @@ function matrix(d) {
 function quoteForm(d) {
   const maxMB = d.config.quoteForm.maxFileMB;
   const radio = (name, value, label, sub, req) => `<label class="choice"><input type="radio" name="${name}" value="${esc(value)}"${req ? ' required' : ''}><span class="choice__box"><span class="choice__label">${esc(label)}</span>${sub ? `<span class="choice__sub">${esc(sub)}</span>` : ''}</span></label>`;
-  return `<form class="qform" id="quote-form" novalidate data-endpoint="${isTodo(d.config.quoteForm.endpoint) ? '' : esc(d.config.quoteForm.endpoint)}" data-max-mb="${maxMB}">
+  return `<form class="qform" id="quote-form" novalidate data-endpoint="${isTodo(d.config.quoteForm.endpoint) ? '' : esc(d.config.quoteForm.endpoint)}" data-max-mb="${maxMB}" data-otp="${esc(d.config.quoteForm.otpEndpoint || '')}">
   <div class="qform__hp" aria-hidden="true"><label>Leave this field empty <input type="text" name="company_website" tabindex="-1" autocomplete="off"></label></div>
 
   <fieldset class="fs">
@@ -595,7 +596,19 @@ function quoteForm(d) {
     <div class="fgrid">
       <div class="field"><label for="f-company">Company name <span class="req">required</span></label><input id="f-company" name="company" type="text" autocomplete="organization" required></div>
       <div class="field"><label for="f-name">Contact person <span class="req">required</span></label><input id="f-name" name="contact_person" type="text" autocomplete="name" required></div>
-      <div class="field"><label for="f-email">Business email <span class="req">required</span></label><input id="f-email" name="email" type="email" autocomplete="email" inputmode="email" spellcheck="false" required></div>
+      <div class="field field--verify"><label for="f-email">Business email <span class="req">required</span></label>
+        <div class="verify">
+          <input id="f-email" name="email" type="email" autocomplete="email" inputmode="email" spellcheck="false" required aria-describedby="h-email">
+          <button class="verify__btn" type="button" data-otp-send>Send code</button>
+        </div>
+        <p class="hint" id="h-email">Company addresses only. We email you a 6-digit code to confirm it.</p>
+        <div class="verify verify--code" data-otp-step hidden>
+          <input id="f-otp" name="otp_code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" aria-label="6-digit verification code" placeholder="6-digit code">
+          <button class="verify__btn" type="button" data-otp-check>Verify</button>
+        </div>
+        <p class="verify__ok" data-otp-ok hidden>Email verified</p>
+        <input type="hidden" name="otp_token" value="">
+      </div>
       <div class="field"><label for="f-phone">Phone <span class="req">required</span></label><input id="f-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required></div>
     </div>
   </fieldset>
@@ -663,7 +676,7 @@ function contactCard(d) {
   return `<aside class="qside">
     <h2 class="eyebrow">Contact</h2>
     <ul class="qside__list">
-      <li>${phoneLink(d)}</li>
+      ${isTodo(d.config.contact.phone) ? '' : `<li>${phoneLink(d)}</li>`}
       <li>${emailLink(d)}</li>
       ${wa ? `<li><a href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a></li>` : ''}
       <li>${addressHTML(d)}</li>
@@ -681,6 +694,7 @@ const PARTIALS = {
   thicknessScale: (d) => thicknessScale(d),
   process: (d) => process(d),
   capacity: (d) => capacity(d),
+  machines: (d) => d.company.machines.map((m) => `<li><span class="keylines__k">${esc(m.name)}</span>${m.text ? `<span>${esc(m.text)}</span>` : ''}</li>`).join(''),
   quality: (d) => quality(d),
   customers: (d) => customers(d),
   about: (d) => `<p class="statement" data-words>${esc(d.company.about)}</p>`,

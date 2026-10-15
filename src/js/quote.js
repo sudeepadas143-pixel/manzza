@@ -3,6 +3,7 @@
  * endpoint configured in site.config.js (quoteForm.endpoint), success state.
  */
 import './main.js';
+import { businessEmailError } from '../lib/email-policy.js';
 
 const form = document.getElementById('quote-form');
 const done = document.getElementById('quote-done');
@@ -15,6 +16,7 @@ if (form) {
   const drop = form.querySelector('.drop');
   const endpoint = form.dataset.endpoint;
   const maxBytes = (Number(form.dataset.maxMb) || 10) * 1024 * 1024;
+  const otpEndpoint = form.dataset.otp;
 
   // Pre-select product from ?product=slug (product pages link here)
   const pre = new URLSearchParams(location.search).get('product');
@@ -66,6 +68,11 @@ if (form) {
       return ok;
     }
     const el = els[0];
+    if (name === 'email') {
+      const bad = businessEmailError(el.value);
+      setError(name, bad);
+      return !bad;
+    }
     let ok = el.checkValidity() && !(el.required && !el.value.trim());
     if (ok && el.type === 'tel') ok = (el.value.match(/\d/g) || []).length >= 7;
     setError(name, ok ? '' : messages[name] || 'Please check this field.');
@@ -104,6 +111,63 @@ if (form) {
     if (e.dataTransfer?.files?.length) { fileInput.files = e.dataTransfer.files; showFile(); }
   });
 
+  // ---- business email verification (one-time code by email)
+  const emailEl = form.querySelector('#f-email');
+  const sendBtn = form.querySelector('[data-otp-send]');
+  const step = form.querySelector('[data-otp-step]');
+  const codeEl = form.querySelector('#f-otp');
+  const checkBtn = form.querySelector('[data-otp-check]');
+  const okNote = form.querySelector('[data-otp-ok]');
+  const tokenEl = form.querySelector('[name="otp_token"]');
+  let verifiedFor = '';
+  const isVerified = () => !otpEndpoint || (verifiedFor && verifiedFor === emailEl.value.trim().toLowerCase());
+  const setBusy = (btn, busy, label) => { btn.disabled = busy; btn.textContent = label; };
+
+  async function post(body) {
+    const res = await fetch(otpEndpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok || !out.ok) throw new Error(out.error || 'Something went wrong. Please try again.');
+    return out;
+  }
+
+  if (!otpEndpoint) { sendBtn.hidden = true; }
+  sendBtn.addEventListener('click', async () => {
+    if (!validateField('email')) { emailEl.focus(); return; }
+    setBusy(sendBtn, true, 'Sending…');
+    try {
+      const out = await post({ email: emailEl.value });
+      tokenEl.value = out.token;
+      step.hidden = false;
+      codeEl.value = '';
+      codeEl.focus();
+      setError('email', '');
+      setBusy(sendBtn, false, 'Resend code');
+    } catch (err) {
+      setError('email', err.message);
+      setBusy(sendBtn, false, 'Send code');
+    }
+  });
+  checkBtn.addEventListener('click', async () => {
+    if (!/^\d{6}$/.test(codeEl.value.trim())) { setError('email', 'Enter the 6-digit code from the email.'); codeEl.focus(); return; }
+    setBusy(checkBtn, true, 'Checking…');
+    try {
+      await post({ email: emailEl.value, token: tokenEl.value, code: codeEl.value });
+      verifiedFor = emailEl.value.trim().toLowerCase();
+      step.hidden = true;
+      okNote.hidden = false;
+      sendBtn.hidden = true;
+      setError('email', '');
+    } catch (err) {
+      setError('email', err.message);
+    } finally { setBusy(checkBtn, false, 'Verify'); }
+  });
+  codeEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); checkBtn.click(); } });
+  emailEl.addEventListener('input', () => {
+    if (verifiedFor && emailEl.value.trim().toLowerCase() !== verifiedFor) {
+      verifiedFor = ''; okNote.hidden = true; sendBtn.hidden = !otpEndpoint; setBusy(sendBtn, false, 'Send code'); tokenEl.value = '';
+    }
+  });
+
   function say(msg, kind = 'info') {
     status.textContent = msg;
     status.dataset.kind = kind;
@@ -121,6 +185,13 @@ if (form) {
       return;
     }
 
+    if (!isVerified()) {
+      setError('email', 'Please verify your email address: press Send code and enter the code we email you.');
+      say('Please verify your business email before sending.', 'error');
+      emailEl.focus();
+      return;
+    }
+
     // Honeypot: bots fill every field. Pretend success, send nothing.
     if (form.querySelector('[name="company_website"]').value) { showDone(); return; }
 
@@ -135,7 +206,7 @@ if (form) {
         console.info('[quote] No endpoint configured (site.config.js → quoteForm.endpoint). Simulating success locally.', Object.fromEntries(data));
         showDone();
       } else {
-        say('Online submission is not connected yet. Please call, email or WhatsApp us using the details on this page.', 'error');
+        say('Online submission is not connected yet. Please email us using the address on this page.', 'error');
       }
       return;
     }
@@ -149,7 +220,7 @@ if (form) {
       showDone();
     } catch (err) {
       console.warn('[quote] submit failed', err);
-      say('Sorry, your request could not be sent. Please try again, or contact us by phone, email or WhatsApp.', 'error');
+      say('Sorry, your request could not be sent. Please try again, or email us.', 'error');
     } finally {
       submitBtn.disabled = false;
       submitBtn.classList.remove('is-busy');
@@ -166,6 +237,7 @@ if (form) {
 
   done.querySelector('[data-again]')?.addEventListener('click', () => {
     form.reset();
+    verifiedFor = ''; okNote.hidden = true; step.hidden = true; sendBtn.hidden = !otpEndpoint; setBusy(sendBtn, false, 'Send code');
     showFile();
     say('');
     done.hidden = true;

@@ -8,9 +8,15 @@
  *   QUOTE_TO_EMAIL    – where enquiries go, e.g. sales@yourdomain.in
  *   QUOTE_FROM_EMAIL  – a sender on a domain verified in Resend,
  *                       e.g. "MANZZA website <website@yourdomain.in>"
+ *   OTP_SECRET        – any long random string; signs the email verification codes
+ *
+ * Every enquiry must carry a verified business email (see api/otp.js).
  *
  * Vercel limits request bodies to about 4.5 MB, so keep quoteForm.maxFileMB at 4.
  */
+
+import { businessEmailError } from '../src/lib/email-policy.js';
+import { check } from './_otp.js';
 
 const FIELDS = [
   ['company', 'Company'],
@@ -32,8 +38,8 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
 export async function POST(request) {
-  const { RESEND_API_KEY, QUOTE_TO_EMAIL, QUOTE_FROM_EMAIL } = process.env;
-  if (!RESEND_API_KEY || !QUOTE_TO_EMAIL || !QUOTE_FROM_EMAIL) return json(500, { ok: false, error: 'Email is not configured' });
+  const { RESEND_API_KEY, QUOTE_TO_EMAIL, QUOTE_FROM_EMAIL, OTP_SECRET } = process.env;
+  if (!RESEND_API_KEY || !QUOTE_TO_EMAIL || !QUOTE_FROM_EMAIL || !OTP_SECRET) return json(500, { ok: false, error: 'Email is not configured' });
 
   let form;
   try { form = await request.formData(); } catch { return json(400, { ok: false, error: 'Bad form data' }); }
@@ -44,8 +50,10 @@ export async function POST(request) {
   for (const k of ['company', 'contact_person', 'email', 'phone', 'product', 'material', 'quantity']) {
     if (!String(form.get(k) || '').trim()) return json(422, { ok: false, error: `Missing ${k}` });
   }
-  const email = String(form.get('email'));
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(422, { ok: false, error: 'Invalid email' });
+  const email = String(form.get('email')).trim().toLowerCase();
+  const bad = businessEmailError(email);
+  if (bad) return json(422, { ok: false, error: bad });
+  if (!check(OTP_SECRET, email, form.get('otp_token'), form.get('otp_code'))) return json(403, { ok: false, error: 'Please verify your email address first.' });
 
   const rows = FIELDS.map(([k, label]) => {
     const v = String(form.get(k) || '').trim();

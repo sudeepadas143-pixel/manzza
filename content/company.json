@@ -87,6 +87,20 @@
     "notFound": {
       "title": "Page not found | MANZZA",
       "description": "The page you were looking for is not here."
+    },
+    "plant": {
+      "title": "Plant and Machinery | Transformer Laminations | MANZZA, Bengaluru",
+      "description": "MANZZA's Bengaluru plant: a fully automatic CNC step-lap lamination line and a cut-to-length machine, with a production capacity of 200 tonnes per month."
     }
-  }
+  },
+  "machines": [
+    {
+      "name": "Fully automatic CNC step-lap lamination line",
+      "text": ""
+    },
+    {
+      "name": "Cut-to-length machine",
+      "text": ""
+    }
+  ]
 }

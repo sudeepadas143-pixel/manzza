@@ -9,6 +9,7 @@ const root = path.resolve(import.meta.dirname);
 const PAGES = {
   home: 'index.html',
   materials: 'materials/index.html',
+  plant: 'plant/index.html',
   quote: 'quote/index.html',
   'mitre-core': 'products/mitre-core/index.html',
   'ei-laminations': 'products/ei-laminations/index.html',
@@ -16,7 +17,7 @@ const PAGES = {
   notFound: '404.html',
 };
 
-const ROUTES = ['/', '/products/mitre-core', '/products/ei-laminations', '/products/strip-laminations', '/materials', '/quote'];
+const ROUTES = ['/', '/products/mitre-core', '/products/ei-laminations', '/products/strip-laminations', '/materials', '/plant', '/quote'];
 
 /** Serve /materials as /materials/ locally, like Vercel's cleanUrls does in production. */
 function cleanUrls(baseDir) {
