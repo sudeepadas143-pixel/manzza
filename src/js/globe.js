@@ -10,20 +10,18 @@
  * render at <=1.5x without MSAA; the page's backdrops wait for the globe; reduced
  * motion gets a still frame that cross-fades instead of a camera flight.
  *
- * Pacing: one continuous move. Distance is eased in log space, so the zoom
- * reads at a constant perceived speed instead of lurching at the end; the turn
- * finishes early (by 70%) so the last stretch is a straight push-in. The clock
- * slows into two lingering moments, India lit up and Bengaluru pinned, then
- * picks up again: the flight never stops, it eases into slow motion (TIME).
+ * Pacing: one camera path in four beats, glide to India, drift, glide to
+ * Bengaluru, drift, then dissolve. Each channel (turn, zoom, tilt) is a cubic
+ * Hermite track through timed keys whose slopes match on both sides, so speed
+ * changes are always continuous: the camera never stops dead or jolts, it
+ * settles into a slow drift over India and over the pinned city, and flows out
+ * again. Zoom is in log space, so it reads at a constant perceived speed.
  */
 import * as THREE from 'three';
 
-const DURATION = 2600; // the flight at full speed; the lingers add to it (LINGER)
-// Slow-motion moments as [film position, half-width, extra ms]: India fully lit
-// with its states drawn, then Bengaluru risen and pinned, just before the exit.
-const LINGER = [[0.47, 0.06, 700], [0.79, 0.05, 800]];
 const BLR = [12.9716, 77.5946];
 const START = [14, 38];
+const INDIA = [22.5, 79.5]; // the country's middle: the India beat is framed on it
 
 /** cubic-bezier(x1, y1, x2, y2) as a function of t, like CSS. */
 function bezier(x1, y1, x2, y2) {
@@ -46,27 +44,32 @@ const easeOut = bezier(0.16, 1, 0.3, 1);
 const seg = (p, a, b) => Math.min(1, Math.max(0, (p - a) / (b - a)));
 
 /**
- * Wall-clock → film position. Time per unit of film is DURATION plus a raised-cosine
- * bump per linger (each adds its extra ms), so speed eases down and back up with no
- * corner. Tabulated once, then inverted by lookup.
+ * A timed track: cubic Hermite through [ms, value, slope per ms] keys. Equal slopes
+ * either side of a key keep the motion's speed continuous through it.
  */
-const TIME = (() => {
-  const N = 2000, T = new Float64Array(N + 1);
-  const rate = (p) => DURATION * (1 + LINGER.reduce((a, [c, h, ms]) => {
-    const x = (p - c) / h;
-    return Math.abs(x) >= 1 ? a : a + (ms / (DURATION * h)) * 0.5 * (1 + Math.cos(Math.PI * x));
-  }, 0));
-  for (let i = 1; i <= N; i++) T[i] = T[i - 1] + rate((i - 0.5) / N) / N;
-  const total = T[N];
-  const at = (ms) => {
-    if (ms <= 0) return 0;
-    if (ms >= total) return 1;
-    let lo = 0, hi = N;
-    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (T[mid] <= ms) lo = mid; else hi = mid; }
-    return (lo + (ms - T[lo]) / (T[hi] - T[lo])) / N;
+function track(keys) {
+  return (t) => {
+    if (t <= keys[0][0]) return keys[0][1];
+    for (let i = 1; i < keys.length; i++) {
+      const [t1, v1, m1] = keys[i];
+      if (t > t1) continue;
+      const [t0, v0, m0] = keys[i - 1];
+      const h = t1 - t0, s = (t - t0) / h, s2 = s * s, s3 = s2 * s;
+      return (2 * s3 - 3 * s2 + 1) * v0 + (s3 - 2 * s2 + s) * h * m0 + (-2 * s3 + 3 * s2) * v1 + (s3 - s2) * h * m1;
+    }
+    return keys[keys.length - 1][1];
   };
-  return { total, at };
-})();
+}
+const span = (t, a, b) => Math.min(1, Math.max(0, (t - a) / (b - a)));
+
+// The beats (ms): glide to India, drift over India, glide to Bengaluru, drift over the pinned city, dissolve.
+const BEAT = { india: 1250, leave: 2050, city: 3050, out: 3600, end: 4100 };
+// turn to India (0..1, drifting on through its beat), then on from India to Bengaluru
+// (0..1; its starting slope carries the same angular speed, see globe()); log-space
+// zoom (0 = whole globe, 1 = the city); tilt across the surface for the last stretch
+const TO_INDIA = track([[0, 0, 0], [BEAT.india, 0.94, 7.5e-5], [BEAT.leave, 1, 7.5e-5]]);
+const ZOOM = track([[0, 0, 0], [BEAT.india, 0.38, 8e-5], [BEAT.leave, 0.444, 8e-5], [BEAT.city, 0.95, 5e-5], [BEAT.end, 1, 5e-5]]);
+const TILT = track([[0, 0, 0], [BEAT.leave, 0, 0], [BEAT.city, 0.9, 1e-4], [BEAT.end, 1, 0]]);
 
 /** lat/lon (deg) -> unit vector; lon 0 faces +z, north is +y. */
 function dir(lat, lon, out = new THREE.Vector3()) {
@@ -308,9 +311,14 @@ export async function playGlobe() {
     addEventListener('resize', onResize);
 
     const startDir = dir(...START);
-    const q0 = new THREE.Quaternion();
-    const q1 = new THREE.Quaternion().setFromUnitVectors(startDir, blr);
-    const qa = new THREE.Quaternion();
+    const indiaDir = dir(...INDIA);
+    const qI = new THREE.Quaternion().setFromUnitVectors(startDir, indiaDir);
+    const qB = new THREE.Quaternion().setFromUnitVectors(indiaDir, blr);
+    const qa = new THREE.Quaternion(), qId = new THREE.Quaternion();
+    // India → Bengaluru starts at the angular speed the India drift ends with
+    const a1 = startDir.angleTo(indiaDir), a2 = indiaDir.angleTo(blr);
+    const TO_CITY = track([[BEAT.leave, 0, 7.5e-5 * a1 / a2], [2900, 1, 0], [BEAT.end, 1, 0]]);
+    const aim = new THREE.Vector3();
     const camDir = new THREE.Vector3();
     // start far enough that the whole globe (plus rim) fits the narrower screen side
     const halfFov = Math.tan((camera.fov * Math.PI) / 360);
@@ -323,77 +331,81 @@ export async function playGlobe() {
     const target = new THREE.Vector3();
 
     const t0 = performance.now();
-    // any input skips: the flight continues from the current frame and finishes in 260 ms
-    const SKIP = 260;
-    let skipAt = 0, skipFrom = 0, lastP = 0;
-    const skip = () => { if (!skipAt) { skipAt = performance.now(); skipFrom = lastP; } };
+    // Any input skips: the film's own clock speeds up (smoothly, to 9x), so it
+    // finishes in a few hundred ms from wherever it is, along the same path.
+    let skipAt = 0, vt = 0, lastNow = 0, rate = 1;
+    const skip = () => { if (!skipAt) skipAt = performance.now(); };
     const skipEvents = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
     skipEvents.forEach((ev) => addEventListener(ev, skip, { passive: true }));
-    // reduced motion: hold one still frame over Bengaluru, then cross-fade (no camera flight)
-    const STILL = 0.82;
+    // reduced motion: hold one still frame over the pinned city, then cross-fade (no camera flight)
+    const STILL = BEAT.city + 250;
     await new Promise((resolve) => {
       const frame = (now) => {
         // window.__globeP (0..1) freezes the film at a point: used for frame review
         const held = typeof window.__globeP === 'number';
-        let p;
-        if (held) p = window.__globeP;
-        else if (reduced) p = STILL;
-        else if (skipAt) p = skipFrom + (1 - skipFrom) * easeOut(Math.min(1, (now - skipAt) / SKIP));
-        else p = TIME.at(now - t0);
-        lastP = p;
-        // turn toward Bengaluru, settled by 70% so the end is a straight push
-        qa.slerpQuaternions(q0, q1, easeInOut(seg(p, 0, 0.7)));
+        const dt = lastNow ? Math.min(100, now - lastNow) : 0;
+        lastNow = now;
+        if (skipAt) rate += (9 - rate) * Math.min(1, dt / 90);
+        vt += dt * rate;
+        const t = held ? window.__globeP * BEAT.end : reduced ? STILL : Math.min(BEAT.end, vt);
+
+        // camera direction: start → over India → over Bengaluru, one continuous turn
+        const ti = Math.min(1, TO_INDIA(t)), tc = t > BEAT.leave ? Math.min(1, TO_CITY(t)) : 0;
+        qa.slerpQuaternions(qId, qI, ti);
         camDir.copy(startDir).applyQuaternion(qa);
-        // constant perceived zoom: ease the distance in log space
-        const z = easeInOut(seg(p, 0.02, 1));
-        const dist = Math.exp(Math.log(far) + (Math.log(near) - Math.log(far)) * z);
-        const tilt = easeInOut(seg(p, 0.55, 1));
+        if (tc > 0) camDir.applyQuaternion(qa.slerpQuaternions(qId, qB, tc));
+        aim.copy(indiaDir);
+        if (tc > 0) aim.applyQuaternion(qa); // qa now holds the India → city part of the turn
+        const dist = Math.exp(Math.log(far) + (Math.log(near) - Math.log(far)) * Math.min(1, ZOOM(t)));
+        const tilt = Math.min(1, TILT(t));
         camera.position.copy(camDir).multiplyScalar(dist).addScaledVector(south, (dist - 1) * 0.75 * tilt);
-        // aim moves from the globe's centre onto the city in step with the turn, so the city stays centred
-        target.copy(blr).multiplyScalar(easeInOut(seg(p, 0, 0.7)));
+        // the aim moves from the globe's centre onto India, then onto the city with the turn
+        target.copy(aim).multiplyScalar(ti);
         camera.up.copy(north);
         camera.lookAt(target);
 
-        const fadeIn = reduced ? 1 : easeOut(seg(p, 0, 0.14));
-        // leaving: ease-out, and the veil pushes in a touch so the crossfade reads as one forward move
-        const out = reduced ? easeOut(Math.min(1, Math.max(0, (now - t0 - 1700) / 600))) : easeOut(seg(p, 0.84, 1));
+        const fadeIn = reduced ? 1 : easeOut(span(t, 0, 380));
+        // leaving: the veil dissolves while the camera is still drifting, pushing in a touch
+        const out = reduced ? easeOut(Math.min(1, Math.max(0, (now - t0 - 1700) / 600))) : easeOut(span(t, BEAT.out, BEAT.end));
         const fadeOut = 1 - out;
-        canvas.style.transform = out > 0 ? `scale(${1 + out * 0.06})` : '';
+        canvas.style.transform = out > 0 ? `scale(${1 + out * 0.05})` : '';
         uniforms.uFade.value = fadeIn;
-        rimU.uFade.value = fadeIn * (1 - seg(p, 0.55, 0.85));
-        uniforms.uIndia.value = easeInOut(seg(p, 0.16, 0.46));
-        stateMat.opacity = 0.32 * easeInOut(seg(p, 0.3, 0.55)) * (1 - 0.5 * seg(p, 0.75, 0.95));
-        indiaWall.uOpacity.value = easeInOut(seg(p, 0.22, 0.48));
-        kaWall.uOpacity.value = easeInOut(seg(p, 0.42, 0.66));
-        // Bengaluru: the boundary rises out of the ground, then fills
-        const rise = easeOut(seg(p, 0.58, 0.85));
-        blrWall.uOpacity.value = easeOut(seg(p, 0.56, 0.68));
+        // the atmosphere's rim fades as we come down close to the surface
+        rimU.uFade.value = fadeIn * (1 - easeInOut(span(t, 1500, 2600)));
+        // India lights up on the way in; its border and states settle in before the drift
+        uniforms.uIndia.value = easeInOut(span(t, 380, 1150));
+        indiaWall.uOpacity.value = easeInOut(span(t, 550, 1250));
+        stateMat.opacity = 0.32 * easeInOut(span(t, 800, 1450)) * (1 - 0.5 * easeInOut(span(t, 2300, 3000)));
+        kaWall.uOpacity.value = easeInOut(span(t, 1850, 2550));
+        // Bengaluru: the boundary rises out of the ground as we arrive, then fills
+        const rise = easeOut(span(t, 2450, 3100));
+        blrWall.uOpacity.value = easeOut(span(t, 2400, 2750));
         blrWall.uH.value = 0.0045 * rise;
         blrCapU.uH.value = 0.0045 * rise;
-        blrCapU.uOpacity.value = 0.45 * easeOut(seg(p, 0.66, 0.86));
-        // marker size tracks the camera so it reads the same on screen
+        blrCapU.uOpacity.value = 0.45 * easeOut(span(t, 2700, 3200));
+        // a slow, soft ring breathing out from the city (the pin marks the place)
         const s = (dist - 1) * 0.008;
         core.scale.setScalar(s);
-        core.material.opacity = 0; // the city's own boundary marks the place
-        const r = seg(p, 0.66, 0.97);
+        core.material.opacity = 0;
+        const r = span(t, 2750, 3900);
         ring.scale.setScalar(s * (3.2 + easeOut(r) * 6));
-        ring.material.opacity = r > 0 ? (1 - r) * 0.35 : 0; // softer: the pin marks the place
-        // the pin drops onto the city once its boundary has risen; the label follows
-        const drop = easeOut(seg(p, 0.66, 0.74));
-        const label = easeOut(seg(p, 0.7, 0.78));
+        ring.material.opacity = r > 0 ? Math.sin(Math.PI * r) * 0.3 : 0;
+        // the pin settles onto the city as its boundary finishes rising; the label follows
+        const drop = easeOut(span(t, 2850, 3250));
+        const label = easeOut(span(t, 3000, 3450));
         if (drop > 0) {
           pinScreen.copy(pinAt).project(camera);
           const x = (pinScreen.x * 0.5 + 0.5) * innerWidth, y = (-pinScreen.y * 0.5 + 0.5) * innerHeight;
-          pin.style.transform = `translate3d(${x.toFixed(1)}px, ${(y - (1 - drop) * 18).toFixed(1)}px, 0)`;
+          pin.style.transform = `translate3d(${x.toFixed(1)}px, ${(y - (1 - drop) * 12).toFixed(1)}px, 0)`;
           pin.style.opacity = String(drop);
           pin.style.setProperty('--label', label.toFixed(3));
         } else pin.style.opacity = '0';
         veil.style.opacity = String(fadeOut);
         // the page's text starts rising while the veil dissolves
-        if ((p >= 0.88 || out > 0.3) && window.__revealGo) { window.__revealGo(); window.__revealGo = null; }
+        if ((t >= BEAT.out + 150 || out > 0.3) && window.__revealGo) { window.__revealGo(); window.__revealGo = null; }
 
         renderer.render(scene, camera);
-        const finished = reduced ? out >= 1 : p >= 1;
+        const finished = reduced ? out >= 1 : t >= BEAT.end;
         if (!finished || held) requestAnimationFrame(frame); else resolve();
       };
       requestAnimationFrame(frame);
