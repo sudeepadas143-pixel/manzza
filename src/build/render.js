@@ -199,7 +199,20 @@ function head(d, a) {
     ...(isTodo(c.contact.phone) ? {} : { telephone: c.contact.phone }),
     ...(isTodo(c.contact.email) ? {} : { email: c.contact.email }),
   };
+  org['@id'] = base ? `${base}/#organization` : undefined;
+  if (!isTodo(c.contact.email)) org.contactPoint = { '@type': 'ContactPoint', contactType: 'sales', email: c.contact.email, areaServed: 'IN', availableLanguage: ['en'] };
   const ld = [org];
+  if (a.page === 'home' && base) {
+    ld.push({ '@context': 'https://schema.org', '@type': 'WebSite', name: c.company.legalName, url: `${base}/`, publisher: { '@id': `${base}/#organization` }, inLanguage: 'en-IN' });
+  }
+  // inner pages: Home > Page breadcrumbs (product pages add theirs below)
+  const crumbName = { materials: 'Materials', plant: 'Plant', about: 'About', quote: 'Request a quote' }[a.page];
+  if (crumbName && base) {
+    ld.push({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: abs('/') },
+      { '@type': 'ListItem', position: 2, name: crumbName, item: abs(pathName) },
+    ] });
+  }
   if (a.product) {
     const p = d.products.find((x) => x.slug === a.product);
     ld.push({
@@ -231,6 +244,10 @@ function head(d, a) {
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="MANZZA – Engineered for Power">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${esc(title)}">
+  <meta name="twitter:description" content="${esc(description)}">
+  <meta name="twitter:image" content="${esc(abs('/brand/og-image.png'))}">
+  <meta name="twitter:image:alt" content="MANZZA – Engineered for Power">
   <link rel="icon" href="/favicon.ico" sizes="32x32">
   <link rel="icon" href="/favicon.png" type="image/png">
   <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
