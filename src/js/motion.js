@@ -110,17 +110,30 @@ function counters() {
 export function initMotion() {
   const root = document.documentElement;
   if (reduced || root.classList.contains('capture')) { root.classList.remove('motion-pending'); return; }
+  // Arriving by link runs the cross-page fade (@view-transition). Revealing during it
+  // shows the animation in the fade's snapshot, then again on the live page: the
+  // "pops twice". Keep the text hidden until the fade is done, then reveal once.
+  const fade = window.__vtDone;
+  if (fade) {
+    Promise.race([fade.catch(() => {}), new Promise((r) => setTimeout(r, 1200))]).then(begin);
+  } else {
+    begin();
+  }
+}
+
+function begin() {
+  const root = document.documentElement;
   // 1. split and mark everything; 2. switch to the hidden state with transitions
   // off (motion-init), so text already on screen does not animate OUT first;
   // 3. next frame, transitions back on and the reveals start. Without step 2 every
   // visible paragraph and rule faded out, then faded back in: a double animation.
-  const start = reveals();
+  const observe = reveals();
   root.classList.add('motion-init', 'motion');
   root.classList.remove('motion-pending');
   void document.body.offsetHeight; // commit the hidden state before transitions return
   requestAnimationFrame(() => requestAnimationFrame(() => {
     root.classList.remove('motion-init');
-    start();
+    observe();
   }));
   statement();
   counters();
