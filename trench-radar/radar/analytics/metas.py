@@ -118,6 +118,11 @@ def meta_launches(launches: list[dict], term_set: set[str], as_of: int, all_wind
     base_rate_h = len(base) / (BASE_S / H)
     sym = Counter((r["symbol"] or "").upper() for r in window)
     first = min((r["created_at"] for r in mine), default=None)
+    hourly = [0] * 12                       # launches per hour, oldest first, for sparklines
+    for r in mine:
+        age_h = int((as_of - r["created_at"]) // H)
+        if 0 <= age_h < 12:
+            hourly[11 - age_h] += 1
     return {
         "mints_6h": [r["mint"] for r in window],
         "mints_all": [r["mint"] for r in mine],
@@ -127,6 +132,7 @@ def meta_launches(launches: list[dict], term_set: set[str], as_of: int, all_wind
         "launch_share_6h": round(len(window) / all_window, 4) if all_window else None,
         "duplicate_symbol_share_6h": round(sum(n for n in sym.values() if n > 1) / len(window), 3) if window else None,
         "first_seen_in_window_h": round((as_of - first) / H, 1) if first else None,
+        "launch_hourly_12h": hourly,
         "creators_known_6h": sum(1 for r in window if r["creator"] and r["creator"] != "unknown"),
     }
 

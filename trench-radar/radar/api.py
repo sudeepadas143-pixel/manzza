@@ -91,6 +91,87 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
                             AND metric IN ('market_score','sol_price_usd','active_median_chg_h24','active_top80_vol_h24')
                             ORDER BY observed_at""", (now() - hours * 3600,))
 
+    @app.get("/api/charts")
+    async def charts(hours: int = 24):
+        """Time series for the dashboard. Bucket size follows the range so bars stay legible."""
+        hours = hours if hours in (6, 24, 72) else 24
+        t = now()
+        step = {6: 300, 24: 900, 72: 3600}[hours]
+        start = t - hours * 3600
+        launches = rows(con, """SELECT (created_at / ?) * ? AS b, COUNT(*) AS n FROM tokens
+                                WHERE source='gt_new_pools' AND created_at > ? AND created_at <= ?
+                                GROUP BY b ORDER BY b""", (step, step, start, t))
+        gstep = max(step, 3600)
+        grads = rows(con, """SELECT (COALESCE(graduated_at, detected_at) / ?) * ? AS b, COUNT(*) AS n
+                             FROM graduations WHERE COALESCE(graduated_at, detected_at) > ? GROUP BY b ORDER BY b""",
+                     (gstep, gstep, start))
+        # when were launches actually being observed? (bars are only meaningful where coverage exists)
+        runs = rows(con, """SELECT (finished_at / ?) * ? AS b, COUNT(*) AS n FROM source_runs
+                            WHERE source='geckoterminal' AND job='new_pools' AND status='ok' AND finished_at > ?
+                            GROUP BY b""", (step, step, start))
+        uptime = {}
+        for r in rows(con, """SELECT source || '/' || job AS k, (finished_at / 3600) * 3600 AS b,
+                                     SUM(status='ok') AS ok, SUM(status IN ('error','unavailable')) AS bad,
+                                     SUM(status='skipped') AS skipped
+                              FROM source_runs WHERE finished_at > ? GROUP BY k, b""", (t - 24 * 3600,)):
+            uptime.setdefault(r["k"], []).append([r["b"], r["ok"], r["bad"], r["skipped"]])
+        market = rows(con, """SELECT observed_at AS t, value FROM market_obs WHERE metric='market_score'
+                              AND value IS NOT NULL AND observed_at > ? ORDER BY observed_at""", (start,))
+        sol = rows(con, """SELECT observed_at AS t, value FROM market_obs WHERE metric='sol_price_usd'
+                           AND observed_at > ? ORDER BY observed_at""", (start,))
+        return {"now": t, "hours": hours, "step_s": step, "graduation_step_s": gstep,
+                "launches": [[r["b"], r["n"]] for r in launches],
+                "observed_buckets": [r["b"] for r in runs],
+                "graduations": [[r["b"], r["n"]] for r in grads],
+                "uptime_1h": uptime, "market_score": [[r["t"], r["value"]] for r in market],
+                "sol_price": [[r["t"], r["value"]] for r in sol[:: max(1, len(sol) // 300)]]}
+
+    @app.get("/api/tokens")
+    async def tokens(limit: int = 60):
+        """Most active tokens right now, from the latest observation per token (last 2h)."""
+        t = now()
+        out = rows(con, """SELECT o.mint, k.name, k.symbol, k.created_at, k.creator, o.observed_at,
+                                  o.vol_h1, o.vol_h24, o.buyers_h1, o.sellers_h1, o.buys_h1, o.sells_h1,
+                                  COALESCE(o.mcap_usd, o.fdv_usd) AS mcap_usd, o.liquidity_usd, o.chg_h1, o.dex,
+                                  (SELECT progress FROM curve_obs c WHERE c.mint=o.mint ORDER BY id DESC LIMIT 1) AS progress,
+                                  (SELECT 1 FROM graduations g WHERE g.mint=o.mint) AS graduated
+                           FROM token_obs o JOIN tokens k ON k.mint=o.mint
+                           WHERE o.id IN (SELECT MAX(id) FROM token_obs WHERE observed_at > ? AND source LIKE 'gt_%'
+                                          GROUP BY mint)
+                           ORDER BY COALESCE(o.vol_h1, 0) DESC LIMIT ?""", (t - 7200, min(limit, 200)))
+        return {"now": t, "tokens": out}
+
+    @app.get("/api/tokens/{mint}")
+    async def token_detail(mint: str, hours: int = 24):
+        t = now()
+        tok = rows(con, "SELECT mint, name, symbol, creator, pool, created_at, first_seen_at, source FROM tokens "
+                        "WHERE mint=?", (mint,))
+        if not tok:
+            raise HTTPException(404, "unknown token")
+        since = t - min(max(hours, 1), 72) * 3600
+        obs = rows(con, """SELECT observed_at, price_usd, COALESCE(mcap_usd, fdv_usd) AS mcap_usd, liquidity_usd,
+                                  vol_h1, vol_h24, buyers_h1, sellers_h1, buys_h1, sells_h1, chg_h1, dex, source
+                           FROM token_obs WHERE mint=? AND observed_at > ? AND source LIKE 'gt_%'
+                           ORDER BY observed_at""", (mint, since))
+        curve = rows(con, """SELECT observed_at, real_sol, progress, complete FROM curve_obs
+                             WHERE mint=? AND observed_at > ? ORDER BY observed_at""", (mint, since))
+        grad = rows(con, "SELECT detected_at, graduated_at, source, pool FROM graduations WHERE mint=?", (mint,))
+        creator = tok[0]["creator"]
+        dep = None
+        if creator and creator != "unknown":
+            dep = {"wallet": creator,
+                   "launches_seen_24h": rows(con, "SELECT COUNT(*) n FROM tokens WHERE creator=? AND created_at > ?",
+                                             (creator, t - 86400))[0]["n"],
+                   "activity": (rows(con, "SELECT sol_balance, recent_tx, observed_at FROM creator_obs WHERE creator=? "
+                                          "ORDER BY id DESC LIMIT 1", (creator,)) or [None])[0]}
+        outcome = rows(con, "SELECT horizon_h, graduated, bucket, ret_end, ret_max, evaluated_at FROM token_outcomes "
+                            "WHERE mint=?", (mint,))
+        boosts = rows(con, "SELECT kind, amount, observed_at FROM attention_obs WHERE mint=? ORDER BY id DESC LIMIT 5",
+                      (mint,))
+        return {"now": t, "token": tok[0], "observations": obs, "curve": curve,
+                "graduation": grad[0] if grad else None, "deployer": dep, "outcomes": outcome,
+                "attention": boosts}
+
     @app.get("/api/sources")
     async def sources():
         return {"freshness": source_freshness(con, now()),
@@ -131,6 +212,16 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
 
         @app.get("/")
         async def index():
-            return FileResponse(Path(WEB) / "index.html")
+            return FileResponse(Path(WEB) / "index.html", headers={"Cache-Control": "no-cache"})
+
+        @app.get("/manifest.webmanifest")
+        async def manifest():
+            return FileResponse(Path(WEB) / "manifest.webmanifest", media_type="application/manifest+json")
+
+        @app.get("/sw.js")
+        async def service_worker():
+            # served from the root so its scope covers the whole app
+            return FileResponse(Path(WEB) / "sw.js", media_type="text/javascript",
+                                headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
 
     return app

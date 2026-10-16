@@ -233,3 +233,21 @@ def test_x_read_budget_is_enforced(tmp_path):
     asyncio.run(c.collect_social(c.Ctx(con, s, http)))
     assert len(calls) == 1          # budget spent: no more paid reads today
     assert ("x_api", "skipped") in {(r["source"], r["status"]) for r in rows(con, "SELECT source, status FROM source_runs")}
+
+
+def test_dashboard_endpoints_serve_real_rows(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from radar.api import create_app
+    s = make_settings(tmp_path)
+    con = connect(s.db_path)
+    build_history(con, now_ts=__import__("time").time().__int__(), hours=6)
+    with TestClient(create_app(s)) as client:
+        ch = client.get("/api/charts?hours=6").json()
+        assert ch["step_s"] == 300 and ch["launches"] and ch["observed_buckets"]
+        toks = client.get("/api/tokens").json()["tokens"]
+        assert toks and all(t["vol_h1"] is not None for t in toks)
+        d = client.get(f"/api/tokens/{toks[0]['mint']}").json()
+        assert d["token"]["mint"] == toks[0]["mint"] and d["observations"]
+        assert client.get("/api/tokens/nope").status_code == 404
+        assert client.get("/manifest.webmanifest").status_code == 200

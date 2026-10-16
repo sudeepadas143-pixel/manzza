@@ -15,6 +15,23 @@ The exe binds to 127.0.0.1 only, so other people can't reach it. It only collect
 running, and gaps show up as lower coverage and confidence on the dashboard. To build it yourself
 on Windows: `pip install -r requirements.txt pyinstaller` and then `pyinstaller TrenchRadar.spec`.
 
+## iPhone (private PWA)
+
+The dashboard is a Progressive Web App: open it in Safari, then **Share → Add to Home Screen**.
+It opens full-screen with a bottom tab bar and respects the notch and home indicator.
+
+Your phone has to reach the machine running TRENCH//RADAR. The exe binds to 127.0.0.1 (the PC
+only) on purpose. To use it from the phone, run from source with `DASHBOARD_HOST=0.0.0.0` and a
+`DASHBOARD_TOKEN`, and connect over a private network such as Tailscale. Never expose it to the
+public internet. Over plain `http://` (anything except localhost or HTTPS) iOS won't register the
+service worker, so there's no offline shell, but everything else works. `tailscale serve` gives
+you HTTPS on your private tailnet if you want the offline shell too.
+
+The service worker caches only the app shell. API data is never cached, so an offline or stale
+dashboard says so instead of showing old numbers as live.
+
+Requires iOS/iPadOS 16+ (uses `dvh`, `inert`, `backdrop-filter`). The interface is dark only.
+
 ## Run it from source
 
 Python 3.12+ (uses `statistics.correlation(method="ranked")`).
