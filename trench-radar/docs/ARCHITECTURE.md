@@ -1,0 +1,104 @@
+# TRENCH//RADAR — architecture and plan
+
+Research tool for deciding *whether* and *when* conditions favour launching a new
+Solana / pump.fun memecoin. It observes, scores and explains. It never launches
+tokens, signs transactions or trades.
+
+## 1. What the reference repositories contributed
+
+| Repo | License | What it is | What we took | What we left |
+|---|---|---|---|---|
+| `Chrisymcsoup/solana-launch-study` | MIT | Python measurement pipeline: launch listener, bonding-curve outcome tracker, causal report, backtest | **Code** (adapted, credited): Anchor discriminator check + `BondingCurve` decoder (reads `complete` before rejecting zero reserves), outcome buckets (dead/weak/alive/migrated), causal "creator prior launches" via sorted-timestamp bisect, drift guard for replayed checkpoints. **Findings** as product rules: 90% of launches die, graduation ≠ profit, look-ahead bias halved a headline effect. | Sniping/exit simulator (trading — out of scope). The WebSocket listener is not ported: it needs a paid WS RPC and only decoded 61–66% of creates. |
+| `DoradoDevs/solana-narrative-scanner` | MIT | TypeScript service: Twitter/Reddit/Telegram/Discord/pump.fun adapters, Postgres + Redis + BullMQ, embeddings, virality score | **Ideas, re-implemented**: logistic velocity mapping with acceleration bonus, unique-author breadth tiers, near-duplicate fingerprinting for spam, bot heuristics, weighted-sum score with printed rationale. | The stack (Postgres + Redis + BullMQ + transformers.js) is heavy for a single-operator tool; tiered magic numbers were replaced by documented thresholds in one file. Its pump.fun adapter calls `frontend-api-v3.pump.fun`, which is behind a Cloudflare challenge from datacenter IPs (verified: HTTP 403). |
+| `TINZY0612/openclaw-x-signal` | MIT | Playwright scraper over a logged-in X session + Binance/CoinGecko/DexScreener cross-checks + Telegram report | **Ideas**: tweet category lexicon (hype/bullish/bearish/panic/shill/news), "social attention must be confirmed by market data" framing, Telegram-sized report parts. | Browser scraping of X with a personal session (fragile, against X ToS, risks the account). We use the official X API v2 instead. |
+| `bitquery/Pump-Fun-API` | none stated (docs only) | GraphQL query catalogue for Bitquery's Solana datasets | **Field names / dataset shapes** for our own query (`DEXTradeByTokens` buy/sell volume, buyers/sellers). No code copied. | Streams/Kafka (paid tier). |
+| `mksglu/claude-context-mode` | Elastic 2.0 | Claude Code plugin: sandboxed execution so large outputs stay out of context | Development practice only (bounded output, summarise-then-read). | Not vendored — ELv2 and unrelated to the runtime. |
+| `kmizu/token-saver-plugin` | none stated | Rust hooks that guard/truncate tool output | Development practice only. | Not vendored. |
+| `egorfedorov/claude-context-optimizer` | MIT | Plugin that tracks wasted reads | Development practice only. | Not vendored. |
+
+## 2. Data sources (verified from this environment on 2026-10-16)
+
+| Source | Key? | Status | Used for |
+|---|---|---|---|
+| GeckoTerminal public API | no | ✅ 200 (429s above ~15 req/min in practice) | New pools across Solana (`new_pools`, 9 pages ≈ last 4 min), pump.fun bonding-curve pools (`dexes/pump-fun`), PumpSwap pools (graduations), per-pool buys/sells/**unique buyers/sellers** in m5…h24 windows, volume, FDV, price change, OHLCV. |
+| Solana JSON-RPC (public or your provider) | optional | ✅ 200 | Bonding-curve account → curve progress, real SOL committed, `complete` flag. Verified: GeckoTerminal's pump-fun pool address *is* the BondingCurve PDA (owner = pump program, discriminator matches). Creator wallet SOL balance / recent tx count. |
+| DexScreener | no | ✅ 200 | Paid "boosts" and token profiles (attention being bought), search. 60 req/min. |
+| DefiLlama | no | ✅ 200 | 30-day daily volume for pump.fun launchpad and PumpSwap — macro regime. |
+| pump.fun frontend API | no | ⚠️ 403 Cloudflare from datacenter IPs | Optional: replies, KOTH. Adapter degrades to "unavailable". |
+| X API v2 (recent search) | **yes**, paid | ⛔ no key here | Posts, authors, follower counts, engagement → meta detection, independent accounts, influential posts, sentiment. |
+| Reddit | optional OAuth | ⚠️ 403 unauthenticated from this IP | Secondary social source. |
+| Bitquery | **yes** | ⛔ no key here | Optional: buy *volume* vs sell *volume* (true net flow in USD). |
+| Anthropic API | **yes** | ⛔ no key here | AI analyst narrative. Deterministic rule-based analyst is the fallback. |
+| Telegram Bot API | **yes** | reachable | Alerts and scheduled reports. |
+
+## 3. Architecture
+
+```
+            ┌───────────── scheduler (asyncio, per-job intervals) ─────────────┐
+            │                                                                   │
+  sources/  geckoterminal  solana_rpc  dexscreener  defillama  x_api  reddit  bitquery  pumpfun
+            │   each returns rows or raises SourceUnavailable; every call is
+            │   recorded in source_runs (status, latency, items, error)
+            ▼
+  collectors.py ── append-only, timestamped observations ──► SQLite (WAL) shared DB
+            │                                                 tokens, token_obs, social_posts,
+            │                                                 market_obs, meta_obs, scores,
+            │                                                 token_outcomes, alerts, reports
+            ▼
+  analytics/  text (terms, sentiment, spam) → metas (detect + acceleration)
+              demand (buyers, flow, curve, graduations per meta)
+              market (regime) · saturation (copycats, decline, concentration)
+              scoring (readiness score, confidence, reasons, risks)
+              backtest (point-in-time replay, outcomes, false positives)
+            ▼
+  analyst.py (Claude or rules) · alerts.py (Telegram, material change) · reports.py
+            ▼
+  api.py (FastAPI JSON) + web/ dashboard (static, no build step)
+```
+
+Design rules:
+
+1. **Observations are append-only and timestamped** (`observed_at` = when *we*
+   saw it, `created_at` = when the chain/post says it happened). Every metric is a
+   function of `as_of`; live scoring is just `as_of = now`. This is what makes the
+   backtest honest.
+2. **Every source can fail.** A failure is recorded and surfaced as stale/
+   unavailable on the dashboard; the score drops the dependent component,
+   renormalises weights, and **lowers confidence** rather than inventing a value.
+3. **No number without provenance.** Score components carry the raw inputs they
+   were computed from, the source, and the freshness of that source.
+4. **Graduation ≠ profit.** Outcomes record both, and backtest reports both.
+5. **Secrets only from environment / `.env`**, never stored in the DB, never
+   returned by the API, redacted from logs and error strings.
+
+## 4. Scoring model (v1, hand-set weights — not fitted)
+
+Per meta (a cluster of name/symbol/post terms):
+
+| Component | Inputs | Weight |
+|---|---|---|
+| Social momentum | mention acceleration (z-score vs prior windows), independent authors, influential posts, sentiment | 0.25 |
+| Demand confirmation | unique buyers, buy/sell balance, real-SOL inflow on curves, curve progress, graduations, volume — for tokens in the meta | 0.35 |
+| Market conditions | launchpad volume trend, graduation rate, new-token survival | 0.15 |
+| Freshness (1 − saturation) | copycat rate, launches-vs-buyers growth, winner concentration, attention decline, meta age | 0.25 |
+
+`score = 100 × Σ wᵢ·cᵢ / Σ wᵢ` over components that have data. Confidence is
+the share of weight with data × a sample-size factor × a freshness factor. A
+meta with confidence < 0.35 is labelled **insufficient data** whatever its score.
+
+Weights are priors. The backtest exists to check them; until it has enough
+resolved outcomes (default ≥ 30 metas-windows per bucket) the dashboard says
+"unvalidated" next to every score.
+
+## 5. Implementation plan (as executed)
+
+1. Shared core: config (env, redaction), SQLite schema + migrations, HTTP client
+   with timeouts/retries/rate-limit, source-run bookkeeping.
+2. Source adapters + collectors (GeckoTerminal, RPC, DexScreener, DefiLlama,
+   X, Reddit, Bitquery, pump.fun) with fixtures for offline tests.
+3. Analytics: text → metas → demand → market → saturation → score.
+4. Outcomes labeller + point-in-time backtest with look-ahead assertions.
+5. Analyst (Claude with evidence-only prompt; rules fallback), reports,
+   Telegram alerts with material-change detection and cooldowns.
+6. FastAPI + dashboard with freshness indicators.
+7. Tests (unit + mocked integrations) and live smoke test against the free sources.

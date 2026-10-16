@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TRENCH//RADAR</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">TRENCH<span>//</span>RADAR</div>
+  <div class="asof" id="asof">loading…</div>
+  <div class="actions">
+    <button id="btn-refresh" type="button">Refresh</button>
+    <button id="btn-report" type="button">Write report</button>
+  </div>
+</header>
+<p class="disclaimer">Research tool. It does not launch tokens or trade. Scores are hand-weighted priors
+  <strong id="validation">(validation status loading)</strong>. ~90% of pump.fun launches die within 30 minutes.</p>
+
+<section aria-labelledby="h-sources">
+  <h2 id="h-sources">Data sources</h2>
+  <div id="sources" class="chips"></div>
+</section>
+
+<section aria-labelledby="h-market">
+  <h2 id="h-market">Market conditions</h2>
+  <div class="market">
+    <div id="market-tiles" class="tiles"></div>
+    <figure class="chart-card">
+      <figcaption>pump.fun launchpad daily volume, last 30 days (DefiLlama)</figcaption>
+      <div id="vol-chart" class="chart" role="img" aria-label="Daily launchpad volume chart"></div>
+    </figure>
+  </div>
+  <ul id="market-notes" class="notes"></ul>
+</section>
+
+<section aria-labelledby="h-metas">
+  <h2 id="h-metas">Emerging metas &amp; launch readiness</h2>
+  <p class="hint">Click a row for evidence. Buyers are per-token unique buyers summed across the meta (a wallet in three tokens counts three times).</p>
+  <div class="table-wrap">
+    <table id="metas">
+      <thead><tr>
+        <th>Meta</th><th>Score</th><th>Conf.</th><th>Verdict</th><th>Hype vs buying</th>
+        <th class="num">Launches 1h / 6h</th><th class="num">Buyers/h</th><th class="num">Buyer share</th>
+        <th class="num">Curve flow 1h</th><th class="num">Saturation</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div id="detail" class="detail" hidden></div>
+</section>
+
+<section aria-labelledby="h-report" class="two">
+  <div>
+    <h2 id="h-report">Analyst</h2>
+    <article id="report" class="report">No report yet. Use “Write report”.</article>
+  </div>
+  <div>
+    <h2>Backtest</h2>
+    <div id="backtest"></div>
+    <h2>Recent alerts</h2>
+    <ul id="alerts" class="alerts"></ul>
+  </div>
+</section>
+<footer>Times are UTC. Data: GeckoTerminal, Solana RPC, DexScreener, DefiLlama, optional X / Reddit / Bitquery.</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>
