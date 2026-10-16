@@ -148,3 +148,25 @@ DefiLlama, with the rules analyst. The social layer is the most expensive additi
    not used as the deployer.
 10. **Out of scope by design:** launching tokens, signing transactions, trading, and
     browser-scraping X with a personal session.
+
+## Free 24/7 server (Oracle Cloud) with phone access
+
+1. Create an Oracle Cloud account (cloud.oracle.com, Free Tier). It asks for a card to verify you;
+   Always Free resources aren't charged.
+2. **Compute → Instances → Create instance.** Image: **Ubuntu 24.04**. Shape: **Ampere
+   VM.Standard.A1.Flex**, 1 OCPU and 6 GB is plenty (marked "Always Free eligible"). Download the SSH key
+   it offers. If it says "out of capacity", try another availability domain or try again later.
+3. Connect: `ssh -i <key-file> ubuntu@<public-ip>` (on Windows, use PowerShell or the cloud console's
+   "Cloud Shell").
+4. Run:
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/sudeepadas143-pixel/manzza/claude/trench-radar/trench-radar/deploy/oracle-setup.sh -o setup.sh
+   bash setup.sh
+   ```
+   It installs the app as a service (it restarts after crashes and reboots), creates a dashboard
+   password, and sets up Tailscale. When it prints a Tailscale login link, open it and sign in.
+5. Install Tailscale on your iPhone and PC and sign in with the same account. Open the `https://…ts.net`
+   address the script printed and enter the password. On iPhone: **Share → Add to Home Screen**.
+
+Nothing is opened to the public internet; only your Tailscale devices can reach the dashboard.
+Re-run `bash setup.sh` at any time to update to the latest version (settings and data are kept).
