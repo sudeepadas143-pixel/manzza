@@ -22,10 +22,16 @@ class SourceUnavailable(Exception):
 
 
 class Pacer:
-    """Minimum spacing between calls to one host (free-tier rate limits)."""
+    """Spacing between calls to one host (free-tier rate limits).
 
-    def __init__(self, min_interval_s: float):
+    Adaptive: a 429 doubles the spacing (up to max_interval_s), and each success eases it back
+    toward the base by 5%. Free limits are shared per IP, so the safe rate differs by network.
+    """
+
+    def __init__(self, min_interval_s: float, max_interval_s: float = 60.0):
+        self.base_interval_s = min_interval_s
         self.min_interval_s = min_interval_s
+        self.max_interval_s = max_interval_s
         self._last = 0.0
         self._lock = asyncio.Lock()
 
@@ -35,6 +41,15 @@ class Pacer:
             if delta < self.min_interval_s:
                 await asyncio.sleep(self.min_interval_s - delta)
             self._last = time.monotonic()
+
+    def penalize(self) -> None:
+        before = self.min_interval_s
+        self.min_interval_s = min(self.max_interval_s, self.min_interval_s * 2)
+        if self.min_interval_s != before:
+            log.info("rate limited: spacing requests %.0fs apart for a while", self.min_interval_s)
+
+    def relax(self) -> None:
+        self.min_interval_s = max(self.base_interval_s, self.min_interval_s * 0.95)
 
 
 PACERS: dict[str, Pacer] = {
@@ -74,13 +89,15 @@ class Http:
                 last_exc = exc
                 await asyncio.sleep(1.5 * (attempt + 1))
                 continue
+            if resp.status_code == 429 and pacer:
+                pacer.penalize()
             if resp.status_code == 429 or resp.status_code >= 500:
                 retry_after = resp.headers.get("retry-after")
-                default = 12.0 * (attempt + 1) if resp.status_code == 429 else 2.0 * (attempt + 1)
+                default = 15.0 * (attempt + 1) if resp.status_code == 429 else 2.0 * (attempt + 1)
                 wait = float(retry_after) if retry_after and retry_after.isdigit() else default
                 last_exc = SourceUnavailable(f"{host} HTTP {resp.status_code}")
                 if attempt < retries:
-                    await asyncio.sleep(min(wait, 30))
+                    await asyncio.sleep(min(wait, 60))
                     continue
                 raise last_exc
             if resp.status_code in (401, 403):
@@ -88,6 +105,8 @@ class Http:
                 raise SourceUnavailable(f"{host} HTTP {resp.status_code}{hint}")
             if resp.status_code >= 400:
                 raise SourceUnavailable(f"{host} HTTP {resp.status_code}: {self.settings.redact(resp.text[:200])}")
+            if pacer:
+                pacer.relax()
             return resp
         raise SourceUnavailable(self.settings.redact(f"{host} unreachable: {last_exc}"))
 
@@ -119,20 +138,49 @@ class RunRecorder:
         self.status, self.error = "skipped", reason
 
 
+def blocked_backoff(con, source: str, job: str, *, after: int = 3, hours: float = 6.0) -> str | None:
+    """For optional sources that refuse this network (HTTP 401/403): once the last `after` runs
+    were all refused, stop asking for `hours`, then try once more. Returns a skip reason or None."""
+    rows = con.execute(
+        "SELECT status, error, started_at FROM source_runs WHERE source=? AND job=? AND status!='skipped' "
+        "ORDER BY started_at DESC LIMIT ?", (source, job, after)).fetchall()
+    if len(rows) < after or not all(r["status"] == "unavailable" and r["error"] and
+                                     ("HTTP 403" in r["error"] or "HTTP 401" in r["error"]) for r in rows):
+        return None
+    if now() - rows[0]["started_at"] >= hours * 3600:
+        return None
+    return f"refused {after} times in a row from this network; retrying {hours:g}h after the last attempt"
+
+
+# Last outcome per source/job, so the console reports changes instead of repeating itself.
+_LAST: dict[tuple[str, str], str] = {}
+
+
 @asynccontextmanager
 async def record_run(con, settings: Settings, source: str, job: str):
     rec = RunRecorder(con, settings, source, job)
     started = now()
     t0 = time.monotonic()
+    key = (source, job)
     try:
         yield rec
     except SourceUnavailable as exc:
         rec.status, rec.error = "unavailable", settings.redact(str(exc))
-        log.warning("%s/%s unavailable: %s", source, job, rec.error)
+        if _LAST.get(key) != f"unavailable:{rec.error}":
+            log.warning("%s/%s unavailable: %s", source, job, rec.error)
     except Exception as exc:  # a bug or schema drift in one source must not stop the others
         rec.status, rec.error = "error", settings.redact(f"{type(exc).__name__}: {exc}")
         log.exception("%s/%s failed", source, job)
     finally:
+        prev = _LAST.get(key)
+        if rec.status == "ok":
+            if prev and not prev.startswith("ok"):
+                log.info("%s/%s recovered: %d items", source, job, rec.items)
+            else:
+                log.info("%s/%s ok: %d items", source, job, rec.items)
+        elif rec.status == "skipped" and prev != f"skipped:{rec.error}":
+            log.info("%s/%s skipped: %s", source, job, rec.error)
+        _LAST[key] = rec.status if rec.status in ("ok", "error") else f"{rec.status}:{rec.error}"
         insert(con, "source_runs", {
             "source": source, "job": job, "started_at": started, "finished_at": now(),
             "status": rec.status, "items": rec.items,

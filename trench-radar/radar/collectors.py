@@ -8,7 +8,7 @@ from .config import Settings
 from .db import insert, now, one, rows
 from .sources import geckoterminal as gt
 from .sources import misc, social, solana_rpc
-from .sources.base import Http, record_run
+from .sources.base import Http, blocked_backoff, record_run
 from .text import fingerprint, is_spam
 
 log = logging.getLogger("radar.collect")
@@ -221,6 +221,9 @@ async def collect_social(ctx: Ctx) -> None:
             run.items = _store_posts(ctx, await social.x_recent_search(
                 ctx.http, ctx.s.x_bearer_token, q, since, max_results=per_call))
     async with record_run(ctx.con, ctx.s, "reddit", "new_posts") as run:
+        if not ctx.s.reddit_client_id and (why := blocked_backoff(ctx.con, "reddit", "new_posts")):
+            run.skip(why + " (set REDDIT_CLIENT_ID/SECRET for OAuth access)")
+            return
         run.items = _store_posts(ctx, await social.reddit_new(
             ctx.http, ctx.s.reddit_client_id, ctx.s.reddit_client_secret, ctx.s.reddit_subreddits))
 
@@ -228,6 +231,9 @@ async def collect_social(ctx: Ctx) -> None:
 async def collect_pumpfun(ctx: Ctx) -> None:
     """Optional enrichment (creator + description). Expect 'unavailable' from datacenters."""
     async with record_run(ctx.con, ctx.s, "pumpfun", "latest_coins") as run:
+        if why := blocked_backoff(ctx.con, "pumpfun", "latest_coins"):
+            run.skip(why)
+            return
         coins = await misc.pumpfun_latest(ctx.http)
         for c in coins:
             if not c.get("mint"):

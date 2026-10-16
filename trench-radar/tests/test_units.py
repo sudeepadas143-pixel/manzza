@@ -104,3 +104,33 @@ def test_parse_x_and_reddit():
                                          "permalink": "/r/solana/a1"}}]}}
     (q,) = parse_reddit_listing(r, "solana")
     assert q["id"] == "reddit:a1" and "meta" in q["text"]
+
+
+def test_pacer_backs_off_on_429_and_eases_back():
+    from radar.sources.base import Pacer
+    p = Pacer(4.0, max_interval_s=30.0)
+    for _ in range(5):
+        p.penalize()
+    assert p.min_interval_s == 30.0
+    for _ in range(200):
+        p.relax()
+    assert p.min_interval_s == 4.0
+
+
+def test_blocked_backoff_only_after_repeated_refusals(settings):
+    from radar.db import connect, insert, now
+    from radar.sources.base import blocked_backoff
+    con = connect(settings.db_path)
+    def run(status, error, ago):
+        t = now() - ago
+        insert(con, "source_runs", {"source": "pumpfun", "job": "latest_coins", "started_at": t,
+                                    "finished_at": t, "status": status, "items": 0, "error": error})
+    run("unavailable", "frontend-api-v3.pump.fun HTTP 403 (Cloudflare challenge)", 900)
+    run("unavailable", "frontend-api-v3.pump.fun HTTP 403 (Cloudflare challenge)", 600)
+    assert blocked_backoff(con, "pumpfun", "latest_coins") is None
+    run("unavailable", "frontend-api-v3.pump.fun HTTP 403 (Cloudflare challenge)", 300)
+    assert blocked_backoff(con, "pumpfun", "latest_coins")
+    run("skipped", "refused", 60)  # skips don't reset or extend the backoff
+    assert blocked_backoff(con, "pumpfun", "latest_coins")
+    run("unavailable", "HTTP 429", 30)  # rate limits are not refusals
+    assert blocked_backoff(con, "pumpfun", "latest_coins") is None
