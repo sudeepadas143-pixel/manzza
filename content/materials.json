@@ -17,15 +17,25 @@
       "code": "CRNO",
       "name": "Cold-Rolled Non-Grain-Oriented electrical steel",
       "thickness": "0.35 mm and 0.50 mm",
-      "grades": "Final grade selection is based on customer specifications and availability",
-      "summary": "Magnetic properties that are less direction-dependent than CRGO.",
-      "detail": "Used in a variety of electrical applications, depending on the design and performance requirements.",
+      "grades": "230 to 360 grade in 0.35 mm; 350 to 1000 grade in 0.50 mm",
+      "summary": "Magnetic properties that are the same in every direction across the sheet, so it performs where the magnetic flux changes direction.",
+      "detail": "Used for E&I laminations in small transformers and chokes. A lower grade number means lower core loss.",
       "thicknessScale": {
         "points": [
           0.35,
           0.5
         ]
-      }
+      },
+      "gradeTable": [
+        {
+          "thickness": "0.35 mm",
+          "grades": "230 to 360"
+        },
+        {
+          "thickness": "0.50 mm",
+          "grades": "350 to 1000"
+        }
+      ]
     }
   ]
 }

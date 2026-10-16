@@ -83,7 +83,12 @@
         },
         {
           "label": "Sizes",
-          "value": "Standard sizes and custom dimensions"
+          "value": "Standard sizes and custom dimensions",
+          "link": {
+            "text": "Standard sizes",
+            "href": "/docs/ei-lamination-standard-sizes.pdf",
+            "title": "E and I lamination standard sizes (PDF, opens in a new window)"
+          }
         },
         {
           "label": "Tooling",

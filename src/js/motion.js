@@ -116,7 +116,7 @@ export function initMotion() {
   // the About globe transition (globe.js) and the cross-page fade both hold the reveal
   const wait = window.__revealAfter || window.__vtDone;
   if (wait) {
-    Promise.race([wait.catch(() => {}), new Promise((r) => setTimeout(r, window.__revealAfter ? 5500 : 1200))]).then(begin);
+    Promise.race([wait.catch(() => {}), new Promise((r) => setTimeout(r, window.__revealAfter ? 6500 : 1200))]).then(begin);
   } else {
     begin();
   }

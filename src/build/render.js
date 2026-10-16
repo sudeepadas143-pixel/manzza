@@ -482,6 +482,94 @@ function quality(d) {
   return `<ul class="rows rows--2">${d.company.quality.map((q) => `<li data-line><h3 class="rows__title">${esc(q.title)}</h3><p>${esc(q.text)}</p></li>`).join('')}</ul>`;
 }
 
+/**
+ * About, as infographics: the approved about text broken into what it says, each
+ * part drawn (coverage from the Bengaluru hub, the range from E&I to mitre core, the
+ * four things MANZZA focuses on, standard and custom work). Every phrase here comes
+ * from company.json's about text or figures approved elsewhere on the site.
+ * Animated by src/js/about-info.js (draw-in on scroll; static under reduced motion).
+ */
+function aboutInfo(d) {
+  const regions = d.config.company.serviceRegions;
+  const cap = String(d.config.capacity.value).match(/(\d+)/)?.[1] || '';
+  // hub-and-spoke: Bengaluru in the middle, the four states around it, a dashed ring beyond
+  const nodes = [[-150, -78], [150, -78], [-150, 78], [150, 78]];
+  const spokes = regions.map((r, i) => {
+    const [x, y] = nodes[i];
+    return `<g class="hub__node" style="--i:${i}" tabindex="0" aria-label="${esc(r)}">
+      <path class="hub__spoke" d="M0 0 L${x * 0.62} ${y * 0.62} L${x} ${y}" pathLength="1"/>
+      <circle class="hub__dot" cx="${x}" cy="${y}" r="7"/>
+      <text class="hub__label" x="${x}" y="${y + (y < 0 ? -18 : 30)}" text-anchor="middle">${esc(r)}</text>
+    </g>`;
+  }).join('');
+  const range = [['ei', 'E&I constructions', 'Conventional'], ['strip', 'Strip laminations', 'Customized'], ['core', 'Mitre-core assemblies', 'Step-lap construction']];
+  const focus = [
+    ['Precision-cut', 'electrical steel laminations', '<path d="M6 30 L30 6 M14 30 L30 14 M22 30 L30 22" /><path d="M4 32 H32" />'],
+    ['Consistent', 'manufacturing', '<path d="M4 26 H32" /><path d="M4 18 H32" /><path d="M4 10 H32" />'],
+    ['Customer-specific', 'specifications', '<rect x="7" y="4" width="22" height="28" rx="2" /><path d="M12 12 H24 M12 18 H24 M12 24 H19" />'],
+    ['Dependable', 'B2B supply', '<path d="M4 22 H22 V10 H4 Z" /><path d="M22 14 H28 L32 19 V22 H22" /><circle cx="10" cy="25" r="3" /><circle cx="27" cy="25" r="3" />'],
+  ];
+  return `<div class="ainfo">
+  <p class="ainfo__lead" data-rise>An Indian manufacturer specializing in electrical steel laminations used in transformer core construction.</p>
+
+  <ul class="ainfo__stats" aria-label="MANZZA at a glance">
+    <li class="astat" data-line><span class="astat__k">Based in</span><span class="astat__v">Bengaluru</span><span class="astat__s">Karnataka, India</span></li>
+    <li class="astat" data-line><span class="astat__k">States served</span><span class="astat__v num" data-count="${regions.length}">${regions.length}</span><span class="astat__s">across South India</span></li>
+    ${cap ? `<li class="astat" data-line><span class="astat__k">Production capacity</span><span class="astat__v num"><span data-count="${cap}">${cap}</span><small> t</small></span><span class="astat__s">metric tonnes per month</span></li>` : ''}
+    <li class="astat" data-line><span class="astat__k">Product families</span><span class="astat__v num" data-count="3">3</span><span class="astat__s">mitre core, E&amp;I, strip</span></li>
+  </ul>
+
+  <div class="ainfo__row ainfo__row--hub">
+    <div class="ainfo__copy">
+      <p class="eyebrow" data-line>Where we serve</p>
+      <h3 class="ainfo__h" data-rise>Transformer manufacturers across Karnataka, Andhra Pradesh, Telangana and Tamil Nadu.</h3>
+      <p class="ainfo__p">With the capability to serve a broader customer base as the business grows.</p>
+    </div>
+    <figure class="hub" data-draw>
+      <svg viewBox="-230 -150 460 300" role="img" aria-label="MANZZA in Bengaluru serves ${esc(regions.join(', '))}">
+        <circle class="hub__ring" r="132" pathLength="1"/>
+        ${spokes}
+        <circle class="hub__pulse" r="16"/>
+        <circle class="hub__core" r="11"/>
+        <text class="hub__city" y="38" text-anchor="middle">Bengaluru</text>
+      </svg>
+      <figcaption class="hub__cap">Dashed ring: a broader customer base as the business grows</figcaption>
+    </figure>
+  </div>
+
+  <div class="ainfo__row ainfo__row--range">
+    <div class="ainfo__copy">
+      <p class="eyebrow" data-line>What we make</p>
+      <h3 class="ainfo__h" data-rise>Different types of transformer laminations, for a range of transformer designs.</h3>
+    </div>
+    <figure class="range" data-draw>
+      <div class="range__track" aria-hidden="true"><span class="range__fill"></span></div>
+      <ol class="range__list">${range.map(([t, name, note], i) => `<li class="range__item" style="--i:${i}"><div class="range__art">${miniSVG(t)}</div><p class="range__name">${esc(name)}</p><p class="range__note">${esc(note)}</p></li>`).join('')}</ol>
+      <figcaption class="range__cap"><span>From conventional E&amp;I constructions</span><span>to advanced mitre-core assemblies using step-lap construction</span></figcaption>
+    </figure>
+  </div>
+
+  <div class="ainfo__row ainfo__row--focus">
+    <div class="ainfo__copy">
+      <p class="eyebrow" data-line>Our focus</p>
+    </div>
+    <ul class="focus" data-draw>${focus.map(([a, b, ico], i) => `<li class="focus__tile" style="--i:${i}"><svg class="focus__ico" viewBox="0 0 36 36" aria-hidden="true">${ico}</svg><p class="focus__a">${a}</p><p class="focus__b">${b}</p></li>`).join('')}</ul>
+  </div>
+
+  <div class="ainfo__row ainfo__row--fit">
+    <div class="ainfo__copy">
+      <p class="eyebrow" data-line>Standard and customized</p>
+      <h3 class="ainfo__h" data-rise>Laminations suited to your</h3>
+    </div>
+    <div class="fit" data-draw>
+      <ul class="fit__in">${['Engineering drawings', 'Core designs', 'Production requirements'].map((t, i) => `<li class="fit__chip" style="--i:${i}">${t}</li>`).join('')}</ul>
+      <svg class="fit__lines" viewBox="0 0 120 120" preserveAspectRatio="none" aria-hidden="true"><path d="M0 20 C60 20 60 60 120 60" pathLength="1"/><path d="M0 60 H120" pathLength="1"/><path d="M0 100 C60 100 60 60 120 60" pathLength="1"/></svg>
+      <p class="fit__out"><span class="fit__out-k">MANZZA</span>Standard and customized requirements</p>
+    </div>
+  </div>
+</div>`;
+}
+
 function customers(d) {
   return `<ul class="index">${d.company.customers.map((c) => `<li data-line><h3 class="index__title">${esc(c.title)}</h3><p class="index__text">${esc(c.text)}</p></li>`).join('')}</ul>`;
 }
@@ -505,7 +593,14 @@ function productPage(d, a) {
   const p = d.products.find((x) => x.slug === a.slug);
   const others = d.products.filter((x) => x.slug !== p.slug);
   const quoteHref = `/quote?product=${p.slug}`;
-  const facts = p.facts.map((f) => `<div class="fact" data-line><dt class="eyebrow">${esc(f.label)}</dt><dd>${esc(f.value)}${f.note ? `<span class="fact__note">${esc(f.note)}</span>` : ''}</dd></div>`).join('');
+  // f.link: one phrase of the value becomes a link (e.g. "Standard sizes" → the size table PDF, new window)
+  const factValue = (f) => {
+    const v = esc(f.value);
+    if (!f.link) return v;
+    const t = esc(f.link.text);
+    return v.replace(t, `<a class="fact__link" href="${esc(f.link.href)}" target="_blank" rel="noopener" title="${esc(f.link.title || '')}">${t}<span class="sr-only"> (PDF, opens in a new window)</span></a>`);
+  };
+  const facts = p.facts.map((f) => `<div class="fact" data-line><dt class="eyebrow">${esc(f.label)}</dt><dd>${factValue(f)}${f.note ? `<span class="fact__note">${esc(f.note)}</span>` : ''}</dd></div>`).join('');
   const diagram = p.diagram ? `
   <section class="section" aria-labelledby="anatomy-h">
     <div class="container">
@@ -602,14 +697,14 @@ function grainFigure() {
   };
   const ang = [0.4, 2.1, 3.9, 5.2, 1.1, 2.8, 4.6, 0.2, 3.3, 5.8, 1.7, 4.1, 0.9, 2.5, 5.5, 3.0, 0.6, 4.9, 2.2, 1.4];
   return `<figure class="grain">
-    <svg viewBox="0 0 640 270" role="img" aria-label="Grain direction: CRGO is aligned with the rolling direction; CRNO has no strongly preferred direction.">
+    <svg viewBox="0 0 640 270" role="img" aria-label="Grain direction: CRGO is aligned with the rolling direction; CRNO has the same magnetic properties in every direction.">
       <defs><marker id="g-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" class="g-head"/></marker></defs>
       <rect x="10" y="20" width="290" height="180" class="g-sheet"/>
       <rect x="340" y="20" width="290" height="180" class="g-sheet"/>
       ${arrows(() => 0, 10)}
       ${arrows((r, c) => ang[r * 5 + c], 340)}
       <text x="10" y="238" class="g-label g-strong">CRGO</text><text x="10" y="258" class="g-label">grain along the rolling direction</text>
-      <text x="340" y="238" class="g-label g-strong">CRNO</text><text x="340" y="258" class="g-label">no strongly preferred direction</text>
+      <text x="340" y="238" class="g-label g-strong">CRNO</text><text x="340" y="258" class="g-label">the same in every direction</text>
     </svg>
   </figure>`;
 }
@@ -736,7 +831,7 @@ const PARTIALS = {
   machines: (d) => d.company.machines.map((m) => `<li><span class="keylines__k">${esc(m.name)}</span>${m.text ? `<span>${esc(m.text)}</span>` : ''}</li>`).join(''),
   quality: (d) => quality(d),
   customers: (d) => customers(d),
-  about: (d) => `<p class="statement" data-words>${esc(d.company.about)}</p>`,
+  about: (d) => aboutInfo(d),
   pill: (d, a) => pill(a.href, a.label),
   photo: (d, a) => photo(d, a),
   materialsDetail: (d) => materialsDetail(d),

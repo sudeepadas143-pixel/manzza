@@ -1,7 +1,7 @@
 /**
  * About transition: a dotted-steel Earth that turns to India and dollies into
  * Bengaluru, then dissolves into the page. Plays on every load of the About page
- * (the head script sets html.globe-intro and window.__revealGo). ~4.1 s; the only
+ * (the head script sets html.globe-intro and window.__revealGo). ~4.7 s; the only
  * text is the city's pin.
  *
  * Motion review (animate / animation-performance / emil-design-eng / apple-design):
@@ -63,13 +63,16 @@ function track(keys) {
 const span = (t, a, b) => Math.min(1, Math.max(0, (t - a) / (b - a)));
 
 // The beats (ms): glide to India, drift over India, glide to Bengaluru, drift over the pinned city, dissolve.
-const BEAT = { india: 1250, leave: 2050, city: 3050, out: 3600, end: 4100 };
+// India → Bengaluru is a long, even glide: the drift either side moves at a third or so
+// of its peak (not a crawl), so it never reads as fast-then-slow; then a longer drift
+// over the pinned city before the dissolve.
+const BEAT = { india: 1250, leave: 2050, city: 3350, out: 4200, end: 4700 };
 // turn to India (0..1, drifting on through its beat), then on from India to Bengaluru
 // (0..1; its starting slope carries the same angular speed, see globe()); log-space
 // zoom (0 = whole globe, 1 = the city); tilt across the surface for the last stretch
 const TO_INDIA = track([[0, 0, 0], [BEAT.india, 0.94, 7.5e-5], [BEAT.leave, 1, 7.5e-5]]);
-const ZOOM = track([[0, 0, 0], [BEAT.india, 0.38, 8e-5], [BEAT.leave, 0.444, 8e-5], [BEAT.city, 0.95, 5e-5], [BEAT.end, 1, 5e-5]]);
-const TILT = track([[0, 0, 0], [BEAT.leave, 0, 0], [BEAT.city, 0.9, 1e-4], [BEAT.end, 1, 0]]);
+const ZOOM = track([[0, 0, 0], [BEAT.india, 0.38, 1.2e-4], [BEAT.leave, 0.476, 1.2e-4], [BEAT.city, 0.9, 1.3e-4], [BEAT.end, 1, 6e-5]]);
+const TILT = track([[0, 0, 0], [BEAT.leave, 0, 0], [BEAT.city, 0.85, 8e-5], [BEAT.end, 1, 0]]);
 
 /** lat/lon (deg) -> unit vector; lon 0 faces +z, north is +y. */
 function dir(lat, lon, out = new THREE.Vector3()) {
@@ -317,7 +320,7 @@ export async function playGlobe() {
     const qa = new THREE.Quaternion(), qId = new THREE.Quaternion();
     // India → Bengaluru starts at the angular speed the India drift ends with
     const a1 = startDir.angleTo(indiaDir), a2 = indiaDir.angleTo(blr);
-    const TO_CITY = track([[BEAT.leave, 0, 7.5e-5 * a1 / a2], [2900, 1, 0], [BEAT.end, 1, 0]]);
+    const TO_CITY = track([[BEAT.leave, 0, 7.5e-5 * a1 / a2], [3250, 1, 0], [BEAT.end, 1, 0]]);
     const aim = new THREE.Vector3();
     const camDir = new THREE.Vector3();
     // start far enough that the whole globe (plus rim) fits the narrower screen side
@@ -371,28 +374,28 @@ export async function playGlobe() {
         canvas.style.transform = out > 0 ? `scale(${1 + out * 0.05})` : '';
         uniforms.uFade.value = fadeIn;
         // the atmosphere's rim fades as we come down close to the surface
-        rimU.uFade.value = fadeIn * (1 - easeInOut(span(t, 1500, 2600)));
+        rimU.uFade.value = fadeIn * (1 - easeInOut(span(t, 1500, 2900)));
         // India lights up on the way in; its border and states settle in before the drift
         uniforms.uIndia.value = easeInOut(span(t, 380, 1150));
         indiaWall.uOpacity.value = easeInOut(span(t, 550, 1250));
-        stateMat.opacity = 0.32 * easeInOut(span(t, 800, 1450)) * (1 - 0.5 * easeInOut(span(t, 2300, 3000)));
-        kaWall.uOpacity.value = easeInOut(span(t, 1850, 2550));
+        stateMat.opacity = 0.32 * easeInOut(span(t, 800, 1450)) * (1 - 0.5 * easeInOut(span(t, 2500, 3300)));
+        kaWall.uOpacity.value = easeInOut(span(t, 1900, 2700));
         // Bengaluru: the boundary rises out of the ground as we arrive, then fills
-        const rise = easeOut(span(t, 2450, 3100));
-        blrWall.uOpacity.value = easeOut(span(t, 2400, 2750));
+        const rise = easeOut(span(t, 2700, 3350));
+        blrWall.uOpacity.value = easeOut(span(t, 2650, 3000));
         blrWall.uH.value = 0.0045 * rise;
         blrCapU.uH.value = 0.0045 * rise;
-        blrCapU.uOpacity.value = 0.45 * easeOut(span(t, 2700, 3200));
+        blrCapU.uOpacity.value = 0.45 * easeOut(span(t, 2950, 3450));
         // a slow, soft ring breathing out from the city (the pin marks the place)
         const s = (dist - 1) * 0.008;
         core.scale.setScalar(s);
         core.material.opacity = 0;
-        const r = span(t, 2750, 3900);
+        const r = span(t, 3000, 4300);
         ring.scale.setScalar(s * (3.2 + easeOut(r) * 6));
         ring.material.opacity = r > 0 ? Math.sin(Math.PI * r) * 0.3 : 0;
         // the pin settles onto the city as its boundary finishes rising; the label follows
-        const drop = easeOut(span(t, 2850, 3250));
-        const label = easeOut(span(t, 3000, 3450));
+        const drop = easeOut(span(t, 3100, 3500));
+        const label = easeOut(span(t, 3250, 3700));
         if (drop > 0) {
           pinScreen.copy(pinAt).project(camera);
           const x = (pinScreen.x * 0.5 + 0.5) * innerWidth, y = (-pinScreen.y * 0.5 + 0.5) * innerHeight;
