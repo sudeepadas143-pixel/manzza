@@ -140,7 +140,9 @@ function photo(d, { id, label, alt, ratio = '4/3' }) {
   const file = ['webp', 'jpg', 'jpeg', 'png'].map((ext) => `${id}.${ext}`).find((f) => fs.existsSync(path.join(dir, f)));
   if (file) {
     const small = file.replace(/\.(\w+)$/, '-640.$1');
-    const srcset = fs.existsSync(path.join(dir, small)) ? ` srcset="/images/${small} 640w, /images/${file} 1280w" sizes="(max-width: 900px) 100vw, 50vw"` : '';
+    const large = file.replace(/\.(\w+)$/, '-1920.$1');
+    const big = fs.existsSync(path.join(dir, large)) ? `, /images/${large} 1920w` : '';
+    const srcset = fs.existsSync(path.join(dir, small)) ? ` srcset="/images/${small} 640w, /images/${file} 1280w${big}" sizes="(max-width: 900px) 100vw, 50vw"` : '';
     return `<figure class="photo" style="aspect-ratio:${ratio}"><img src="/images/${file}"${srcset} alt="${esc(alt || label)}" width="1280" height="${id === 'factory-cnc-line' ? 566 : 960}" loading="lazy" decoding="async"><figcaption>${esc(label)}</figcaption></figure>`;
   }
   return `<figure class="photo photo--slot" style="aspect-ratio:${ratio}" data-photo-slot="${esc(id)}">
