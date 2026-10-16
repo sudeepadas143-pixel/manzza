@@ -18,8 +18,8 @@
       "name": "Cold-Rolled Non-Grain-Oriented electrical steel",
       "thickness": "0.35 mm and 0.50 mm",
       "grades": "230 to 360 grade in 0.35 mm; 350 to 1000 grade in 0.50 mm",
-      "summary": "Magnetic properties that are the same in every direction across the sheet, so it performs where the magnetic flux changes direction.",
-      "detail": "Used for E&I laminations in small transformers and chokes. A lower grade number means lower core loss.",
+      "summary": "Uniform magnetic properties in all directions. Used for E&I laminations in small transformers and chokes.",
+      "detail": "Grade is selected to match the core loss the design requires.",
       "thicknessScale": {
         "points": [
           0.35,

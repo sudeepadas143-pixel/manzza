@@ -704,7 +704,7 @@ function grainFigure() {
       ${arrows(() => 0, 10)}
       ${arrows((r, c) => ang[r * 5 + c], 340)}
       <text x="10" y="238" class="g-label g-strong">CRGO</text><text x="10" y="258" class="g-label">grain along the rolling direction</text>
-      <text x="340" y="238" class="g-label g-strong">CRNO</text><text x="340" y="258" class="g-label">the same in every direction</text>
+      <text x="340" y="238" class="g-label g-strong">CRNO</text><text x="340" y="258" class="g-label">uniform in all directions</text>
     </svg>
   </figure>`;
 }
