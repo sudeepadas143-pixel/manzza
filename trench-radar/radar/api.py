@@ -134,11 +134,14 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
                                   o.vol_h1, o.vol_h24, o.buyers_h1, o.sellers_h1, o.buys_h1, o.sells_h1,
                                   COALESCE(o.mcap_usd, o.fdv_usd) AS mcap_usd, o.liquidity_usd, o.chg_h1, o.dex,
                                   (SELECT progress FROM curve_obs c WHERE c.mint=o.mint ORDER BY id DESC LIMIT 1) AS progress,
-                                  (SELECT 1 FROM graduations g WHERE g.mint=o.mint) AS graduated
+                                  (SELECT 1 FROM graduations g WHERE g.mint=o.mint) AS graduated,
+                                  CASE WHEN k.creator IS NOT NULL AND k.creator != 'unknown' THEN
+                                    (SELECT COUNT(*) FROM tokens d WHERE d.creator=k.creator AND d.created_at > ?) END
+                                    AS deployer_launches_24h
                            FROM token_obs o JOIN tokens k ON k.mint=o.mint
                            WHERE o.id IN (SELECT MAX(id) FROM token_obs WHERE observed_at > ? AND source LIKE 'gt_%'
                                           GROUP BY mint)
-                           ORDER BY COALESCE(o.vol_h1, 0) DESC LIMIT ?""", (t - 7200, min(limit, 200)))
+                           ORDER BY COALESCE(o.vol_h1, 0) DESC LIMIT ?""", (t - 86400, t - 7200, min(limit, 200)))
         return {"now": t, "tokens": out}
 
     @app.get("/api/tokens/{mint}")
@@ -182,6 +185,17 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
     async def latest_report():
         r = rows(con, "SELECT id, created_at, kind, analyst, body FROM reports ORDER BY id DESC LIMIT 1")
         return r[0] if r else None
+
+    @app.get("/api/reports")
+    async def report_list(limit: int = 20):
+        return rows(con, "SELECT id, created_at, kind, analyst FROM reports ORDER BY id DESC LIMIT ?", (min(limit, 100),))
+
+    @app.get("/api/reports/{rid}")
+    async def report_one(rid: int):
+        r = rows(con, "SELECT id, created_at, kind, analyst, body FROM reports WHERE id=?", (rid,))
+        if not r:
+            raise HTTPException(404, "unknown report")
+        return r[0]
 
     @app.post("/api/reports")
     async def new_report(request: Request):

@@ -250,4 +250,6 @@ def test_dashboard_endpoints_serve_real_rows(tmp_path):
         d = client.get(f"/api/tokens/{toks[0]['mint']}").json()
         assert d["token"]["mint"] == toks[0]["mint"] and d["observations"]
         assert client.get("/api/tokens/nope").status_code == 404
+        assert "deployer_launches_24h" in toks[0]
+        assert client.get("/api/reports").json() == [] and client.get("/api/reports/1").status_code == 404
         assert client.get("/manifest.webmanifest").status_code == 200

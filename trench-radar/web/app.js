@@ -1,11 +1,11 @@
-// TRENCH//RADAR client. Token names, posts and URLs come from strangers: every
-// data-derived string goes through esc() before innerHTML.
+// TRENCH//RADAR client. Token names, posts and URLs come from strangers:
+// every data-derived string goes through esc() before reaching innerHTML.
 "use strict";
 
 const { esc, hhmm, dayhm } = Charts;
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const wide = () => matchMedia("(min-width: 820px)").matches;
 
 // ---------------------------------------------------------------- formatting
 const isNum = (v) => typeof v === "number" && Number.isFinite(v);
@@ -17,280 +17,440 @@ const compact = (v, d = 1) => {
 };
 const usd = (v, d = 1) => (isNum(v) ? (v < 0 ? "−$" : "$") + compact(Math.abs(v), d) : "—");
 const pct = (v, d = 0) => (isNum(v) ? nf(v * 100, d) + "%" : "—");
-const signed = (v, d = 1, suffix = "") => (isNum(v) ? (v > 0 ? "+" : v < 0 ? "−" : "") + nf(Math.abs(v), d) + suffix : "—");
-const ago = (s) => (!isNum(s) ? "never" : s < 60 ? "just now" : s < 3600 ? `${Math.round(s / 60)}m ago` : s < 172800 ? `${nf(s / 3600, s < 36000 ? 1 : 0)}h ago` : `${Math.round(s / 86400)}d ago`);
+const signed = (v, d = 1, suf = "") => (isNum(v) ? (v > 0 ? "+" : v < 0 ? "−" : "") + nf(Math.abs(v), d) + suf : "—");
+const ago = (s) => (!isNum(s) ? "never" : s < 60 ? "just now" : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 172800 ? `${nf(s / 3600, s < 36000 ? 1 : 0)}h ago` : `${Math.round(s / 86400)} days ago`);
 const age = (h) => (!isNum(h) ? "—" : h < 1 ? `${Math.max(1, Math.round(h * 60))}m` : h < 48 ? `${nf(h, h < 10 ? 1 : 0)}h` : `${Math.round(h / 24)}d`);
 const nowS = () => Math.floor(Date.now() / 1000);
 const short = (a) => (a && a.length > 12 ? `${a.slice(0, 4)}…${a.slice(-4)}` : a || "—");
+const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
 const VERDICT = {
-  favorable: { tone: "pos", g: "●", label: "Favorable" },
-  mixed: { tone: "warn", g: "▲", label: "Mixed" },
-  unfavorable: { tone: "neg", g: "✕", label: "Unfavorable" },
-  "insufficient data": { tone: "mute", g: "○", label: "Insufficient" },
+  favorable: { tone: "pos", g: "●", label: "Favorable" }, mixed: { tone: "warn", g: "▲", label: "Mixed" },
+  unfavorable: { tone: "neg", g: "✕", label: "Unfavorable" }, "insufficient data": { tone: "mute", g: "○", label: "Insufficient evidence" },
 };
-const chip = (tone, g, label) => `<span class="chip ${tone}"><span class="g" aria-hidden="true">${g}</span>${esc(label)}</span>`;
-const vchip = (v) => { const x = VERDICT[v] || VERDICT["insufficient data"]; return chip(x.tone, x.g, x.label); };
-const meter = (v) => `<span class="meter"><i style="--v:${isNum(v) ? Math.max(0, Math.min(1, v)) : 0}"></i></span>`;
+const vinfo = (v) => VERDICT[v] || VERDICT["insufficient data"];
+const st = (tone, g, label) => `<span class="st ${tone}"><b aria-hidden="true">${g}</b>${esc(label)}</span>`;
+const vst = (v) => { const x = vinfo(v); return st(x.tone, x.g, x.label); };
+const meter = (v, cls = "", thr) => `<span class="meter ${cls}" role="img" aria-label="${isNum(v) ? nf(v, 2) : "no data"}"><i style="width:${isNum(v) ? Math.max(0, Math.min(1, v)) * 100 : 0}%"></i>${isNum(thr) ? `<span class="thr" style="left:${thr * 100}%"></span>` : ""}</span>`;
+const CONF_BAR = 0.35;   // scoring.py: confidence below this is always "insufficient data"
+
+// ---------------------------------------------------------------- display modes
+const Perf = {
+  signals() {
+    const n = navigator, c = n.connection || {}, out = [];
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) out.push("reduced motion is on");
+    if (c.saveData) out.push("Data Saver is on");
+    if (/(^|-)2g|3g/.test(c.effectiveType || "")) out.push(`a ${c.effectiveType} connection`);
+    if (n.deviceMemory && n.deviceMemory <= 4) out.push(`${n.deviceMemory} GB device memory`);
+    if (n.hardwareConcurrency && n.hardwareConcurrency <= 4) out.push(`${n.hardwareConcurrency} CPU threads`);
+    return out;
+  },
+  pref() { try { return localStorage.getItem("radar-perf") || "auto"; } catch (_) { return "auto"; } },
+  resolved() { const p = this.pref(); return p === "auto" ? (this.signals().length ? "low" : "premium") : p; },
+  apply() { document.documentElement.dataset.perf = this.resolved(); },
+  set(p) { try { localStorage.setItem("radar-perf", p); } catch (_) { /* ignore */ } this.apply(); S.sig = null; render(); schedule(); },
+  low() { return this.resolved() === "low"; },
+};
+Perf.apply();
 
 // ---------------------------------------------------------------- api + state
-const S = { ov: null, charts: {}, tokens: null, report: undefined, alerts: null, range: 24, tab: "overview",
-  metaFilter: "all", metaSort: "score", tokSort: "vol", tokQuery: "", error: null, loading: false, lastOk: 0 };
+const S = { ov: null, charts: {}, tokens: null, reports: null, report: null, range: 24, tab: "overview", sel: null,
+  metaFilter: "all", metaSort: "score", tok: { key: "vol_h1", dir: -1, filter: "all", q: "" }, cmp: null, error: null, lastOk: 0, sig: null };
 let token = null;
-try { token = localStorage.getItem("radar-token"); } catch (_) { /* storage may be blocked */ }
+try { token = localStorage.getItem("radar-token"); } catch (_) { /* ignore */ }
 
 async function api(path, opts = {}) {
   const r = await fetch(path, { ...opts, headers: token ? { "x-radar-token": token } : {} });
   if (r.status === 401) { const e = new Error("unauthorized"); e.auth = true; throw e; }
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText || ""}`.trim());
+  if (!r.ok) throw new Error(`the server answered ${r.status}`);
   return r.json();
 }
-
 function toast(msg) {
   const t = $("#toast");
-  t.textContent = msg;
-  t.classList.add("on");
-  clearTimeout(toast.h);
-  toast.h = setTimeout(() => t.classList.remove("on"), 2400);
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("on"), 2600);
 }
 
-// ---------------------------------------------------------------- status: live pill + banner
-function freshnessSummary() {
-  const f = S.ov ? Object.values(S.ov.freshness) : [];
-  const core = f.filter((x) => ["geckoterminal/new_pools", "geckoterminal/refresh", "solana_rpc/bonding_curves"].includes(`${x.source}/${x.job}`));
-  return { all: f, coreBad: core.filter((x) => x.state !== "fresh"), fresh: f.filter((x) => x.state === "fresh").length };
+// ---------------------------------------------------------------- collection status (rail, phone bar, banner)
+function baseline() {
+  const h = S.ov?.context?.history || {};
+  const hrs = Math.max((h.launch_coverage_baseline || 0) * 24, (h.launch_coverage_6h || 0) * 6);
+  return { hrs, ready: (h.launch_coverage_baseline || 0) >= 0.5, label: hrs < 1 ? `${Math.max(1, Math.round(hrs * 60))} min` : `${nf(hrs, 1)}h` };
 }
-
+function liveState() {
+  if (!S.ov) return { cls: S.error ? "err" : "", text: S.error ? "Offline" : "Loading" };
+  const lag = nowS() - S.ov.as_of;
+  const bad = Object.values(S.ov.freshness).filter((x) => ["geckoterminal/new_pools", "geckoterminal/refresh", "solana_rpc/bonding_curves"].includes(`${x.source}/${x.job}`) && x.state !== "fresh");
+  if (S.error) return { cls: "err", text: "Offline", lag, bad };
+  if (lag > 1200 || bad.length) return { cls: "stale", text: "Stale", lag, bad };
+  return { cls: "ok", text: "Collecting", lag, bad };
+}
 function renderStatus() {
-  const live = $("#live"), b = $("#banner");
-  let cls = "", text = "Loading", html = "";
-  if (S.error && !S.ov) { cls = "err"; text = "Offline"; }
-  else if (S.ov) {
-    const lag = nowS() - S.ov.as_of;
-    const { coreBad } = freshnessSummary();
-    if (S.error) { cls = "err"; text = "Offline"; html = banner("neg", "!", `<b>Couldn’t refresh.</b> Showing data from ${esc(hhmm(S.ov.as_of))} (${esc(ago(lag))}). ${esc(S.error)}`); }
-    else if (lag > 1200 || coreBad.length) {
-      cls = "stale"; text = "Stale";
-      html = banner("warn", "▲", `<b>Data is stale.</b> ${coreBad.length ? esc(coreBad.map((x) => `${x.source}/${x.job}: ${x.state}`).join(", ")) + "." : `Last analysis ${esc(ago(lag))}.`} Scores below may lag the market.`);
-    } else { cls = "ok"; text = `Live · ${hhmm(S.ov.as_of)}`; }
-    const h = S.ov.context.history || {};
-    if (!html && isNum(h.launch_coverage_baseline) && h.launch_coverage_baseline < 0.5) {
-      const got = Math.max(h.launch_coverage_baseline * 24, (h.launch_coverage_6h || 0) * 6);
-      const have = got < 1 ? `${Math.max(1, Math.round(got * 60))} min` : `${nf(got, 1)}h`;
-      html = banner("", "○", `<b>Building baseline · ${esc(have)} of ~30h.</b> Verdicts stay <i>insufficient</i> until there is a full day of history to compare against. Live counts below are real.`);
-    }
-  }
-  live.className = `live ${cls}`;
-  live.lastElementChild.textContent = text;
-  b.innerHTML = html;
+  const L = liveState(), b = baseline();
+  const fr = S.ov ? Object.values(S.ov.freshness) : [];
+  $("#railstat").innerHTML = S.ov ? `<div><div class="row1"><span class="dot ${L.cls}"></span>${esc(L.text)}</div>
+      <small>Analysis ${esc(ago(L.lag))}. ${fr.filter((x) => x.state === "fresh").length} of ${fr.length} sources fresh.</small></div>
+    ${b.ready ? "" : `<div><div>Baseline ${esc(b.label)} of ~30h</div><div class="bar" style="margin-top:6px"><i style="width:${Math.min(100, (b.hrs / 30) * 100)}%"></i></div>
+      <small>Calls stay "insufficient evidence" until a full day has been collected.</small></div>`}`
+    : `<div class="row1"><span class="dot ${L.cls}"></span>${esc(L.text)}</div>`;
+  $("#mstat").innerHTML = `<span class="dot ${L.cls}"></span>${S.ov && !b.ready && L.cls === "ok" ? `Baseline ${esc(b.label.replace(" min", "m"))} of 30h` : esc(L.text)}`;
+  let html = "";
+  if (S.ov && S.error) html = `<div class="alert neg" role="status"><div><b>Couldn’t refresh.</b> Showing the analysis from ${esc(hhmm(S.ov.as_of))}. ${esc(cap(S.error))}.</div></div>`;
+  else if (L.cls === "stale") html = `<div class="alert" role="status"><div><b>Data is stale.</b> ${L.bad.length ? esc(L.bad.map((x) => `${x.source}/${x.job} is ${x.state}`).join("; ")) + "." : `The last analysis ran ${esc(ago(L.lag))}.`} Scores may lag the market.</div></div>`;
+  $("#banner").innerHTML = html;
 }
-const banner = (tone, g, body) => `<div class="banner ${tone}" role="status"><span class="ic" aria-hidden="true">${g}</span><div>${body}</div></div>`;
 
 // ---------------------------------------------------------------- loading
+let refreshTimer;
+function schedule() { clearInterval(refreshTimer); refreshTimer = setInterval(() => { if (document.visibilityState === "visible") load({ quiet: true }); }, Perf.low() ? 300000 : 120000); }
+
 async function load({ quiet = false } = {}) {
-  const btn = $("#refresh");
-  btn.classList.add("spin");
-  S.loading = true;
+  setBusy(true);
   try {
-    const [ov, ch, tk] = await Promise.all([api("/api/overview"), api(`/api/charts?hours=${S.range}`), api("/api/tokens?limit=80")]);
-    S.ov = ov; S.charts[S.range] = ch; S.tokens = tk; S.error = null; S.lastOk = Date.now();
+    const [ov, ch, tk] = await Promise.all([api("/api/overview"), api(`/api/charts?hours=${S.range}`), api("/api/tokens?limit=120")]);
+    const sig = JSON.stringify([ov.as_of, ov.db, ov.metas.length, ch.launches.at(-1), ch.launches.length, tk.tokens.map((t) => t.observed_at).join()]);
+    const same = sig === S.sig;
+    S.ov = ov; S.charts = { [S.range]: ch }; S.tokens = tk; S.error = null; S.lastOk = Date.now(); S.sig = sig;
+    renderStatus();
+    if (same && quiet) return;            // nothing new: skip the re-render
   } catch (e) {
     if (e.auth) return askToken();
     S.error = e.message || "network error";
     if (!quiet) toast("Refresh failed");
-  } finally {
-    btn.classList.remove("spin");
-    S.loading = false;
-  }
-  renderStatus();
+    renderStatus();
+  } finally { setBusy(false); }
   render();
 }
+function setBusy(on) { $$("[data-refresh]").forEach((b) => b.classList.toggle("spin", on)); }
 
 function askToken() {
+  setHead("Locked", "Enter the dashboard token to continue.");
   $$(".screen").forEach((s) => (s.hidden = s.dataset.screen !== "overview"));
-  $(".screen[data-screen=overview]").innerHTML = `<div class="card" style="margin-top:16px">
-    <div class="empty"><div class="t">This dashboard is locked</div>Enter the dashboard token set in <span class="mono">DASHBOARD_TOKEN</span>.
-    <form id="tokform" style="display:grid;gap:10px;max-width:320px;margin:16px auto 0">
-      <label class="sr" for="tokin">Dashboard token</label><input id="tokin" type="password" autocomplete="current-password" required>
-      <button class="btn primary">Unlock</button></form></div></div>`;
+  $(".screen[data-screen=overview]").innerHTML = `<div class="plane" style="max-width:420px;padding:28px">
+    <h3 class="serif" style="margin:0 0 6px;font-size:22px;font-weight:500">This dashboard is locked</h3>
+    <p class="i2" style="margin:0 0 16px">Enter the value of <span class="mono">DASHBOARD_TOKEN</span> from your settings file.</p>
+    <form id="tokform" style="display:grid;gap:10px"><label class="sr" for="tokin">Dashboard token</label>
+      <input id="tokin" type="password" autocomplete="current-password" required><button class="btn solid">Unlock</button></form></div>`;
   $("#tokform").addEventListener("submit", (e) => {
-    e.preventDefault();
-    token = $("#tokin").value;
+    e.preventDefault(); token = $("#tokin").value;
     try { localStorage.setItem("radar-token", token); } catch (_) { /* ignore */ }
     load();
   });
-  $("#live").className = "live err";
-  $("#live").lastElementChild.textContent = "Locked";
 }
 
-// ---------------------------------------------------------------- router
+// ---------------------------------------------------------------- router + page head
 const TITLES = { overview: "Overview", metas: "Metas", tokens: "Tokens", analyst: "Analyst", system: "System" };
-function go(tab, { push = true } = {}) {
+function go(tab, { keepScroll = false } = {}) {
   if (!TITLES[tab]) tab = "overview";
   S.tab = tab;
   $$(".tab").forEach((t) => t.setAttribute("aria-current", t.dataset.go === tab ? "page" : "false"));
   $$(".screen").forEach((s) => (s.hidden = s.dataset.screen !== tab));
-  $("#title").textContent = TITLES[tab];
-  if (push) history.replaceState(null, "", `#/${tab}`);
+  history.replaceState(null, "", `#/${tab}`);
   try { localStorage.setItem("radar-tab", tab); } catch (_) { /* ignore */ }
-  window.scrollTo({ top: 0 });
+  if (!keepScroll) window.scrollTo({ top: 0 });
   render();
 }
 $$(".tab").forEach((t) => t.addEventListener("click", () => go(t.dataset.go)));
+const REFRESH = `<button class="btn" data-refresh><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>Refresh</button>`;
+function setHead(title, ctx, tools = REFRESH) {
+  $("#title").textContent = title;
+  $("#ctx").innerHTML = ctx;
+  $("#tools").innerHTML = tools;
+  $$("[data-refresh]", $("#tools")).forEach((b) => b.addEventListener("click", () => load()));
+}
 
 function render() {
   if (!S.ov) return renderLoadingOrError();
   ({ overview: renderOverview, metas: renderMetas, tokens: renderTokens, analyst: renderAnalyst, system: renderSystem })[S.tab]();
 }
-
 function renderLoadingOrError() {
   const el = $(`.screen[data-screen=${S.tab}]`);
+  setHead(TITLES[S.tab], S.error ? "" : "Loading the latest analysis");
   if (S.error) {
-    el.innerHTML = `<div class="card" style="margin-top:16px"><div class="empty"><div class="t">Can’t reach the radar server</div>
-      ${esc(S.error)}. Is <span class="mono">python -m radar serve</span> (or TrenchRadar.exe) running?
-      <div><button class="btn" id="retry">Try again</button></div></div></div>`;
+    el.innerHTML = `<div class="empty"><h3>Can’t reach the radar server</h3>${esc(cap(S.error))}. Check that <span class="mono">python -m radar serve</span> or TrenchRadar.exe is running.
+      <div><button class="btn" id="retry">Try again</button></div></div>`;
     $("#retry").addEventListener("click", () => load());
     return;
   }
-  const sk = (h, w = "100%") => `<div class="sk" style="height:${h}px;width:${w}"></div>`;
-  el.innerHTML = `<div class="section">${sk(132)}</div><div class="section grid g4">${sk(84)}${sk(84)}${sk(84)}${sk(84)}</div>
-    <div class="section">${sk(220)}</div><div class="section">${sk(56)}${"<div style='height:8px'></div>" + sk(56)}</div>`;
+  el.innerHTML = `<div class="lead"><div><div class="sk" style="height:110px"></div><div class="sk" style="height:48px;margin-top:16px;width:80%"></div></div>
+    <div class="sk" style="height:220px"></div></div><div class="sk sec" style="height:260px"></div>`;
 }
 
-// ---------------------------------------------------------------- shared pieces
-function metaRow(m, i) {
-  const e = m.evidence, d = e.demand, l = e.launch, sat = e.saturation.index;
-  return `<button class="row" data-meta="${i}">
-    <div style="min-width:0"><div class="t"><span class="name">${esc(m.meta_key)}</span>${vchip(m.verdict)}</div>
-      <div class="terms">${esc(m.terms.length > 1 ? m.terms.slice(1, 6).join(" · ") : m.hype_check)}</div></div>
-    <div class="right"><span class="score${m.verdict === "insufficient data" ? " dim" : ""}" title="${m.verdict === "insufficient data" ? "provisional: not enough evidence" : "readiness score"}">${isNum(m.score) ? Math.round(m.score) : "—"}<small>/100</small></span>
-      <span class="conf" title="confidence">${meter(m.confidence)}${nf(m.confidence, 2)}</span></div>
-    <div class="stats"><span>launches <b>${l.launches_1h}</b> 1h · <b>${l.launches_6h}</b> 6h</span>
-      <span>buyers <b>${compact(d.unique_buyers_h1_sum)}</b>/h</span><span>buyer share <b>${pct(d.buyer_share_h1)}</b></span>
-      <span>saturation <b>${isNum(sat) ? nf(sat, 2) : "—"}</b></span>
-      <span style="margin-left:auto">${Charts.spark(l.launch_hourly_12h)}</span></div></button>`;
+// ---------------------------------------------------------------- shared builders
+const isProv = (m) => m.verdict === "insufficient data";
+function insight() {
+  const ov = S.ov, m = ov.market, metas = ov.metas;
+  const fav = metas.filter((x) => x.verdict === "favorable"), mix = metas.filter((x) => x.verdict === "mixed");
+  const head = { hot: "The pump.fun market is running hot", neutral: "The pump.fun market is steady", cold: "The pump.fun market is cold" }[m.regime]
+    || "Market conditions are still being measured";
+  const tail = fav.length ? `, and ${fav.length === 1 ? `${fav[0].meta_key} shows` : `${fav.length} narratives show`} attention and buying together.`
+    : mix.length ? `, with ${mix.length} narrative${mix.length > 1 ? "s" : ""} showing partial support.`
+    : metas.length ? ", but no narrative has earned a call yet." : ", and no narrative has formed yet.";
+  const byBuyers = [...metas].sort((a, b) => b.evidence.demand.unique_buyers_h1_sum - a.evidence.demand.unique_buyers_h1_sum)[0];
+  const x = m.metrics, b = baseline();
+  const bits = [];
+  if (byBuyers) bits.push(`Most buying is in <b>${esc(byBuyers.meta_key)}</b>: ${compact(byBuyers.evidence.demand.unique_buyers_h1_sum)} buyers an hour across ${byBuyers.evidence.demand.tokens_tracked} tokens.`);
+  if (isNum(x.pumpfun_launchpad_vol_7d_vs_30d)) bits.push(`Launchpad volume is ${x.pumpfun_launchpad_vol_7d_vs_30d >= 1 ? "up" : "down"} ${nf(Math.abs(x.pumpfun_launchpad_vol_7d_vs_30d - 1) * 100, 0)}% on its 30-day average.`);
+  if (!b.ready) bits.push(`Calls need a full day of history; ${esc(b.label)} of about 30 hours is collected.`);
+  return { head: head + tail, sub: bits.join(" ") };
 }
-function bindMetaRows(root, list) {
-  $$("[data-meta]", root).forEach((b) => b.addEventListener("click", () => openMeta(list[+b.dataset.meta])));
+function narrativeRow(m, i) {
+  const d = m.evidence.demand, l = m.evidence.launch;
+  return `<button class="nrow" data-meta="${esc(m.meta_key)}"><span class="rk">${i + 1}</span>
+    <span style="min-width:0"><div class="nm">${esc(m.meta_key)}</div><div class="tm">${esc(m.terms.length > 1 ? `with ${m.terms.slice(1, 5).join(", ")}` : `${l.launches_6h} launches in 6h, ${pct(d.buyer_share_h1)} of traders buying`)}</div></span>
+    <span class="sc ${isProv(m) ? "prov" : ""}">${isNum(m.score) ? Math.round(m.score) : "—"}<small>${isProv(m) ? "provisional" : esc(vinfo(m.verdict).label)}</small></span>
+    <span class="cf">${meter(m.confidence, m.confidence < CONF_BAR ? "cau" : "", CONF_BAR)}<span>confidence ${nf(m.confidence, 2)}</span></span>
+    <span class="by">${compact(d.unique_buyers_h1_sum)}<small>buyers/h</small></span></button>`;
 }
-function tokenRow(t, i) {
-  const ageH = t.created_at ? (nowS() - t.created_at) / 3600 : null;
-  const b = t.buyers_h1 || 0, s = t.sellers_h1 || 0, tot = b + s || 1;
-  return `<button class="row trow" data-tok="${i}">
-    ${Charts.ring(t.progress, !!t.graduated)}
-    <div style="min-width:0"><div class="t"><span class="name">${esc(t.symbol || short(t.mint))}</span>
-      ${t.graduated ? `<span class="muted" style="font-weight:400;font-size:12px">graduated</span>` : isNum(ageH) ? `<span class="muted" style="font-weight:400;font-size:12px">${esc(age(ageH))}</span>` : ""}</div>
-      <div class="terms">${esc(t.name || "")}</div></div>
-    <div class="right"><span class="num" style="font-size:14px;font-weight:600">${usd(t.vol_h1)}<small class="muted" style="font-size:11px"> /1h</small></span>
-      <span class="conf"><span class="bs" title="buyers vs sellers, last hour"><i style="width:${(b / tot) * 100}%"></i><u style="width:${(s / tot) * 100}%"></u></span><span class="n">${compact(b)}/${compact(s)}</span></span></div></button>`;
+function bindNarratives(root) {
+  $$("[data-meta]", root).forEach((b) => b.addEventListener("click", () => pickMeta(b.dataset.meta, { from: "list" })));
 }
-function bindTokRows(root, list) {
-  $$("[data-tok]", root).forEach((b) => b.addEventListener("click", () => openToken(list[+b.dataset.tok].mint)));
+function pickMeta(key, { from } = {}) {
+  S.sel = key;
+  if (!wide()) { const m = S.ov.metas.find((x) => x.meta_key === key); if (m) openMetaSheet(m); return; }
+  if (S.tab !== "metas") go("metas"); else renderMetas({ keepMap: from === "list" });
 }
-const segHtml = (name, opts, cur) => `<div class="seg" role="group" aria-label="${esc(name)}">${opts.map(([v, l]) => `<button data-v="${v}" aria-pressed="${String(v) === String(cur)}">${esc(l)}</button>`).join("")}</div>`;
-function bindSeg(root, fn) { $$(".seg button", root).forEach((b) => b.addEventListener("click", () => fn(b.dataset.v))); }
+function tokenFlags(t, now = nowS()) {
+  const out = [];
+  const ageH = t.created_at ? (now - t.created_at) / 3600 : null;
+  if (isNum(ageH) && ageH < 1 && !t.graduated) out.push(["", "Under 1h old"]);
+  if ((t.sellers_h1 || 0) > (t.buyers_h1 || 0)) out.push(["neg", "More sellers"]);
+  if (isNum(t.liquidity_usd) && t.liquidity_usd < 5000) out.push(["", "Thin liquidity"]);
+  if ((t.deployer_launches_24h || 0) >= 3) out.push(["neg", "Serial deployer"]);
+  if (t.observed_at && now - t.observed_at > 1800) out.push(["", "Stale stats"]);
+  return out;
+}
+const flagsHtml = (fl) => (fl.length ? `<span class="flags">${fl.map(([c, l]) => `<span class="flag ${c}">${esc(l)}</span>`).join("")}</span>` : `<span class="flag ok">None detected</span>`);
+const bsr = (b = 0, s = 0) => { const t = b + s || 1; return `<span class="bsr"><span class="bsb"><i style="width:${(b / t) * 100}%"></i><u style="width:${(s / t) * 100}%"></u></span><span>${compact(b)} / ${compact(s)}</span></span>`; };
+const curveCell = (t) => (t.graduated ? `<span class="i2">Graduated</span>` : isNum(t.progress) ? `<span class="curve">${meter(t.progress, "dem")}<span>${pct(t.progress)}</span></span>` : `<span class="i3">—</span>`);
+const seg = (name, opts, cur, attr = "data-v") => `<div class="seg" role="group" aria-label="${esc(name)}">${opts.map(([v, l]) => `<button ${attr}="${v}" aria-pressed="${String(v) === String(cur)}">${esc(l)}</button>`).join("")}</div>`;
 
 // ---------------------------------------------------------------- OVERVIEW
 const DRIVERS = [["launchpad_volume_trend", "Launchpad volume trend"], ["new_token_performance", "New tokens with traction"],
   ["graduation_rate", "Graduation rate"], ["fresh_rotation", "Rotation into new launches"], ["sol_trend", "SOL trend"]];
-
 function renderOverview() {
-  const el = $(".screen[data-screen=overview]");
-  const m = S.ov.market, x = m.metrics;
+  const el = $(".screen[data-screen=overview]"), ov = S.ov, m = ov.market, x = m.metrics, ch = S.charts[S.range];
+  setHead("Overview", `Analysis as of ${esc(hhmm(ov.as_of))}. Scores are hand-weighted priors${ov.backtest?.validated ? ", validated by the latest backtest" : " and have not been validated against outcomes yet"}.`);
+  const ins = insight();
+  const regimeWord = m.regime ? cap(m.regime) : "Unknown";
   const tone = { hot: "pos", neutral: "warn", cold: "neg" }[m.regime] || "mute";
-  const word = m.regime ? m.regime[0].toUpperCase() + m.regime.slice(1) : "Unknown";
-  const dot = { pos: "var(--pos)", warn: "var(--warn)", neg: "var(--neg)", mute: "var(--muted)" }[tone];
   const drivers = DRIVERS.map(([k, label]) => {
     const v = m.components[k];
-    return `<div class="driver"><span>${esc(label)}</span>${isNum(v) ? `${meter(v)}<span class="num" style="text-align:right">${nf(v, 2)}</span>`
-      : `<span class="na">${k === "graduation_rate" ? "needs 24h history" : "no data yet"}</span>`}</div>`;
+    return `<div class="drv"><span>${esc(label)}</span>${isNum(v) ? `${meter(v)}<span class="v">${nf(v, 2)}</span>` : `<span class="na">${k === "graduation_rate" ? "needs 24h of launches" : "no data yet"}</span>`}</div>`;
   }).join("");
-  const metas = S.ov.metas;
-  const lead = metas.slice(0, 4);
-  const toks = (S.tokens?.tokens || []).slice(0, 4);
-  const ch = S.charts[S.range];
-  el.innerHTML = `<div class="stag">
-    <div class="section card regime">
-      <div><div class="eyebrow">Market regime</div>
-        <div class="word" style="margin-top:6px"><i style="background:${dot}" aria-hidden="true"></i>${esc(word)}</div>
-        <div class="sub">${isNum(m.score) ? `Score <span class="num">${nf(m.score, 2)}</span> from ${pct(m.coverage)} of inputs` : "Not enough market data yet"}</div></div>
-      <div class="drivers">${drivers}</div>
+  const metas = ov.metas.slice(0, 6);
+  const toks = (S.tokens?.tokens || []).slice(0, 6);
+  let daily = [];
+  try { daily = JSON.parse((x.pumpfun_launchpad_daily_series || "[]").replace(/'/g, '"')); } catch (_) { daily = []; }
+  el.innerHTML = `
+    <div class="lead">
+      <h2>${esc(ins.head)}</h2><p>${ins.sub}</p>
+      <div class="plane regime" aria-label="Market regime">
+        <div class="top"><span class="word"><span class="st ${tone}" style="font-size:14px;vertical-align:5px;margin-right:8px"><b aria-hidden="true">${{ pos: "●", warn: "▲", neg: "✕", mute: "○" }[tone]}</b></span>${esc(regimeWord)}</span>
+          <span class="score">${isNum(m.score) ? `score ${nf(m.score, 2)}, from ${pct(m.coverage)} of inputs` : "not enough data"}</span></div>
+        <div class="scale" aria-hidden="true"><div class="track"><i class="${m.regime === "cold" ? "on" : ""}"></i><i class="${m.regime === "neutral" ? "on" : ""}"></i><i class="${m.regime === "hot" ? "on" : ""}"></i></div>
+          ${isNum(m.score) ? `<span class="mk" style="left:${m.score * 100}%"></span>` : ""}</div>
+        <div class="scale-l"><span>Cold</span><span>Neutral</span><span>Hot</span></div>
+        <div class="drivers">${drivers}</div>
+      </div>
     </div>
-    <div class="section grid g4">
-      ${kpi("Launches / hour", isNum(x.launches_est_per_h) ? compact(x.launches_est_per_h) : compact(x.launches_observed_1h),
-        isNum(x.launches_est_per_h) ? `observed coverage ${pct(x.launch_coverage_1h)}` : `seen in last hour · coverage ${pct(x.launch_coverage_1h)}`)}
-      ${kpi("Graduation rate", isNum(x.graduation_rate_24_48h_cohort) ? pct(x.graduation_rate_24_48h_cohort, 2) : "—",
-        x.graduation_cohort_n ? `24–48h cohort · n=${compact(x.graduation_cohort_n)}` : "needs 24h of launches")}
-      ${kpi("Launchpad volume", usd(x.pumpfun_launchpad_vol_7d_avg_usd), isNum(x.pumpfun_launchpad_vol_7d_vs_30d)
-        ? `<span class="${x.pumpfun_launchpad_vol_7d_vs_30d >= 1 ? "delta-pos" : "delta-neg"}">${signed((x.pumpfun_launchpad_vol_7d_vs_30d - 1) * 100, 0, "%")}</span> 7d avg vs 30d` : "daily, 7-day average")}
-      ${kpi("SOL", isNum(x.sol_price_usd) ? "$" + nf(x.sol_price_usd, 2) : "—", isNum(x.sol_chg_24h)
-        ? `<span class="${x.sol_chg_24h >= 0 ? "delta-pos" : "delta-neg"}">${signed(x.sol_chg_24h * 100, 1, "%")}</span> 24h` : "24h change after a day")}
+    <div class="sec plane flow">
+      <div class="figs">
+        <div class="fig"><div class="k">Launches per hour</div><div class="v">${isNum(x.launches_est_per_h) ? compact(x.launches_est_per_h) : compact(x.launches_observed_1h)}</div>
+          <div class="c">${isNum(x.launches_est_per_h) ? `estimated from ${pct(x.launch_coverage_1h)} coverage` : `seen in the last hour, ${pct(x.launch_coverage_1h)} coverage`}</div></div>
+        <div class="fig"><div class="k">Graduation rate</div><div class="v sm">${isNum(x.graduation_rate_24_48h_cohort) ? pct(x.graduation_rate_24_48h_cohort, 2) : "—"}</div>
+          <div class="c">${x.graduation_cohort_n ? `launches 24 to 48h old, n=${compact(x.graduation_cohort_n)}` : "needs a day of launches"}</div></div>
+        <div class="fig"><div class="k">Launchpad volume, 7-day average</div><div class="v sm">${usd(x.pumpfun_launchpad_vol_7d_avg_usd)}</div>
+          <div class="c">${isNum(x.pumpfun_launchpad_vol_7d_vs_30d) ? `<span class="${x.pumpfun_launchpad_vol_7d_vs_30d >= 1 ? "up" : "down"}">${signed((x.pumpfun_launchpad_vol_7d_vs_30d - 1) * 100, 0, "%")}</span> against the 30-day average` : ""}</div></div>
+      </div>
+      <div class="charts">
+        <div class="chart-h"><h3>Launch flow</h3><span class="note">pump.fun launches per ${S.range === 6 ? "5 minutes" : S.range === 24 ? "15 minutes" : "hour"}, local time</span>
+          <span class="legend"><span><i style="background:var(--attention)"></i>launches</span><span><i style="background:url(#)" class="hatchkey"></i></span></span>
+          <span class="end">${seg("Time range", [[6, "6H"], [24, "24H"], [72, "3D"]], S.range)}</span></div>
+        <div class="chart" id="flow"></div>
+        <div class="chart-h" style="margin-top:14px"><h3>Graduations to PumpSwap</h3><span class="note">per hour; hatched areas mean the collector was not running</span></div>
+        <div class="chart" id="grads"></div>
+      </div>
     </div>
-    <div class="section card">
-      <div class="chart-title"><div><h3>Launch flow</h3><p>pump.fun launches observed per ${S.range === 6 ? "5 min" : S.range === 24 ? "15 min" : "hour"} · hatched = collector offline</p></div>
-        ${segHtml("Time range", [[6, "6H"], [24, "24H"], [72, "3D"]], S.range)}</div>
-      <div class="chart" id="flow"></div>
-      <div class="chart-title" style="margin:14px 0 6px"><div><p>Graduations to PumpSwap per hour</p></div></div>
-      <div class="chart" id="grads"></div>
-    </div>
-    <div class="section"><div class="sh"><h2>Leading metas</h2><button class="link" data-goto="metas">All ${metas.length} →</button></div>
-      <div class="card flush list" id="lead">${lead.length ? lead.map(metaRow).join("") : emptyMetas()}</div></div>
-    <div class="section"><div class="sh"><h2>Most active tokens</h2><button class="link" data-goto="tokens">All →</button></div>
-      <div class="card flush list" id="otoks">${toks.length ? toks.map(tokenRow).join("") : `<div class="empty">No token has fresh trading stats yet.</div>`}</div></div>
-    <p class="attrib">Sources: GeckoTerminal (launches, trades, buyers), Solana RPC (bonding curves), DefiLlama (launchpad volume), DexScreener (paid promotion).
-      Model ${esc(S.ov.model_version)} · scores are hand-weighted priors${S.ov.backtest?.validated ? ", validated by the latest backtest" : " and not yet validated against outcomes"}.</p>
-  </div>`;
-  bindSeg(el, async (v) => { S.range = +v; if (!S.charts[S.range]) { try { S.charts[S.range] = await api(`/api/charts?hours=${S.range}`); } catch (e) { toast("Couldn’t load range"); } } renderOverview(); });
-  bindMetaRows($("#lead"), lead);
-  bindTokRows($("#otoks"), toks);
+    <div class="sec split">
+      <div><div class="sec-h"><h2>Narratives to watch</h2><span class="note">ranked by readiness score; buyers are per-token sums</span>
+        <span class="end"><button class="linkbtn" data-goto="metas">All ${ov.metas.length} narratives</button></span></div>
+        <div id="lead-n">${metas.length ? metas.map(narrativeRow).join("") : `<div class="empty"><h3>No narratives yet</h3>A narrative appears once several launches or posts share a theme.</div>`}</div>
+        <div class="chart-h" style="margin-top:28px"><h3>Launchpad volume by day</h3><span class="note">pump.fun, DefiLlama, last 30 days; today is partial</span></div>
+        <div class="chart" id="daily"></div></div>
+      <div>
+        <div class="sec-h"><h2>Where the buying is</h2><span class="note">last hour</span><span class="end"><button class="linkbtn" data-goto="tokens">All tokens</button></span></div>
+        <table class="tbl" id="buying"><thead><tr><th>Token</th><th class="r">Volume</th><th>Buyers / sellers</th><th class="r hide-s">Curve</th></tr></thead>
+          <tbody>${toks.map((t, i) => `<tr data-tok="${i}"><td><span class="tk"><b>${esc(t.symbol || short(t.mint))}</b><span>${esc(t.name || "")}</span></span></td>
+            <td class="r">${usd(t.vol_h1)}</td><td>${bsr(t.buyers_h1, t.sellers_h1)}</td><td class="r hide-s">${t.graduated ? "Graduated" : pct(t.progress)}</td></tr>`).join("")
+            || `<tr><td colspan="4" class="i3">No token has fresh stats yet.</td></tr>`}</tbody></table>
+        <div class="sec-h" style="margin-top:28px"><h2>Market conditions</h2></div>
+        <div class="ledger">
+          <div class="li"><span class="k">SOL</span><span class="v">${isNum(x.sol_price_usd) ? "$" + nf(x.sol_price_usd, 2) : "—"}</span>
+            <span class="c">${isNum(x.sol_chg_24h) ? `${signed(x.sol_chg_24h * 100, 1, "%")} over 24 hours` : "24-hour change appears after a day"}</span></div>
+          <div class="li"><span class="k">Median 24h move, most-traded curve tokens</span><span class="v ${x.active_median_chg_h24_pct >= 0 ? "up" : "down"}">${isNum(x.active_median_chg_h24_pct) ? signed(x.active_median_chg_h24_pct, 0, "%") : "—"}</span></div>
+          <div class="li"><span class="k">Most-traded tokens under a day old</span><span class="v">${pct(x.active_share_under_24h)}</span>
+            <span class="c">a high share means money is rotating into new launches</span></div>
+          <div class="li"><span class="k">PumpSwap volume, 7-day against 30-day</span><span class="v">${isNum(x.pumpswap_vol_7d_vs_30d) ? signed((x.pumpswap_vol_7d_vs_30d - 1) * 100, 0, "%") : "—"}</span></div>
+        </div>
+      </div>
+    </div>`;
+  $$(".seg button", el).forEach((b) => b.addEventListener("click", async () => {
+    S.range = +b.dataset.v;
+    if (!S.charts[S.range]) { try { S.charts[S.range] = await api(`/api/charts?hours=${S.range}`); } catch (_) { toast("Couldn’t load that range"); } }
+    renderOverview();
+  }));
   $$("[data-goto]", el).forEach((b) => b.addEventListener("click", () => go(b.dataset.goto)));
-  if (ch) drawFlow(ch);
+  bindNarratives($("#lead-n"));
+  $$("#buying tr[data-tok]", el).forEach((r) => r.addEventListener("click", () => openToken(toks[+r.dataset.tok].mint)));
+  const leg = $(".hatchkey", el);
+  if (leg) leg.parentElement.innerHTML = `<i style="background:repeating-linear-gradient(45deg,#2b2f35 0 2px,transparent 2px 5px)"></i>not observed`;
+  if (ch) {
+    const to = ch.now, from = to - ch.hours * 3600;
+    Charts.timeBars($("#flow"), { data: ch.launches, from, to, step: ch.step_s, observed: ch.observed_buckets, height: wide() ? 200 : 160, fmtY: (v) => compact(v, 0), unit: "launches", label: "Launches over time" });
+    Charts.timeBars($("#grads"), { data: ch.graduations, from, to, step: ch.graduation_step_s, height: 78, cls: "dem", fmtY: (v) => compact(v, 0), unit: "graduations", label: "Graduations over time" });
+  }
+  Charts.catBars($("#daily"), { data: daily, height: 120, fmtY: (v) => usd(v, 0), fmtX: (t) => new Date(t * 1000).toLocaleDateString([], { month: "short", day: "numeric" }), label: "Daily launchpad volume" });
 }
-const kpi = (k, v, s) => `<div class="card kpi"><div class="k"><span>${esc(k)}</span></div><div class="v">${v}</div><div class="s">${s}</div></div>`;
-const emptyMetas = () => `<div class="empty"><div class="t">No metas detected yet</div>A meta appears once several launches or posts share a theme. The first ones show up after a few collection cycles.</div>`;
 
-function drawFlow(ch) {
-  const to = ch.now, from = to - ch.hours * 3600;
-  Charts.timeBars($("#flow"), { data: ch.launches, from, to, step: ch.step_s, observed: ch.observed_buckets, height: 168,
-    fmtY: (v) => compact(v, 0), label: "Launches over time", unit: "launches" });
-  Charts.timeBars($("#grads"), { data: ch.graduations, from, to, step: ch.graduation_step_s, height: 74,
-    fmtY: (v) => compact(v, 0), label: "Graduations over time", unit: "graduations" });
-}
-
-// ---------------------------------------------------------------- METAS
-const SORTS = { score: (m) => m.score ?? -1, buyers: (m) => m.evidence.demand.unique_buyers_h1_sum, launches: (m) => m.evidence.launch.launches_1h,
-  saturation: (m) => -(m.evidence.saturation.index ?? 1) };
-function renderMetas() {
-  const el = $(".screen[data-screen=metas]");
-  const all = S.ov.metas;
+// ---------------------------------------------------------------- NARRATIVES (metas)
+const MSORT = { score: (m) => m.score ?? -1, confidence: (m) => m.confidence, buyers: (m) => m.evidence.demand.unique_buyers_h1_sum,
+  launches: (m) => m.evidence.launch.launches_1h, saturation: (m) => -(m.evidence.saturation.index ?? 1) };
+function renderMetas({ keepMap = false } = {}) {
+  const el = $(".screen[data-screen=metas]"), all = S.ov.metas;
+  setHead("Metas", `${all.length} narratives detected in the last 6 hours, ranked by readiness. Select one to read its evidence.`);
+  if (!all.length) { el.innerHTML = `<div class="empty"><h3>No narratives detected yet</h3>A narrative appears once several launches or posts share a theme. The first ones usually show up within a few collection cycles.</div>`; return; }
+  if (!S.sel || !all.some((m) => m.meta_key === S.sel)) S.sel = all[0].meta_key;
   const count = (v) => all.filter((m) => m.verdict === v).length;
   const filters = [["all", "All", all.length], ["favorable", "Favorable", count("favorable")], ["mixed", "Mixed", count("mixed")],
     ["unfavorable", "Unfavorable", count("unfavorable")], ["insufficient data", "Insufficient", count("insufficient data")]];
-  const list = all.filter((m) => S.metaFilter === "all" || m.verdict === S.metaFilter).sort((a, b) => SORTS[S.metaSort](b) - SORTS[S.metaSort](a));
-  const pts = all.filter((m) => isNum(m.components.attention) && isNum(m.components.demand)).map((m) => ({
-    x: m.components.attention, y: m.components.demand, label: m.meta_key, buyers: m.evidence.demand.unique_buyers_h1_sum,
-    tone: (VERDICT[m.verdict] || VERDICT["insufficient data"]).tone, verdict: (VERDICT[m.verdict] || {}).label || m.verdict,
-    conf: m.confidence, confident: m.verdict !== "insufficient data", score: m.score, meta: m }));
-  el.innerHTML = `<div class="stag">
-    <div class="section card">
-      <div class="chart-title"><div><h3>Hype vs buying</h3><p>Attention (launch names${S.ov.social_measured ? " + social" : ""}) against measured buying. Size = buyers/h · hollow = not enough evidence.</p></div></div>
-      <div class="chart" id="quad">${pts.length ? "" : `<div class="chart-empty">No metas to plot yet.</div>`}</div>
+  const list = all.filter((m) => S.metaFilter === "all" || m.verdict === S.metaFilter).sort((a, b) => MSORT[S.metaSort](b) - MSORT[S.metaSort](a));
+  const sel = all.find((m) => m.meta_key === S.sel);
+  const rows = list.map((m) => {
+    const d = m.evidence.demand, l = m.evidence.launch, sat = m.evidence.saturation.index;
+    return `<tr data-k="${esc(m.meta_key)}" class="${m.meta_key === S.sel ? "sel" : ""}" aria-selected="${m.meta_key === S.sel}">
+      <td class="nmc">${esc(m.meta_key)}<small>${esc(m.terms.length > 1 ? `with ${m.terms.slice(1, 4).join(", ")}` : d.top_tokens?.[0]?.symbol ? `led by ${d.top_tokens[0].symbol}` : `${d.tokens_tracked} tokens trading`)}</small></td>
+      <td class="r scc ${isProv(m) ? "prov" : ""}">${isNum(m.score) ? Math.round(m.score) : "—"}</td>
+      <td class="hide-s"><span class="cfc">${meter(m.confidence, m.confidence < CONF_BAR ? "cau" : "", CONF_BAR)}<span>${nf(m.confidence, 2)}</span></span></td>
+      <td><span class="lc"><span class="hide-s">${Charts.spark(l.launch_hourly_12h, 52, 18)}</span><span>${l.launches_1h}<span class="i3"> / ${l.launches_6h}</span></span></span></td>
+      <td class="r">${compact(d.unique_buyers_h1_sum)}</td>
+      <td class="r wide-only">${pct(d.buyer_share_h1)}</td>
+      <td class="r wide-only ${isNum(d.curve_net_sol_1h) ? (d.curve_net_sol_1h >= 0 ? "up" : "down") : ""}">${isNum(d.curve_net_sol_1h) ? signed(d.curve_net_sol_1h, 1) : "—"}</td>
+      <td class="r hide-s ${isNum(sat) && sat >= 0.6 ? "warn" : ""}">${isNum(sat) ? nf(sat, 2) : "—"}</td></tr>`;
+  }).join("");
+  el.innerHTML = `<div class="md">
+    <div>
+      <div class="plane mapwrap">
+        <div class="chart-h"><h3>Narrative map</h3><span class="note">Does the buying confirm the attention?</span>
+          <span class="end legend"><span><i style="border:1.5px solid var(--ink-2);border-radius:50%"></i>not enough evidence</span>
+            <span><i style="background:var(--demand);border-radius:50%"></i>favorable</span><span><i style="border:1.2px dashed var(--caution);border-radius:50%"></i>crowded</span>
+            <span class="i3">size = buyers/h</span></span></div>
+        <div class="chart" id="map"></div>
+      </div>
+      <div class="sec" style="margin-top:20px">
+        <div class="toolbar"><div class="chips" role="group" aria-label="Filter by verdict">${filters.map(([v, l, n]) => `<button class="chip" data-f="${esc(v)}" aria-pressed="${S.metaFilter === v}">${l}<span class="ct">${n}</span></button>`).join("")}</div>
+          <span class="end"><label class="sr" for="msort">Sort</label><select id="msort">${[["score", "Readiness score"], ["confidence", "Confidence"], ["buyers", "Buyers"], ["launches", "Launches"], ["saturation", "Least crowded"]]
+            .map(([v, l]) => `<option value="${v}" ${S.metaSort === v ? "selected" : ""}>Sort by ${l.toLowerCase()}</option>`).join("")}</select></span></div>
+        <table class="tbl ledgertbl"><thead><tr><th>Narrative</th><th class="r">Score</th><th class="hide-s">Confidence</th><th>Launches<span class="hide-s"> 1h / 6h, last 12h</span></th><th class="r">Buyers/h</th><th class="r wide-only">Buyer share</th><th class="r wide-only">Curve SOL 1h</th><th class="r hide-s">Crowding</th></tr></thead>
+          <tbody id="mrows">${rows || `<tr><td colspan="9" class="i3" style="padding:24px 12px">No narrative has this verdict right now.</td></tr>`}</tbody></table>
+      </div>
     </div>
-    <div class="section">
-      <div class="filters" role="group" aria-label="Filter by verdict">${filters.map(([v, l, n]) => `<button class="fchip" data-f="${esc(v)}" aria-pressed="${S.metaFilter === v}">${l}<span class="n">${n}</span></button>`).join("")}</div>
-      <div class="toolbar" style="margin:6px 0 10px"><span class="aside muted" style="font-size:12px">${list.length} shown · buyers are per-token sums</span>
-        <label class="sr" for="msort">Sort</label><select id="msort">${[["score", "Score"], ["buyers", "Buyers"], ["launches", "Launches"], ["saturation", "Least saturated"]]
-          .map(([v, l]) => `<option value="${v}" ${S.metaSort === v ? "selected" : ""}>Sort: ${l}</option>`).join("")}</select></div>
-      <div class="card flush list" id="mlist">${list.length ? list.map(metaRow).join("") : S.metaFilter === "all" ? emptyMetas() : `<div class="empty">No metas with this verdict right now.</div>`}</div>
-    </div></div>`;
-  if (pts.length) Charts.quadrant($("#quad"), { points: pts, onPick: (p) => openMeta(p.meta) });
+    <aside class="dossier swap" id="dossier" aria-label="Selected narrative">${sel ? dossierHtml(sel) : ""}</aside>
+  </div>`;
+  const pts = all.filter((m) => isNum(m.components.attention) && isNum(m.components.demand)).map((m) => ({
+    key: m.meta_key, label: m.meta_key, x: m.components.attention, y: m.components.demand, buyers: m.evidence.demand.unique_buyers_h1_sum,
+    tone: vinfo(m.verdict).tone, verdict: vinfo(m.verdict).label, conf: m.confidence, confident: !isProv(m), score: m.score,
+    crowded: (m.evidence.saturation.index ?? 0) >= 0.6, social: S.ov.social_measured }));
+  if (pts.length) Charts.narrativeMap($("#map"), { points: pts, selected: S.sel, height: wide() ? 340 : 300, onPick: (p) => pickMeta(p.key) });
+  $$("#mrows tr[data-k]").forEach((r) => r.addEventListener("click", () => pickMeta(r.dataset.k, { from: "list" })));
   $$("[data-f]", el).forEach((b) => b.addEventListener("click", () => { S.metaFilter = b.dataset.f; renderMetas(); }));
   $("#msort").addEventListener("change", (e) => { S.metaSort = e.target.value; renderMetas(); });
-  bindMetaRows($("#mlist"), list);
+  if (sel && wide()) bindDossier($("#dossier"), sel);
 }
 
-// ---------------------------------------------------------------- sheet
-let lastFocus = null, sheetCloser = null;
+function coverage(m) {
+  const e = m.evidence, d = e.demand, l = e.launch, cf = m.confidence_factors, b = baseline();
+  return [
+    ["24-hour launch baseline", isNum(l.launch_accel_z), "ready", `${b.label} of ~30h collected`],
+    ["Social attention", cf.social_measured, "connected", "no X or Reddit source"],
+    ["Fresh trading stats", d.tokens_tracked >= 3, `${d.tokens_tracked} tokens`, `${d.tokens_tracked} token${d.tokens_tracked === 1 ? "" : "s"} only`],
+    ["Bonding-curve flow", isNum(d.curve_net_sol_1h), `${d.curve_tokens_compared} curves`, "no curve history yet"],
+    ["Net USD flow", isNum(d.net_flow_usd_h1), "Bitquery", "needs a Bitquery key"],
+    ["Deployer history", (e.creators?.known || 0) > 0, `${e.creators?.known} known`, "no deployers looked up"],
+    ["Validated against outcomes", !!m.validated, "backtest passed", "no validated backtest yet"],
+  ];
+}
+function dossierHtml(m) {
+  const e = m.evidence, d = e.demand, l = e.launch, s = e.social, cf = m.confidence_factors, sat = e.saturation;
+  const cov = coverage(m), miss = cov.filter((c) => !c[1]);
+  const lowConf = m.confidence < CONF_BAR;
+  const parts = (o) => Object.entries(o || {}).map(([k, v]) => `${esc(k.replaceAll("_", " "))} ${nf(v, 2)}`).join(", ");
+  const comp = (k, label) => {
+    const v = m.components[k];
+    return `<span>${esc(label)} <span class="w">×${m.weights[k]}</span></span>${isNum(v) ? meter(v, k === "demand" ? "dem" : k === "attention" ? "att" : "") : `<span class="na">no data, left out</span>`}<span class="v">${isNum(v) ? nf(v, 2) : ""}</span>`;
+  };
+  const fresh = S.ov.freshness;
+  const srcs = [["geckoterminal/refresh", "GeckoTerminal trading stats"], ["geckoterminal/new_pools", "GeckoTerminal launches"], ["solana_rpc/bonding_curves", "Solana RPC curves"],
+    ["dexscreener/boosts_profiles", "DexScreener promotion"], ["x_api/recent_search", "X"], ["reddit/new_posts", "Reddit"]]
+    .filter(([k]) => fresh[k]).map(([k, n]) => `${n} (${fresh[k].state}${isNum(fresh[k].age_s) ? `, ${ago(fresh[k].age_s)}` : ""})`);
+  const toks = d.top_tokens || [];
+  return `
+    <div class="d-id"><div>${vst(m.verdict)}</div><h2 style="margin-top:8px">${esc(m.meta_key)}</h2>
+      <div class="terms">${esc(m.terms.length > 1 ? `Matches ${m.terms.join(", ")}` : `${l.launches_6h} launches in 6 hours, ${d.tokens_tracked} tokens trading`)}</div>
+      <div class="hype">${esc(cap(m.hype_check))}.</div></div>
+    <div class="verdict">
+      <div class="${isProv(m) ? "prov" : ""}"><div class="k">Readiness score</div><div class="big">${isNum(m.score) ? Math.round(m.score) : "—"}<small> / 100</small></div>
+        <div class="c">${isProv(m) ? "Provisional. Not a call: confidence is below the bar." : `${vinfo(m.verdict).label}.`}${m.validated ? "" : " The weights have not been validated against outcomes."}</div></div>
+      <div class="${lowConf ? "low" : ""}"><div class="k">Confidence</div><div class="big">${nf(m.confidence, 2)}</div>
+        ${meter(m.confidence, lowConf ? "cau" : "", CONF_BAR)}
+        <div class="c" style="margin-top:8px">A call needs ${CONF_BAR}. Built from data coverage ${pct(cf.weight_coverage)}, sample ${nf(cf.sample, 2)}, freshness ${nf(cf.freshness, 2)}, history ${nf(cf.history, 2)}.</div></div>
+    </div>
+    ${miss.length ? `<div class="missing"><h3>${isProv(m) ? "Not enough evidence for a call" : "Missing evidence lowers confidence"}</h3><ul class="cov">
+      ${cov.map(([name, have, ht, mt]) => `<li class="${have ? "have" : "miss"}"><span class="g">${have ? "●" : "○"}</span><span>${esc(name)}</span><em>${esc(have ? ht : mt)}</em></li>`).join("")}</ul></div>` : ""}
+    <div class="dsec"><h3>Evidence for</h3>${m.reasons.length ? `<ul class="ev pos">${m.reasons.map((r) => `<li><span class="g">●</span><span>${esc(r)}</span></li>`).join("")}</ul>` : `<p class="notes" style="margin:0">No strong positive signal.</p>`}</div>
+    <div class="dsec"><h3>Buying activity<span class="note">last hour, per-token sums</span></h3>
+      <div class="facts">
+        <div><div class="k">Buyers</div><div class="v">${compact(d.unique_buyers_h1_sum)}</div></div>
+        <div><div class="k">Sellers</div><div class="v">${compact(d.unique_sellers_h1_sum)}</div></div>
+        <div><div class="k">Buyer share</div><div class="v ${d.buyer_share_h1 >= 0.55 ? "up" : d.buyer_share_h1 < 0.45 ? "down" : ""}">${pct(d.buyer_share_h1)}</div></div>
+        <div><div class="k">Volume</div><div class="v">${usd(d.vol_h1_usd)}</div></div>
+        <div><div class="k">Net SOL into curves</div><div class="v ${isNum(d.curve_net_sol_1h) ? (d.curve_net_sol_1h >= 0 ? "up" : "down") : ""}">${isNum(d.curve_net_sol_1h) ? signed(d.curve_net_sol_1h, 1) : "—"}<small> SOL</small></div></div>
+        <div><div class="k">Graduated, 24h</div><div class="v">${d.graduations_24h}</div></div></div>
+      <div class="chart-h" style="margin-top:18px"><h3 style="font-weight:500">Launches per hour</h3><span class="note">last 12 hours</span></div>
+      <div class="chart" id="d-launch"></div>
+      <p class="notes">${d.tokens_tracked} tokens with fresh stats. One wallet buying three tokens counts three times. Top token holds ${pct(d.top_token_share_vol24)} of 24-hour volume. Net USD flow ${isNum(d.net_flow_usd_h1) ? usd(d.net_flow_usd_h1) : "needs Bitquery"}.</p></div>
+    <div class="dsec"><h3>Saturation<span class="note">${isNum(sat.index) ? `index ${nf(sat.index, 2)}, 1 = crowded` : "not enough data"}</span></h3>
+      ${Object.entries(sat.signals).map(([k, v]) => `<div class="sig"><span>${esc(cap(k.replaceAll("_", " ")))}</span>${meter(v.s, v.s >= 0.6 ? "cau" : "")}<span style="text-align:right">${nf(v.s, 2)}</span><span class="why">${esc(cap(v.why))}</span></div>`).join("")
+        || `<p class="notes" style="margin:0">No saturation signal has enough data yet.</p>`}
+      <p class="notes">Reused tickers ${pct(l.duplicate_symbol_share_6h)}. Serial deployers ${isNum(e.creators?.serial_share) ? pct(e.creators.serial_share) : "unknown"}. Paid DexScreener promotion: ${e.attention_purchased?.boosts_24h ?? 0} boosted, ${e.attention_purchased?.profiles_24h ?? 0} profiled.</p></div>
+    <div class="dsec"><h3>Risks</h3><ul class="ev neg">${m.risks.map((r, i) => `<li class="${i === m.risks.length - 1 ? "base" : ""}"><span class="g">▲</span><span>${esc(r)}</span></li>`).join("")}</ul></div>
+    <div class="dsec"><h3>Score breakdown<span class="note">${pct(cf.weight_coverage)} of the weight has data</span></h3>
+      <div class="bd">${comp("attention", "Attention")}<span class="parts">${parts(m.component_parts.attention)}</span>${comp("demand", "Demand")}<span class="parts">${parts(m.component_parts.demand)}</span>${comp("market", "Market")}${comp("freshness", "Freshness")}</div></div>
+    <div class="dsec"><h3>Score history<span class="note">last 48 hours</span></h3><div class="chart" id="d-hist"><div class="chart-empty">Loading…</div></div></div>
+    <div class="dsec"><h3>Social</h3>${cf.social_measured ? `<p class="notes" style="margin:0 0 8px">${s.mentions_1h} mentions in the last hour, ${s.mentions_6h} in 6 hours, from ${s.independent_authors_6h} independent accounts. ${s.copy_paste_posts_6h} copy-paste posts. Sentiment ${isNum(s.sentiment_6h) ? nf(s.sentiment_6h, 2) : "—"} on a −1 to 1 scale.</p>
+      <div class="posts">${(s.influential_posts || []).map((p) => `<div class="post"><div class="by">@${esc(p.author || "?")}, ${compact(p.followers)} followers, ${compact(p.engagement)} engagement. <a href="${esc(/^https:\/\//.test(p.url) ? p.url : "#")}" target="_blank" rel="noopener noreferrer">Open post</a></div>${esc(p.text)}</div>`).join("")}</div>`
+      : `<p class="notes" style="margin:0">Not measured. No X or Reddit source is connected, so attention comes from launch names alone.</p>`}</div>
+    <div class="dsec"><h3>Top tokens in this narrative</h3>
+      <table class="tbl"><thead><tr><th>Token</th><th class="r">Volume 1h</th><th>Buyers / sellers</th><th class="r">Curve</th></tr></thead><tbody>
+      ${toks.map((t, i) => `<tr data-dt="${i}"><td><span class="tk"><b>${esc(t.symbol || short(t.mint))}</b><span>${esc(t.name || "")}${isNum(t.age_h) ? `, ${esc(age(t.age_h))} old` : ""}</span></span></td><td class="r">${usd(t.vol_h1)}</td>
+        <td>${bsr(t.buyers_h1, t.sellers_h1)}</td><td class="r">${t.graduated ? "Graduated" : pct(t.progress)}</td></tr>`).join("") || `<tr><td colspan="4" class="i3">No token in this narrative has fresh stats.</td></tr>`}</tbody></table></div>
+    <p class="attr">Computed ${esc(dayhm(S.ov.as_of))} by model ${esc(S.ov.model_version)}. Sources: ${esc(srcs.join("; "))}.</p>`;
+}
+async function bindDossier(root, m) {
+  const l = m.evidence.launch, to = S.ov.as_of, hr = Math.floor(to / 3600) * 3600;
+  $$("tr[data-dt]", root).forEach((r) => r.addEventListener("click", () => openToken(m.evidence.demand.top_tokens[+r.dataset.dt].mint)));
+  Charts.timeBars($("#d-launch", root), { data: l.launch_hourly_12h.map((v, i) => [hr - (11 - i) * 3600, v]), from: hr - 11 * 3600, to: hr + 3600, step: 3600,
+    height: 96, fmtY: (v) => compact(v, 0), unit: "launches", label: "Launches per hour" });
+  try {
+    const h = await api(`/api/metas/${encodeURIComponent(m.meta_key)}/history?hours=48`);
+    const el = $("#d-hist", root);
+    if (el) Charts.timeLine(el, { data: h.filter((r) => isNum(r.score)).map((r) => [r.computed_at, r.score]), yMin: 0, yMax: 100, height: 130,
+      fmtY: (v) => nf(v, 0), refs: [{ v: 65, label: "favorable from 65" }, { v: 45, label: "mixed from 45" }], label: "Score history" });
+  } catch (_) { const el = $("#d-hist", root); if (el) el.innerHTML = `<div class="chart-empty">Score history is unavailable.</div>`; }
+}
+
+// ---------------------------------------------------------------- sheet / side panel
+let lastFocus = null;
 function openSheet(title, sub, body, onReady) {
   lastFocus = document.activeElement;
   $("#sheet-title").textContent = title;
@@ -299,8 +459,7 @@ function openSheet(title, sub, body, onReady) {
   $("#sheet-body").scrollTop = 0;
   const sh = $("#sheet");
   sh.style.transform = "";
-  $("#backdrop").classList.add("on");
-  sh.classList.add("on");
+  $("#backdrop").classList.add("on"); sh.classList.add("on");
   document.body.style.overflow = "hidden";
   $(".app").inert = true;
   setTimeout(() => sh.focus({ preventScroll: true }), 30);
@@ -309,323 +468,279 @@ function openSheet(title, sub, body, onReady) {
 function closeSheet() {
   const sh = $("#sheet");
   if (!sh.classList.contains("on")) return;
-  sh.classList.remove("on");
-  sh.style.transform = "";
+  sh.classList.remove("on"); sh.style.transform = "";
   $("#backdrop").classList.remove("on");
-  document.body.style.overflow = "";
-  $(".app").inert = false;
+  document.body.style.overflow = ""; $(".app").inert = false;
   Charts.hideTip();
-  sheetCloser && sheetCloser();
   if (lastFocus) lastFocus.focus({ preventScroll: true });
 }
 $("#sheet-close").addEventListener("click", closeSheet);
 $("#backdrop").addEventListener("click", closeSheet);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
-// drag the grabber down to dismiss (velocity- or distance-based), springs back otherwise
-(() => {
+(() => {   // drag the phone sheet's grabber down to dismiss
   const g = $("#grab"), sh = $("#sheet");
   let y0 = 0, t0 = 0, dy = 0, on = false;
   g.addEventListener("pointerdown", (e) => { on = true; y0 = e.clientY; t0 = performance.now(); dy = 0; sh.classList.add("dragging"); g.setPointerCapture(e.pointerId); });
-  g.addEventListener("pointermove", (e) => { if (!on) return; dy = Math.max(0, e.clientY - y0); sh.style.transform = `translateY(${dy}px)`; });
-  const end = () => {
-    if (!on) return;
-    on = false;
-    sh.classList.remove("dragging");
-    const v = dy / Math.max(1, performance.now() - t0);
-    if (dy > 110 || v > 0.6) closeSheet(); else sh.style.transform = "";
-  };
-  g.addEventListener("pointerup", end);
-  g.addEventListener("pointercancel", end);
+  g.addEventListener("pointermove", (e) => { if (on) { dy = Math.max(0, e.clientY - y0); sh.style.transform = `translateY(${dy}px)`; } });
+  const end = () => { if (!on) return; on = false; sh.classList.remove("dragging"); if (dy > 110 || dy / Math.max(1, performance.now() - t0) > 0.6) closeSheet(); else sh.style.transform = ""; };
+  g.addEventListener("pointerup", end); g.addEventListener("pointercancel", end);
 })();
+function openMetaSheet(m) { openSheet(m.meta_key, "", dossierHtml(m), (root) => bindDossier(root, m)); }
 
-// ---------------------------------------------------------------- meta detail
-function openMeta(m) {
-  const e = m.evidence, d = e.demand, l = e.launch, s = e.social, cf = m.confidence_factors, sat = e.saturation;
-  const fresh = S.ov.freshness;
-  const why = [];
-  if (cf.history < 0.6) why.push("collection history is still short");
-  if (cf.sample < 0.5) why.push("few tokens have fresh trading stats");
-  if (!cf.social_measured) why.push("social sources are not connected");
-  if (cf.freshness < 0.8) why.push("some sources are stale");
-  const comp = (k, label) => {
-    const v = m.components[k];
-    return `<div class="comp"><span>${esc(label)} <span class="w">×${m.weights[k]}</span></span>${isNum(v) ? meter(v) : `<span class="na">no data, excluded</span>`}
-      <span class="num" style="text-align:right">${isNum(v) ? nf(v, 2) : ""}</span></div>`;
-  };
-  const parts = (o) => Object.entries(o || {}).map(([k, v]) => `${esc(k.replaceAll("_", " "))} ${nf(v, 2)}`).join(" · ");
-  const satRows = Object.entries(sat.signals).map(([k, v]) => `<div class="comp"><span>${esc(k.replaceAll("_", " "))}</span>${meter(v.s)}<span class="num" style="text-align:right">${nf(v.s, 2)}</span></div>
-    <div class="parts" style="margin-left:0">${esc(v.why)}</div>`).join("");
-  const posts = (s.influential_posts || []).map((p) => `<div class="post"><div class="by">@${esc(p.author || "?")} · ${compact(p.followers)} followers · ${compact(p.engagement)} engagement ·
-      <a href="${esc(/^https:\/\//.test(p.url) ? p.url : "#")}" target="_blank" rel="noopener noreferrer">open</a></div>${esc(p.text)}</div>`).join("");
-  const toks = d.top_tokens || [];
-  const used = ["geckoterminal/refresh", "geckoterminal/new_pools", "solana_rpc/bonding_curves", "dexscreener/boosts_profiles", "x_api/recent_search", "reddit/new_posts"]
-    .filter((k) => fresh[k]).map((k) => `${k.split("/")[0]} (${fresh[k].state}${isNum(fresh[k].age_s) ? ", " + ago(fresh[k].age_s) : ""})`);
-  const body = `
-    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px">
-      <div>${vchip(m.verdict)}<div class="score${m.verdict === "insufficient data" ? " dim" : ""}" style="font-size:34px;margin-top:8px">${isNum(m.score) ? Math.round(m.score) : "—"}<small style="font-size:14px">/100</small></div></div>
-      <div style="text-align:right"><div class="eyebrow">Confidence</div><div class="num" style="font-size:20px;font-weight:600;margin:2px 0 4px">${nf(m.confidence, 2)}</div>
-        <div style="width:110px;margin-left:auto">${meter(m.confidence)}</div></div></div>
-    <p class="sec" style="font-size:13.5px;margin:12px 0 0">${esc(m.hype_check[0].toUpperCase() + m.hype_check.slice(1))}.${m.validated ? "" : " Score not yet validated against outcomes."}</p>
-    ${m.verdict === "insufficient data" ? `<div class="callout" style="margin-top:12px"><b>Not enough evidence for a call.</b> ${esc(((s) => s[0].toUpperCase() + s.slice(1))(why.join(", ") || "confidence is below the 0.35 bar"))}.
-      The score is shown for reference only.</div>` : ""}
-    ${m.reasons.length ? `<div class="sh" style="margin-top:18px"><h2>Evidence for</h2></div><ul class="bul pos">${m.reasons.map((r) => `<li><span class="g">●</span><span>${esc(r)}</span></li>`).join("")}</ul>` : ""}
-    <div class="sh" style="margin-top:18px"><h2>Risks</h2></div><ul class="bul neg">${m.risks.map((r) => `<li><span class="g">▲</span><span>${esc(r)}</span></li>`).join("")}</ul>
-    <details class="ev" open><summary>Score breakdown<span class="aside">${pct(cf.weight_coverage)} of weight has data</span></summary><div class="in">
-      ${comp("attention", "Attention")}<div class="parts">${parts(m.component_parts.attention)}</div>
-      ${comp("demand", "Demand")}<div class="parts">${parts(m.component_parts.demand)}</div>
-      ${comp("market", "Market")}${comp("freshness", "Freshness")}
-      <dl class="kv" style="margin-top:10px"><dt>Confidence factors</dt><dd>sample ${nf(cf.sample, 2)} · history ${nf(cf.history, 2)} · freshness ${nf(cf.freshness, 2)}</dd></dl></div></details>
-    <details class="ev" open><summary>Launches<span class="aside">${l.launches_1h} in 1h</span></summary><div class="in">
-      <div class="chart" id="mlaunch"></div>
-      <dl class="kv" style="margin-top:10px"><dt>Last hour / 6h</dt><dd>${l.launches_1h} / ${l.launches_6h}</dd>
-        <dt>Prior 24h baseline</dt><dd>${nf(l.launch_base_rate_h, 1)}/h</dd>
-        <dt>Acceleration (z)</dt><dd>${isNum(l.launch_accel_z) ? nf(l.launch_accel_z, 1) : "baseline not ready"}</dd>
-        <dt>Share of all launches, 6h</dt><dd>${pct(l.launch_share_6h, 1)}</dd>
-        <dt>Reused tickers</dt><dd>${pct(l.duplicate_symbol_share_6h)}</dd>
-        <dt>Serial deployers</dt><dd>${isNum(e.creators?.serial_share) ? pct(e.creators.serial_share) : "unknown"} <span class="muted">(${e.creators?.known ?? 0} known)</span></dd>
-        <dt>Paid promotion, 24h</dt><dd>${e.attention_purchased?.boosts_24h ?? 0} boosted · ${e.attention_purchased?.profiles_24h ?? 0} profiled</dd></dl></div></details>
-    <details class="ev" open><summary>Buying demand<span class="aside">${compact(d.unique_buyers_h1_sum)} buyers/h</span></summary><div class="in">
-      <div class="statgrid c3">
-        <div><div class="k">Buyers / sellers 1h</div><div class="v">${compact(d.unique_buyers_h1_sum)}/${compact(d.unique_sellers_h1_sum)}</div></div>
-        <div><div class="k">Buyer share</div><div class="v">${pct(d.buyer_share_h1)}</div></div>
-        <div><div class="k">Volume 1h</div><div class="v">${usd(d.vol_h1_usd)}</div></div>
-        <div><div class="k">Volume 24h</div><div class="v">${usd(d.vol_h24_usd)}</div></div>
-        <div><div class="k">Net SOL into curves 1h</div><div class="v">${isNum(d.curve_net_sol_1h) ? signed(d.curve_net_sol_1h, 1) + '<small class="muted" style="font-size:12px"> SOL</small>' : "—"}</div></div>
-        <div><div class="k">Graduated 24h</div><div class="v">${d.graduations_24h}</div></div></div>
-      <p class="attrib" style="margin-top:8px">${d.tokens_tracked} tokens with fresh stats. Buyer counts are per-token sums: one wallet in three tokens counts three times.
-        Net USD flow ${isNum(d.net_flow_usd_h1) ? usd(d.net_flow_usd_h1) : "needs Bitquery"}. Top token holds ${pct(d.top_token_share_vol24)} of 24h volume.</p></div></details>
-    <details class="ev"><summary>Saturation<span class="aside">${isNum(sat.index) ? "index " + nf(sat.index, 2) : "no signals yet"}</span></summary><div class="in">
-      ${satRows || `<p class="muted" style="font-size:13px;margin:0">No saturation signal has enough data yet.</p>`}</div></details>
-    <details class="ev"><summary>Social<span class="aside">${cf.social_measured ? `${s.mentions_6h} posts 6h` : "not connected"}</span></summary><div class="in">
-      ${cf.social_measured ? `<dl class="kv"><dt>Mentions 1h / 6h</dt><dd>${s.mentions_1h} / ${s.mentions_6h}</dd><dt>Independent accounts</dt><dd>${s.independent_authors_6h}</dd>
-        <dt>Copy-paste posts</dt><dd>${s.copy_paste_posts_6h}</dd><dt>Sentiment (−1…1)</dt><dd>${isNum(s.sentiment_6h) ? nf(s.sentiment_6h, 2) : "—"}</dd></dl>${posts}`
-        : `<p class="muted" style="font-size:13px;margin:0">No social source is connected, so attention comes from launch names only. Add an X token or Reddit OAuth in settings.</p>`}</div></details>
-    <details class="ev"><summary>Score history<span class="aside">last 48h</span></summary><div class="in"><div class="chart" id="mhist"><div class="chart-empty">Loading…</div></div></div></details>
-    <div class="sh" style="margin-top:20px"><h2>Top tokens in this meta</h2></div>
-    <div class="card flush list" id="mtoks">${toks.length ? toks.map((t, i) => tokenRow({ ...t, created_at: isNum(t.age_h) ? nowS() - t.age_h * 3600 : null }, i)).join("") : `<div class="empty">No token in this meta has fresh stats.</div>`}</div>
-    <p class="attrib">Computed ${esc(dayhm(S.ov.as_of))} by model ${esc(S.ov.model_version)}. Sources: ${esc(used.join(", "))}.</p>`;
-  openSheet(m.meta_key, esc(m.terms.length > 1 ? m.terms.join(" · ") : `${l.launches_6h} launches in 6h · ${d.tokens_tracked} tokens trading`), body, async (root) => {
-    bindTokRows($("#mtoks", root), toks);
-    const to = S.ov.as_of;
-    Charts.timeBars($("#mlaunch", root), { data: l.launch_hourly_12h.map((v, i) => [Math.floor((to - (11 - i) * 3600) / 3600) * 3600, v]),
-      from: Math.floor(to / 3600) * 3600 - 11 * 3600, to: Math.floor(to / 3600) * 3600 + 3600, step: 3600, height: 110, fmtY: (v) => compact(v, 0), unit: "launches", label: "Launches per hour" });
-    try {
-      const h = await api(`/api/metas/${encodeURIComponent(m.meta_key)}/history?hours=48`);
-      Charts.timeLine($("#mhist", root), { data: h.filter((r) => isNum(r.score)).map((r) => [r.computed_at, r.score]), yMin: 0, yMax: 100, height: 140,
-        fmtY: (v) => nf(v, 0), refs: [{ v: 65, label: "favorable" }, { v: 45, label: "mixed" }], label: "Score history" });
-    } catch (_) { $("#mhist", root).innerHTML = `<div class="chart-empty">History unavailable.</div>`; }
-  });
-}
-
-// ---------------------------------------------------------------- token detail
+// ---------------------------------------------------------------- token dossier
 let tokState = { mint: null, metric: "mcap", hours: 24 };
 async function openToken(mint) {
   tokState = { ...tokState, mint };
-  openSheet("Loading…", "", `<div class="sk" style="height:96px"></div><div style="height:10px"></div><div class="sk" style="height:170px"></div>`);
+  if (!$("#sheet").classList.contains("on")) openSheet("Loading", "", `<div class="sk" style="height:120px"></div><div class="sk" style="height:180px;margin-top:12px"></div>`);
   let t;
   try { t = await api(`/api/tokens/${encodeURIComponent(mint)}?hours=${tokState.hours}`); }
-  catch (e) { $("#sheet-title").textContent = "Token"; $("#sheet-body").innerHTML = `<div class="empty"><div class="t">Couldn’t load this token</div>${esc(e.message)}</div>`; return; }
+  catch (e) { $("#sheet-title").textContent = "Token"; $("#sheet-body").innerHTML = `<div class="empty"><h3>Couldn’t load this token</h3>${esc(cap(e.message))}.</div>`; return; }
   if (tokState.mint !== mint) return;
   const k = t.token, last = t.observations[t.observations.length - 1] || {}, curve = t.curve[t.curve.length - 1];
-  const ageH = k.created_at ? (t.now - k.created_at) / 3600 : null;
-  const graduated = !!t.graduation || !!curve?.complete;
-  const risks = [];
-  if (isNum(ageH) && ageH < 1) risks.push(["warn", `Launched ${age(ageH)} ago: most launches are dead within 30 minutes.`]);
-  if ((last.sellers_h1 || 0) > (last.buyers_h1 || 0)) risks.push(["neg", `More sellers than buyers in the last hour (${last.sellers_h1} vs ${last.buyers_h1}).`]);
-  if (isNum(last.liquidity_usd) && last.liquidity_usd < 5000) risks.push(["warn", `Thin liquidity: ${usd(last.liquidity_usd)}.`]);
-  if (t.deployer?.launches_seen_24h >= 3) risks.push(["neg", `Deployer launched ${t.deployer.launches_seen_24h} tokens we saw in 24h (serial deployer).`]);
-  if (last.observed_at && t.now - last.observed_at > 1800) risks.push(["warn", `Trading stats are ${ago(t.now - last.observed_at)} old.`]);
-  if (!t.observations.length) risks.push(["warn", "No trading observations in this range."]);
-  const outcomes = t.outcomes.map((o) => `<tr><td>${o.horizon_h}h</td><td>${o.graduated ? "graduated" : esc(o.bucket || "—")}</td><td class="r">${isNum(o.ret_end) ? signed(o.ret_end * 100, 0, "%") : "—"}</td><td class="r">${isNum(o.ret_max) ? signed(o.ret_max * 100, 0, "%") : "—"}</td></tr>`).join("");
-  const body = `
-    <div class="addr"><span>${esc(short(k.mint))}</span><button id="copy">Copy address</button></div>
-    <div class="links" style="margin-top:10px">
-      <a href="https://pump.fun/coin/${encodeURIComponent(k.mint)}" target="_blank" rel="noopener noreferrer">pump.fun ↗</a>
-      <a href="https://dexscreener.com/solana/${encodeURIComponent(k.mint)}" target="_blank" rel="noopener noreferrer">DexScreener ↗</a>
-      <a href="https://solscan.io/token/${encodeURIComponent(k.mint)}" target="_blank" rel="noopener noreferrer">Solscan ↗</a></div>
-    <div class="statgrid c3" style="margin-top:14px">
-      <div><div class="k">Market cap</div><div class="v">${usd(last.mcap_usd)}</div></div>
-      <div><div class="k">Liquidity</div><div class="v">${usd(last.liquidity_usd)}</div></div>
-      <div><div class="k">Curve</div><div class="v">${graduated ? "Graduated" : curve ? pct(curve.progress) : "—"}</div></div>
-      <div><div class="k">Volume 1h</div><div class="v">${usd(last.vol_h1)}</div></div>
-      <div><div class="k">Volume 24h</div><div class="v">${usd(last.vol_h24)}</div></div>
-      <div><div class="k">Buyers / sellers 1h</div><div class="v">${last.buyers_h1 ?? "—"}/${last.sellers_h1 ?? "—"}</div></div></div>
-    <div class="section card">
-      <div class="chart-title"><div class="seg" id="tmetric" role="group" aria-label="Metric">${[["mcap", "Market cap"], ["buyers", "Buyers/h"], ["curve", "Curve"]]
-        .map(([v, l]) => `<button data-v="${v}" aria-pressed="${tokState.metric === v}">${l}</button>`).join("")}</div>
-        <div class="seg" id="trange" role="group" aria-label="Range">${[[6, "6H"], [24, "24H"], [72, "3D"]].map(([v, l]) => `<button data-v="${v}" aria-pressed="${tokState.hours === v}">${l}</button>`).join("")}</div></div>
-      <div class="chart" id="tchart"></div></div>
-    <div class="sh" style="margin-top:18px"><h2>Risk indicators</h2></div>
-    ${risks.length ? `<ul class="bul">${risks.map(([tone, r]) => `<li class="${tone}"><span class="g" style="color:var(--${tone})">▲</span><span>${esc(r)}</span></li>`).join("")}</ul>`
-      : `<p class="sec" style="font-size:13.5px;margin:0">No automatic flags. That is not a safety check: rugs, bundles and insider wallets are not detected here.</p>`}
-    <details class="ev"><summary>Deployer<span class="aside">${t.deployer ? esc(short(t.deployer.wallet)) : "unknown"}</span></summary><div class="in">
-      ${t.deployer ? `<dl class="kv"><dt>Wallet</dt><dd>${esc(short(t.deployer.wallet))}</dd><dt>Launches we saw, 24h</dt><dd>${t.deployer.launches_seen_24h}</dd>
-        <dt>SOL balance</dt><dd>${isNum(t.deployer.activity?.sol_balance) ? nf(t.deployer.activity.sol_balance, 2) : "—"}</dd>
-        <dt>Recent transactions</dt><dd>${t.deployer.activity?.recent_tx ?? "—"}${t.deployer.activity?.recent_tx >= 100 ? "+" : ""}</dd></dl>
-        <p class="attrib" style="margin-top:8px">Deployer = fee payer of the create transaction (Solana RPC).</p>`
-        : `<p class="muted" style="font-size:13px;margin:0">Not looked up. Deployer lookups cost 2 RPC calls, so only the most active tokens get one.</p>`}</div></details>
-    ${outcomes ? `<details class="ev"><summary>Outcomes<span class="aside">measured after launch</span></summary><div class="in">
-      <table class="tbl"><thead><tr><th>Horizon</th><th>Result</th><th class="r">Return</th><th class="r">Max</th></tr></thead><tbody>${outcomes}</tbody></table>
-      <p class="attrib">Return is from the first observed candle and ignores fees. Graduation and profit are separate outcomes.</p></div></details>` : ""}
-    <p class="attrib">Trading stats: GeckoTerminal pool ${esc(short(k.pool))}, ${t.observations.length} observations in range${last.observed_at ? `, latest ${esc(ago(t.now - last.observed_at))}` : ""}.
-      Curve: Solana RPC account state${curve ? `, ${esc(ago(t.now - curve.observed_at))}` : ", not read"}.${t.attention.length ? ` Paid DexScreener ${esc(t.attention[0].kind)} seen.` : ""}</p>`;
+  const ageH = k.created_at ? (t.now - k.created_at) / 3600 : null, graduated = !!t.graduation || !!curve?.complete;
+  const flags = tokenFlags({ ...last, created_at: k.created_at, graduated, deployer_launches_24h: t.deployer?.launches_seen_24h }, t.now);
+  if (!t.observations.length) flags.push(["", "No trading observations in this range"]);
+  const out = t.outcomes.map((o) => `<tr><td>${o.horizon_h}h</td><td>${o.graduated ? "Graduated" : esc(cap(o.bucket || "—"))}</td><td class="r">${isNum(o.ret_end) ? signed(o.ret_end * 100, 0, "%") : "—"}</td><td class="r">${isNum(o.ret_max) ? signed(o.ret_max * 100, 0, "%") : "—"}</td></tr>`).join("");
   $("#sheet-title").textContent = k.symbol ? `$${k.symbol}` : short(k.mint);
-  $("#sheet-sub").textContent = `${k.name || ""}${isNum(ageH) ? " · launched " + age(ageH) + " ago" : ""}${graduated ? " · graduated" : ""}`;
+  $("#sheet-sub").textContent = `${k.name || ""}${isNum(ageH) ? `, launched ${age(ageH)} ago` : ""}${graduated ? ", graduated" : ""}`;
   const root = $("#sheet-body");
-  root.innerHTML = body;
-  $("#copy", root).addEventListener("click", async () => { try { await navigator.clipboard.writeText(k.mint); toast("Address copied"); } catch (_) { toast("Copy not allowed here"); } });
+  root.innerHTML = `
+    <div class="addr"><span>${esc(k.mint)}</span><button class="btn" id="copy">Copy address</button></div>
+    <div class="links"><a href="https://pump.fun/coin/${encodeURIComponent(k.mint)}" target="_blank" rel="noopener noreferrer">pump.fun</a>
+      <a href="https://dexscreener.com/solana/${encodeURIComponent(k.mint)}" target="_blank" rel="noopener noreferrer">DexScreener</a>
+      <a href="https://solscan.io/token/${encodeURIComponent(k.mint)}" target="_blank" rel="noopener noreferrer">Solscan</a></div>
+    <div class="dsec"><h3>Risk flags</h3>${flags.length ? `<ul class="ev cau">${flags.map(([c, f]) => `<li><span class="g" style="color:var(--${c === "neg" ? "sell" : "caution"})">▲</span><span>${esc(f)}</span></li>`).join("")}</ul>`
+      : `<p class="notes" style="margin:0">None of the automatic checks fired. They do not detect rugs, bundled buys or insider wallets.</p>`}</div>
+    <div class="dsec"><h3>Now<span class="note">${last.observed_at ? `observed ${esc(ago(t.now - last.observed_at))}` : "no recent observation"}</span></h3>
+      <div class="facts"><div><div class="k">Market cap</div><div class="v">${usd(last.mcap_usd)}</div></div><div><div class="k">Liquidity</div><div class="v">${usd(last.liquidity_usd)}</div></div>
+        <div><div class="k">Curve</div><div class="v">${graduated ? "Graduated" : curve ? pct(curve.progress) : "—"}</div></div>
+        <div><div class="k">Volume 1h</div><div class="v">${usd(last.vol_h1)}</div></div><div><div class="k">Volume 24h</div><div class="v">${usd(last.vol_h24)}</div></div>
+        <div><div class="k">Buyers / sellers 1h</div><div class="v">${last.buyers_h1 ?? "—"}<small> / ${last.sellers_h1 ?? "—"}</small></div></div></div></div>
+    <div class="dsec"><div class="chart-h">${seg("Metric", [["mcap", "Market cap"], ["buyers", "Buyers per hour"], ["curve", "Curve progress"]], tokState.metric, "data-m")}
+      <span class="end">${seg("Range", [[6, "6H"], [24, "24H"], [72, "3D"]], tokState.hours, "data-h")}</span></div><div class="chart" id="tchart"></div></div>
+    <div class="dsec"><h3>Deployer<span class="note">${t.deployer ? esc(short(t.deployer.wallet)) : "not looked up"}</span></h3>
+      ${t.deployer ? `<div class="ledger"><div class="li"><span class="k">Launches we saw in 24 hours</span><span class="v ${t.deployer.launches_seen_24h >= 3 ? "down" : ""}">${t.deployer.launches_seen_24h}</span></div>
+        <div class="li"><span class="k">SOL balance</span><span class="v">${isNum(t.deployer.activity?.sol_balance) ? nf(t.deployer.activity.sol_balance, 2) : "—"}</span></div>
+        <div class="li"><span class="k">Recent transactions</span><span class="v">${t.deployer.activity?.recent_tx ?? "—"}${t.deployer.activity?.recent_tx >= 100 ? "+" : ""}</span></div></div>`
+        : `<p class="notes" style="margin:0">Deployer lookups cost two RPC calls, so only the most active tokens get one.</p>`}</div>
+    ${out ? `<div class="dsec"><h3>Outcomes<span class="note">measured after launch</span></h3><table class="tbl"><thead><tr><th>Horizon</th><th>Result</th><th class="r">Return</th><th class="r">Peak</th></tr></thead><tbody>${out}</tbody></table>
+      <p class="notes">Return runs from the first observed candle and ignores fees. Graduation and profit are separate outcomes.</p></div>` : ""}
+    <p class="attr">Trading stats: GeckoTerminal pool ${esc(short(k.pool))}, ${t.observations.length} observations in range. Curve: Solana RPC account state${curve ? `, read ${esc(ago(t.now - curve.observed_at))}` : ", not read"}.${t.attention.length ? ` Paid DexScreener ${esc(t.attention[0].kind)} seen.` : ""}</p>`;
+  $("#copy", root).addEventListener("click", async () => { try { await navigator.clipboard.writeText(k.mint); toast("Address copied"); } catch (_) { toast("Copying isn’t allowed here"); } });
   const draw = () => {
-    // start at launch when the token is younger than the range, so its whole life fills the chart
-    const firstSeen = Math.min(...[k.created_at, t.observations[0]?.observed_at, t.curve[0]?.observed_at].filter(isNum));
-    const el = $("#tchart", root), from = Math.max(t.now - tokState.hours * 3600, isFinite(firstSeen) ? firstSeen - 120 : 0);
+    const first = Math.min(...[k.created_at, t.observations[0]?.observed_at, t.curve[0]?.observed_at].filter(isNum));
+    const el = $("#tchart", root), from = Math.max(t.now - tokState.hours * 3600, isFinite(first) ? first - 120 : 0);
     if (tokState.metric === "curve") return Charts.timeLine(el, { data: t.curve.map((c) => [c.observed_at, (c.complete ? 1 : c.progress) * 100]), from, to: t.now, yMin: 0, yMax: 100, fmtY: (v) => nf(v, 0) + "%", label: "Curve progress" });
     if (tokState.metric === "buyers") return Charts.timeLine(el, { data: t.observations.filter((o) => isNum(o.buyers_h1)).map((o) => [o.observed_at, o.buyers_h1]), from, to: t.now, fmtY: (v) => compact(v, 0), label: "Unique buyers per hour" });
     Charts.timeLine(el, { data: t.observations.filter((o) => isNum(o.mcap_usd)).map((o) => [o.observed_at, o.mcap_usd]), from, to: t.now, fmtY: (v) => usd(v), label: "Market cap" });
   };
   draw();
-  $$("#tmetric button", root).forEach((b) => b.addEventListener("click", () => { tokState.metric = b.dataset.v; $$("#tmetric button", root).forEach((x) => x.setAttribute("aria-pressed", x === b)); draw(); }));
-  $$("#trange button", root).forEach((b) => b.addEventListener("click", () => { tokState.hours = +b.dataset.v; openToken(mint); }));
+  $$("[data-m]", root).forEach((b) => b.addEventListener("click", () => { tokState.metric = b.dataset.m; $$("[data-m]", root).forEach((x) => x.setAttribute("aria-pressed", x === b)); draw(); }));
+  $$("[data-h]", root).forEach((b) => b.addEventListener("click", () => { tokState.hours = +b.dataset.h; openToken(mint); }));
 }
 
 // ---------------------------------------------------------------- TOKENS
-const TSORT = { vol: (t) => t.vol_h1 || 0, buyers: (t) => t.buyers_h1 || 0, new: (t) => t.created_at || 0, curve: (t) => (t.graduated ? 1.01 : t.progress || 0) };
+const TCOLS = [
+  ["sym", "Token", "", (t) => (t.symbol || "").toLowerCase()], ["age", "Age", "r", (t) => -(t.created_at || 0)], ["mcap_usd", "Market cap", "r", (t) => t.mcap_usd],
+  ["liquidity_usd", "Liquidity", "r hide-s", (t) => t.liquidity_usd], ["vol_h1", "Volume 1h", "r", (t) => t.vol_h1], ["vol_h24", "Volume 24h", "r hide-s", (t) => t.vol_h24],
+  ["buyers_h1", "Buyers / sellers 1h", "hide-s", (t) => t.buyers_h1], ["chg_h1", "Change 1h", "r hide-s", (t) => t.chg_h1],
+  ["progress", "Curve", "hide-s", (t) => (t.graduated ? 2 : t.progress)], ["flags", "Risk flags", "hide-s", (t) => tokenFlags(t).length],
+];
 function renderTokens() {
-  const el = $(".screen[data-screen=tokens]");
-  const q = S.tokQuery.trim().toLowerCase();
-  const all = S.tokens?.tokens || [];
-  const list = all.filter((t) => !q || `${t.symbol} ${t.name} ${t.mint}`.toLowerCase().includes(q)).sort((a, b) => TSORT[S.tokSort](b) - TSORT[S.tokSort](a));
+  const el = $(".screen[data-screen=tokens]"), all = S.tokens?.tokens || [], T = S.tok, now = nowS();
+  setHead("Tokens", `${all.length} tokens with trading stats from the last two hours. Click a row for its dossier.`);
+  const q = T.q.trim().toLowerCase();
+  const filt = { all: () => true, curve: (t) => !t.graduated, grad: (t) => !!t.graduated, flagged: (t) => tokenFlags(t, now).length > 0 };
+  const counts = Object.fromEntries(Object.keys(filt).map((k) => [k, all.filter(filt[k]).length]));
+  const col = TCOLS.find((c) => c[0] === T.key) || TCOLS[4];
+  const list = all.filter(filt[T.filter]).filter((t) => !q || `${t.symbol} ${t.name} ${t.mint}`.toLowerCase().includes(q))
+    .sort((a, b) => { const va = col[3](a), vb = col[3](b); if (va == null) return 1; if (vb == null) return -1; return (va > vb ? 1 : va < vb ? -1 : 0) * T.dir; });
   const focused = document.activeElement?.id === "tq";
-  el.innerHTML = `<div class="${focused ? "" : "stag"}"><div class="section" style="display:grid;gap:10px">
-      <label class="sr" for="tq">Search tokens</label><input id="tq" type="search" placeholder="Search symbol, name or address" value="${esc(S.tokQuery)}" autocomplete="off" spellcheck="false">
-      <div class="toolbar">${segHtml("Sort", [["vol", "Volume"], ["buyers", "Buyers"], ["new", "Newest"], ["curve", "Curve"]], S.tokSort)}
-        <span class="muted" style="font-size:12px">${list.length} active · stats ≤2h old</span></div></div>
-    <div class="section card flush list" id="tlist">${list.length ? list.map(tokenRow).join("") : all.length ? `<div class="empty">No token matches “${esc(S.tokQuery)}”.</div>`
-      : `<div class="empty"><div class="t">No active tokens yet</div>Tokens appear here once their trading stats have been refreshed (every 5 minutes).</div>`}</div></div>`;
+  el.innerHTML = `
+    <div class="toolbar"><label class="sr" for="tq">Search tokens</label><input id="tq" type="search" placeholder="Search by ticker, name or address" value="${esc(T.q)}" autocomplete="off" spellcheck="false">
+      <div class="chips" role="group" aria-label="Filter">${[["all", "All"], ["curve", "On the curve"], ["grad", "Graduated"], ["flagged", "Flagged"]]
+        .map(([v, l]) => `<button class="chip" data-tf="${v}" aria-pressed="${T.filter === v}">${l}<span class="ct">${counts[v]}</span></button>`).join("")}</div>
+      <span class="end">${list.length} shown</span></div>
+    <table class="tbl tokentbl"><thead><tr>${TCOLS.map(([k, l, c]) => `<th class="${c}" ${T.key === k ? `aria-sort="${T.dir < 0 ? "descending" : "ascending"}"` : ""}><button data-sort="${k}">${l}</button></th>`).join("")}</tr></thead>
+      <tbody id="trows">${list.map((t, i) => {
+        const ageH = t.created_at ? (now - t.created_at) / 3600 : null;
+        const fl = tokenFlags(t, now);
+        return `<tr data-i="${i}"><td><span class="tk"><b>${esc(t.symbol || short(t.mint))}</b><span>${esc(t.name || "")}</span>${fl.length ? `<span class="show-s ${fl.some((x) => x[0] === "neg") ? "down" : "warn"}">▲ ${esc(fl.map((x) => x[1].toLowerCase()).join(", "))}</span>` : ""}</span></td>
+          <td class="r">${t.graduated && !isNum(ageH) ? "—" : esc(age(ageH))}</td><td class="r">${usd(t.mcap_usd)}</td><td class="r hide-s">${usd(t.liquidity_usd)}</td>
+          <td class="r">${usd(t.vol_h1)}</td><td class="r hide-s">${usd(t.vol_h24)}</td><td class="hide-s">${bsr(t.buyers_h1, t.sellers_h1)}</td>
+          <td class="r hide-s ${t.chg_h1 > 0 ? "up" : t.chg_h1 < 0 ? "down" : ""}">${isNum(t.chg_h1) ? signed(t.chg_h1, 0, "%") : "—"}</td>
+          <td class="hide-s">${curveCell(t)}</td><td class="hide-s">${flagsHtml(fl)}</td></tr>`;
+      }).join("") || `<tr><td colspan="10"><div class="empty">${all.length ? `<h3>No match</h3>No token matches these filters.` : `<h3>No active tokens yet</h3>Tokens appear once their trading stats are refreshed, every five minutes.`}</div></td></tr>`}</tbody></table>`;
   const inp = $("#tq");
-  inp.addEventListener("input", () => { S.tokQuery = inp.value; renderTokens(); const n = $("#tq"); n.focus(); n.setSelectionRange(n.value.length, n.value.length); });
-  bindSeg(el, (v) => { S.tokSort = v; renderTokens(); });
-  bindTokRows($("#tlist"), list);
+  if (focused) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+  inp.addEventListener("input", () => { T.q = inp.value; renderTokens(); });
+  $$("[data-tf]", el).forEach((b) => b.addEventListener("click", () => { T.filter = b.dataset.tf; renderTokens(); }));
+  $$("[data-sort]", el).forEach((b) => b.addEventListener("click", () => { const k = b.dataset.sort; T.dir = T.key === k ? -T.dir : (k === "sym" ? 1 : -1); T.key = k; renderTokens(); }));
+  $$("#trows tr[data-i]", el).forEach((r) => r.addEventListener("click", () => openToken(list[+r.dataset.i].mint)));
 }
 
 // ---------------------------------------------------------------- ANALYST
 function md(text) {
-  const lines = esc(text).split("\n");
+  const lines = esc(text.replace(/^# .*\n+/, "")).split("\n");
   let out = "", inList = false;
   const inline = (s) => s.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|\s)_(.+?)_(?=\s|$|[.,])/g, "$1<em>$2</em>");
   for (const ln of lines) {
     const li = ln.match(/^\s*(?:[-*]|\d+\.)\s+(.*)/);
     if (li) { if (!inList) { out += "<ul>"; inList = true; } out += `<li>${inline(li[1])}</li>`; continue; }
     if (inList) { out += "</ul>"; inList = false; }
-    if (/^# /.test(ln)) out += `<h1>${inline(ln.slice(2))}</h1>`;
-    else if (/^#{2,3} /.test(ln)) out += `<h3>${inline(ln.replace(/^#+ /, ""))}</h3>`;
+    const hd = ln.match(/^\*\*(.+?)\*\*\s*$/) || ln.match(/^#{2,3} (.*)/);
+    if (hd) out += `<h3>${inline(hd[1])}</h3>`;
     else if (ln.trim()) out += `<p>${inline(ln)}</p>`;
   }
   return out + (inList ? "</ul>" : "");
 }
 async function renderAnalyst() {
-  const el = $(".screen[data-screen=analyst]");
-  if (S.report === undefined) {
-    el.innerHTML = `<div class="section"><div class="sk" style="height:300px"></div></div>`;
-    try { S.report = await api("/api/reports/latest"); } catch (e) { S.report = { error: e.message }; }
+  const el = $(".screen[data-screen=analyst]"), ai = S.ov.config.anthropic_analyst;
+  setHead("Analyst", ai ? `Claude (${esc(S.ov.config.analyst_model)}) writes from the evidence pack and may only cite its numbers.` : "The rules analyst writes from the same evidence pack. Add a Claude key in settings for written analysis.",
+    `<button class="btn solid" id="write">Write a new report</button>`);
+  $("#write").addEventListener("click", writeReport);
+  if (!S.reports) {
+    el.innerHTML = `<div class="ws"><div class="sk" style="height:420px"></div><div class="sk" style="height:300px"></div></div>`;
+    try {
+      S.reports = await api("/api/reports?limit=20");
+      if (S.reports.length) S.report = await api(`/api/reports/${S.reports[0].id}`);
+    } catch (e) { S.reports = []; S.report = { error: e.message }; }
     if (S.tab !== "analyst") return;
   }
-  const r = S.report, ai = S.ov.config.anthropic_analyst;
-  el.innerHTML = `<div class="stag">
-    <div class="section toolbar"><div class="muted" style="font-size:12.5px">${ai ? `Claude (${esc(S.ov.config.analyst_model)}) writes from the evidence pack and may only cite its numbers.`
-      : "Rules analyst (no Claude key set). Deterministic, built from the same evidence."}</div>
-      <button class="btn primary" id="write">Write new report</button></div>
-    <div class="section card">${r?.error ? `<div class="empty"><div class="t">Couldn’t load the report</div>${esc(r.error)}</div>`
-      : r ? `<div class="eyebrow" style="margin-bottom:8px">${esc(dayhm(r.created_at))} · ${esc(r.analyst)} · ${esc(r.kind.replace("_", " "))}</div><div class="report">${md(r.body.replace(/^# .*\n+/, ""))}</div>`
-      : `<div class="empty"><div class="t">No report yet</div>Reports are written at the scheduled times, or now with the button above.</div>`}</div></div>`;
-  $("#write").addEventListener("click", async (e) => {
-    const b = e.currentTarget;
-    b.disabled = true; b.textContent = ai ? "Writing… (up to a minute)" : "Writing…";
-    try { S.report = await api("/api/reports", { method: "POST" }); S.report.created_at = nowS(); S.report.kind = "on_demand"; toast("Report written"); }
-    catch (err) { toast("Report failed: " + err.message); }
-    if (S.tab === "analyst") renderAnalyst();
-  });
+  const metas = S.ov.metas;
+  if (!S.cmp) S.cmp = metas.slice(0, 3).map((m) => m.meta_key);
+  S.cmp = S.cmp.filter((k) => metas.some((m) => m.meta_key === k));
+  const chosen = S.cmp.map((k) => metas.find((m) => m.meta_key === k));
+  const R = S.report;
+  const rowsDef = [
+    ["Verdict", (m) => { const v = vinfo(m.verdict); return st(v.tone, v.g, v.label.replace(" evidence", "")); }], ["Readiness score", (m) => `<span class="${isProv(m) ? "i3" : ""}">${isNum(m.score) ? Math.round(m.score) : "—"}</span>`],
+    ["Confidence", (m) => `<span class="${m.confidence < CONF_BAR ? "warn" : ""}">${nf(m.confidence, 2)}</span>`],
+    ["Launches 1h / 6h", (m) => `${m.evidence.launch.launches_1h} / ${m.evidence.launch.launches_6h}`], ["Buyers per hour", (m) => compact(m.evidence.demand.unique_buyers_h1_sum)],
+    ["Buyer share", (m) => pct(m.evidence.demand.buyer_share_h1)], ["Net SOL into curves 1h", (m) => (isNum(m.evidence.demand.curve_net_sol_1h) ? signed(m.evidence.demand.curve_net_sol_1h, 1) : "—")],
+    ["Graduated 24h", (m) => m.evidence.demand.graduations_24h], ["Top token share of volume", (m) => pct(m.evidence.demand.top_token_share_vol24)],
+    ["Crowding", (m) => (isNum(m.evidence.saturation.index) ? nf(m.evidence.saturation.index, 2) : "—")], ["Reused tickers", (m) => pct(m.evidence.launch.duplicate_symbol_share_6h)],
+    ["Hype check", (m) => `<span class="i2">${esc(cap(m.hype_check))}</span>`],
+  ];
+  el.innerHTML = `<div class="ws">
+    <article>
+      <div class="repmeta">${S.reports.length ? `<label class="sr" for="rep">Report</label><select id="rep">${S.reports.map((r) => `<option value="${r.id}" ${R?.id === r.id ? "selected" : ""}>${esc(dayhm(r.created_at))}, ${esc(r.kind.replace("_", " "))}</option>`).join("")}</select>
+        <span>Written by ${esc(R?.analyst || "—")}</span>` : "<span>No reports yet</span>"}</div>
+      ${R?.error ? `<div class="empty"><h3>Couldn’t load the report</h3>${esc(cap(R.error))}.</div>` : R?.body ? `<div class="report">${md(R.body)}</div>`
+        : `<div class="empty"><h3>No report yet</h3>Reports are written at the scheduled times, or now with “Write a new report”.</div>`}
+    </article>
+    <aside>
+      <div class="sec-h"><h2>Compare narratives</h2><span class="note">pick up to three</span></div>
+      <div class="chips" style="margin-bottom:12px">${metas.slice(0, 12).map((m) => `<button class="chip" data-c="${esc(m.meta_key)}" aria-pressed="${S.cmp.includes(m.meta_key)}">${esc(m.meta_key)}</button>`).join("")}</div>
+      ${chosen.length ? `<table class="tbl cmp"><thead><tr><th></th>${chosen.map((m) => `<th class="nm">${esc(m.meta_key)}</th>`).join("")}</tr></thead>
+        <tbody>${rowsDef.map(([k, f]) => `<tr><td class="k">${k}</td>${chosen.map((m) => `<td>${f(m)}</td>`).join("")}</tr>`).join("")}</tbody></table>
+        <p class="notes">Figures from the analysis of ${esc(hhmm(S.ov.as_of))}, the same evidence the analyst reads. Buyer counts are per-token sums.</p>`
+        : `<p class="notes">Choose narratives above to compare their evidence side by side.</p>`}
+    </aside></div>`;
+  const sel = $("#rep");
+  if (sel) sel.addEventListener("change", async () => { try { S.report = await api(`/api/reports/${sel.value}`); } catch (e) { S.report = { error: e.message }; } renderAnalyst(); });
+  $$("[data-c]", el).forEach((b) => b.addEventListener("click", () => {
+    const k = b.dataset.c;
+    S.cmp = S.cmp.includes(k) ? S.cmp.filter((x) => x !== k) : [...S.cmp, k].slice(-3);
+    renderAnalyst();
+  }));
+}
+async function writeReport(e) {
+  const b = e.currentTarget; b.disabled = true; b.textContent = S.ov.config.anthropic_analyst ? "Writing, up to a minute" : "Writing";
+  try { const r = await api("/api/reports", { method: "POST" }); S.reports = null; toast("Report written"); S.report = { id: r.id }; }
+  catch (err) { toast(`Report failed: ${err.message}`); }
+  if (S.tab === "analyst") renderAnalyst();
 }
 
 // ---------------------------------------------------------------- SYSTEM
+const SRC_NAMES = { "geckoterminal/new_pools": "New launches", "geckoterminal/active_pools": "Most-traded tokens", "geckoterminal/refresh": "Token trading stats",
+  "solana_rpc/bonding_curves": "Bonding curves", "solana_rpc/deployers": "Deployer wallets", "dexscreener/boosts_profiles": "Paid promotion",
+  "defillama/launchpad_volume": "Launchpad volume", "x_api/recent_search": "X posts", "reddit/new_posts": "Reddit posts",
+  "pumpfun/latest_coins": "pump.fun API", "bitquery/net_flow": "Net flow (Bitquery)", "outcomes/label": "Outcome labelling" };
+const SRC_STATE = { fresh: ["pos", "●", "Fresh"], degraded: ["warn", "▲", "Degraded"], stale: ["warn", "▲", "Stale"], expired: ["neg", "✕", "Expired"],
+  unavailable: ["neg", "✕", "Unavailable"], error: ["neg", "✕", "Error"], skipped: ["mute", "○", "Not configured"] };
 async function renderSystem() {
-  const el = $(".screen[data-screen=system]");
-  const f = Object.values(S.ov.freshness).sort((a, b) => `${a.source}/${a.job}`.localeCompare(`${b.source}/${b.job}`));
-  const up = S.charts[S.range]?.uptime_1h || {};
+  const el = $(".screen[data-screen=system]"), ov = S.ov, L = liveState(), b = baseline();
+  setHead("System", "Collection health, data freshness and display settings.");
+  // problems first: failing, then degraded or stale, then not configured, then fresh
+  const SEV = { error: 0, unavailable: 0, expired: 1, stale: 2, degraded: 2, skipped: 3, fresh: 4 };
+  const f = Object.values(ov.freshness).sort((a, c) => (SEV[a.state] ?? 2) - (SEV[c.state] ?? 2)
+    || (SRC_NAMES[`${a.source}/${a.job}`] || "").localeCompare(SRC_NAMES[`${c.source}/${c.job}`] || ""));
+  let up = S.charts[S.range]?.uptime_1h || {};
   const hourNow = Math.floor(nowS() / 3600) * 3600;
-  const NAMES = { "geckoterminal/new_pools": "New launches", "geckoterminal/active_pools": "Most-traded tokens", "geckoterminal/refresh": "Token trading stats",
-    "solana_rpc/bonding_curves": "Bonding curves", "solana_rpc/deployers": "Deployer wallets", "dexscreener/boosts_profiles": "Paid promotion",
-    "defillama/launchpad_volume": "Launchpad volume", "x_api/recent_search": "X posts", "reddit/new_posts": "Reddit posts",
-    "pumpfun/latest_coins": "pump.fun API", "bitquery/net_flow": "Net flow (Bitquery)", "outcomes/label": "Outcome labelling" };
-  const STATE = { fresh: ["pos", "●", "Fresh"], degraded: ["warn", "▲", "Degraded"], stale: ["warn", "▲", "Stale"], expired: ["neg", "✕", "Expired"],
-    unavailable: ["neg", "✕", "Unavailable"], error: ["neg", "✕", "Error"], skipped: ["mute", "○", "Not configured"] };
-  const srcRows = f.map((x) => {
-    const k = `${x.source}/${x.job}`, cells = new Map((up[k] || []).map((c) => [c[0], c]));
-    let okH = 0, seen = 0;
+  const freshN = f.filter((x) => x.state === "fresh").length;
+  const rows = f.map((x) => {
+    const k = `${x.source}/${x.job}`, cells = new Map((up[k] || []).map((c) => [c[0], c])), s = SRC_STATE[x.state] || ["mute", "○", x.state];
     const strip = Array.from({ length: 24 }, (_, i) => {
-      const b = hourNow - (23 - i) * 3600, c = cells.get(b);
-      if (!c) return `<i title="${esc(hhmm(b))}: no runs"></i>`;
-      seen++; if (c[1] && !c[2]) okH++;
+      const hb = hourNow - (23 - i) * 3600, c = cells.get(hb);
+      if (!c) return `<i title="${esc(hhmm(hb))}: no runs"></i>`;
       const cls = c[3] && !c[1] && !c[2] ? "skip" : c[2] && !c[1] ? "bad" : c[2] ? "mix" : "ok";
-      return `<i class="${cls}" title="${esc(hhmm(b))}: ${c[1]} ok, ${c[2]} failed"></i>`;
+      return `<i class="${cls}" title="${esc(hhmm(hb))}: ${c[1]} ok, ${c[2]} failed"></i>`;
     }).join("");
-    const st = STATE[x.state] || ["mute", "○", x.state];
-    return `<div class="src"><span class="nm">${esc(NAMES[k] || k)} <span class="muted mono" style="font-size:11px;font-weight:400">${esc(k)}</span></span>${chip(st[0], st[1], st[2])}
-      <span class="meta">last success ${esc(x.last_ok ? ago(nowS() - x.last_ok) : "never")} · every ${esc(Math.round(x.expected_every_s / 60))} min${seen ? ` · ${okH} of ${seen} hours error-free` : ""}</span>
-      ${x.last_error && x.state !== "fresh" ? `<span class="err">${esc(x.last_error)}</span>` : ""}<div class="strip" aria-label="last 24 hours">${strip}</div></div>`;
+    return `<tr><td><div style="font-weight:500">${esc(SRC_NAMES[k] || k)}</div><div class="i3 mono" style="font-size:11px">${esc(k)}</div></td><td>${st(s[0], s[1], s[2])}</td>
+      <td class="r">${esc(x.last_ok ? ago(nowS() - x.last_ok) : "never")}</td><td class="r hide-s">every ${esc(Math.round(x.expected_every_s / 60))} min</td>
+      <td class="hide-s"><div class="strip" aria-label="runs in the last 24 hours">${strip}</div></td>
+      <td class="hide-s"><span class="errtxt">${x.last_error && x.state !== "fresh" ? esc(x.last_error) : ""}</span></td></tr>`;
   }).join("");
-  const h = S.ov.context.history || {}, cfg = S.ov.config, bt = S.ov.backtest, db = S.ov.db;
-  const btRows = bt ? Object.entries(bt.by_verdict).map(([v, r]) => `<tr><td>${vchip(v)}</td><td class="r">${r.signals}</td>
-    <td class="r">${isNum(r.mean_grad_lift) ? signed(r.mean_grad_lift * 100, 2, " pp") : "—"}</td><td class="r">${isNum(r.false_positive_rate) ? pct(r.false_positive_rate) : "—"}</td></tr>`).join("") : "";
-  const yes = (v) => (v ? chip("pos", "●", "On") : chip("mute", "○", "Off"));
-  el.innerHTML = `<div class="stag">
-    <div class="section"><div class="sh"><h2>Data sources</h2><span class="aside">last 24h, hourly</span></div>
-      <div class="card flush">${srcRows || `<div class="empty">No collection runs yet.</div>`}</div></div>
-    <div class="section grid split">
-      <div class="card"><div class="sh"><h2>History & coverage</h2></div><dl class="kv">
-        <dt>Launch coverage, last 6h</dt><dd>${pct(h.launch_coverage_6h)}</dd>
-        <dt>Baseline coverage, prior 24h</dt><dd>${pct(h.launch_coverage_baseline)}</dd>
-        <dt>Social history</dt><dd>${isNum(h.social_history_h) ? nf(h.social_history_h, 1) + "h" : "—"}</dd>
-        <dt>Tokens tracked</dt><dd>${compact(db.tokens)}</dd><dt>Observations</dt><dd>${compact(db.token_obs)}</dd>
-        <dt>Curve reads</dt><dd>${compact(db.curve_obs)}</dd><dt>Graduations seen</dt><dd>${compact(db.graduations)}</dd>
-        <dt>Outcomes labelled</dt><dd>${compact(db.token_outcomes)}</dd></dl></div>
-      <div class="card"><div class="sh"><h2>Backtest</h2>${bt ? chip(bt.validated ? "pos" : "warn", bt.validated ? "●" : "▲", bt.validated ? "Validated" : "Not validated") : ""}</div>
-        ${bt ? `<p class="sec" style="font-size:13px;margin:0 0 10px">${esc(bt.verdict)}. ${bt.signals} signals over ${bt.steps} steps, run ${esc(ago(nowS() - bt.created_at))}.</p>
-          <table class="tbl"><thead><tr><th>Verdict</th><th class="r">Signals</th><th class="r">Grad. lift</th><th class="r">False pos.</th></tr></thead><tbody>${btRows}</tbody></table>
-          <p class="attrib">Lift = later launches in the meta vs all launches in the same window. Needs ≥30 favorable signals to validate.</p>`
-          : `<p class="sec" style="font-size:13px;margin:0">No backtest yet. It needs outcomes, which start ~30h after collection begins.</p>`}
-        <button class="btn" id="runbt" style="margin-top:12px">Run backtest (3 days)</button></div></div>
-    <div class="section grid split">
-      <div class="card"><div class="sh"><h2>Recent alerts</h2></div><div id="alerts"><div class="sk" style="height:60px"></div></div></div>
-      <div class="card"><div class="sh"><h2>Integrations</h2></div><dl class="kv">
-        <dt>X API</dt><dd>${yes(cfg.x_api)}</dd><dt>Reddit OAuth</dt><dd>${yes(cfg.reddit_oauth)}</dd><dt>Bitquery</dt><dd>${yes(cfg.bitquery)}</dd>
-        <dt>Claude analyst</dt><dd>${yes(cfg.anthropic_analyst)}</dd><dt>Telegram</dt><dd>${yes(cfg.telegram)}</dd>
-        <dt>Solana RPC</dt><dd class="sec">${esc(cfg.solana_rpc)}</dd></dl>
-        <p class="attrib">Keys live in your settings file, never in this page. To install on iPhone: Share → Add to Home Screen.</p></div></div></div>`;
+  const h = ov.context.history || {}, cfg = ov.config, bt = ov.backtest, db = ov.db;
+  const yes = (v) => (v ? st("pos", "●", "On") : st("mute", "○", "Off"));
+  const pref = Perf.pref(), sig = Perf.signals();
+  el.innerHTML = `
+    <div class="sys-sum">
+      <div><div class="k">Collection</div><div class="v">${st(L.cls === "ok" ? "pos" : L.cls === "stale" ? "warn" : "neg", L.cls === "ok" ? "●" : "▲", L.text)}</div><div class="c">last analysis ${esc(ago(L.lag))}</div></div>
+      <div><div class="k">Sources fresh</div><div class="v">${freshN} <span class="i3" style="font-size:16px">of ${f.length}</span></div><div class="c">${f.filter((x) => x.state === "skipped").length} not configured</div></div>
+      <div><div class="k">Baseline history</div><div class="v">${esc(b.label)} <span class="i3" style="font-size:16px">of ~30h</span></div><div class="c">${b.ready ? "acceleration is being scored" : "calls are held until this completes"}</div></div>
+      <div><div class="k">Launch coverage, 6h</div><div class="v">${pct(h.launch_coverage_6h)}</div><div class="c">share of launches the collector saw</div></div>
+    </div>
+    <div class="sec"><div class="sec-h"><h2>Data sources</h2><span class="note">runs per hour over the last 24 hours</span></div>
+      <table class="tbl systbl"><thead><tr><th>Source</th><th>Status</th><th class="r">Last success</th><th class="r hide-s">Cadence</th><th class="hide-s">Last 24 hours</th><th class="hide-s">Last error</th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="6" class="i3">No collection runs yet.</td></tr>`}</tbody></table></div>
+    <div class="sec three">
+      <div><div class="sec-h"><h2>Stored history</h2></div><div class="ledger">
+        <div class="li"><span class="k">Tokens tracked</span><span class="v">${compact(db.tokens)}</span></div><div class="li"><span class="k">Trading observations</span><span class="v">${compact(db.token_obs)}</span></div>
+        <div class="li"><span class="k">Bonding-curve reads</span><span class="v">${compact(db.curve_obs)}</span></div><div class="li"><span class="k">Graduations seen</span><span class="v">${compact(db.graduations)}</span></div>
+        <div class="li"><span class="k">Outcomes labelled</span><span class="v">${compact(db.token_outcomes)}</span></div><div class="li"><span class="k">Social posts</span><span class="v">${compact(db.social_posts)}</span></div>
+        <div class="li"><span class="k">Baseline coverage, prior 24h</span><span class="v">${pct(h.launch_coverage_baseline)}</span></div></div></div>
+      <div><div class="sec-h"><h2>Backtest</h2>${bt ? st(bt.validated ? "pos" : "warn", bt.validated ? "●" : "▲", bt.validated ? "Validated" : "Not validated") : ""}</div>
+        ${bt ? `<p class="notes" style="margin:0 0 10px">${esc(cap(bt.verdict))}. ${bt.signals} signals over ${bt.steps} steps, run ${esc(ago(nowS() - bt.created_at))}.</p>
+          <table class="tbl bt"><thead><tr><th>Verdict</th><th class="r">Signals</th><th class="r">Graduation lift</th><th class="r">False positives</th></tr></thead><tbody>
+          ${Object.entries(bt.by_verdict).map(([v, r]) => `<tr><td>${esc(vinfo(v).label)}</td><td class="r">${r.signals}</td><td class="r">${isNum(r.mean_grad_lift) ? signed(r.mean_grad_lift * 100, 2, " pts") : "—"}</td><td class="r">${isNum(r.false_positive_rate) ? pct(r.false_positive_rate) : "—"}</td></tr>`).join("")}</tbody></table>
+          <p class="notes">Lift compares later launches in a narrative with all launches in the same window. Validation needs at least 30 favorable signals.</p>`
+          : `<p class="notes" style="margin:0">No backtest yet. It needs labelled outcomes, which start about 30 hours after collection begins.</p>`}
+        <button class="btn" id="runbt" style="margin-top:12px">Run a 3-day backtest</button></div>
+      <div><div class="sec-h"><h2>Display</h2></div><div class="modes">
+        ${seg("Display mode", [["auto", "Auto"], ["premium", "Premium"], ["low", "Low visual"]], pref, "data-perf")}
+        <p>${pref === "auto" ? `Auto is using <b>${Perf.resolved() === "low" ? "Low visual" : "Premium"}</b>${sig.length ? ` because this device reports ${esc(sig.join(", "))}` : " because this device reports no constraints"}.` : `${pref === "low" ? "Low visual" : "Premium"} is set manually.`}</p>
+        <p>Low visual drops transitions, blur and continuous chart tracking (tooltips follow taps), refreshes every five minutes instead of two, and skips redraws when nothing changed. Every number and chart stays.</p></div>
+        <div class="sec-h" style="margin-top:24px"><h2>Integrations</h2></div><div class="ledger">
+          <div class="li"><span class="k">X API</span><span class="v">${yes(cfg.x_api)}</span></div><div class="li"><span class="k">Reddit OAuth</span><span class="v">${yes(cfg.reddit_oauth)}</span></div>
+          <div class="li"><span class="k">Bitquery</span><span class="v">${yes(cfg.bitquery)}</span></div><div class="li"><span class="k">Claude analyst</span><span class="v">${yes(cfg.anthropic_analyst)}</span></div>
+          <div class="li"><span class="k">Telegram</span><span class="v">${yes(cfg.telegram)}</span></div><div class="li"><span class="k">Solana RPC</span><span class="v i2">${esc(cfg.solana_rpc)}</span></div></div>
+        <p class="notes">Keys live in your settings file and never reach this page.</p></div>
+    </div>
+    <div class="sec"><div class="sec-h"><h2>Recent alerts</h2><span class="note">verdict changes, large score moves, regime changes and outages</span></div><div id="alerts" class="posts"><div class="sk" style="height:60px"></div></div></div>`;
+  $$("[data-perf]", el).forEach((b) => b.addEventListener("click", () => Perf.set(b.dataset.perf)));
   $("#runbt").addEventListener("click", async (e) => {
-    const b = e.currentTarget; b.disabled = true; b.textContent = "Running…";
-    try { await api("/api/backtests?days=3", { method: "POST" }); toast("Backtest finished"); await load({ quiet: true }); }
-    catch (err) { toast("Backtest failed: " + err.message); b.disabled = false; b.textContent = "Run backtest (3 days)"; }
+    const btn = e.currentTarget; btn.disabled = true; btn.textContent = "Running";
+    try { await api("/api/backtests?days=3", { method: "POST" }); toast("Backtest finished"); await load(); }
+    catch (err) { toast(`Backtest failed: ${err.message}`); btn.disabled = false; btn.textContent = "Run a 3-day backtest"; }
   });
   try {
-    const al = await api("/api/alerts?limit=8");
-    const box = $("#alerts");
-    if (box) box.innerHTML = al.length ? al.map((a) => `<div class="post"><div class="by">${esc(dayhm(a.created_at))} · ${esc(a.kind.replace("_", " "))} · ${a.delivered ? "sent to Telegram" : "logged"}</div>
-      ${esc(a.message.replace("TRENCH//RADAR alert\n", "").split("\n\nResearch")[0])}</div>`).join("") : `<p class="muted" style="font-size:13px;margin:0">No alerts yet. They fire on verdict changes, large score moves and outages.</p>`;
-  } catch (_) { const box = $("#alerts"); if (box) box.innerHTML = `<p class="muted">Alerts unavailable.</p>`; }
+    const al = await api("/api/alerts?limit=8"), box = $("#alerts");
+    if (box) box.innerHTML = al.length ? al.map((a) => `<div class="post"><div class="by">${esc(dayhm(a.created_at))}, ${esc(a.kind.replace("_", " "))}, ${a.delivered ? "sent to Telegram" : "logged only"}</div>
+      ${esc(a.message.replace("TRENCH//RADAR alert\n", "").split("\n\nResearch")[0])}</div>`).join("") : `<p class="notes" style="margin:0">No alerts yet.</p>`;
+  } catch (_) { const box = $("#alerts"); if (box) box.innerHTML = `<p class="notes">Alerts are unavailable.</p>`; }
 }
 
 // ---------------------------------------------------------------- boot
-window.addEventListener("scroll", () => $("#topbar").classList.toggle("scrolled", scrollY > 4), { passive: true });
-$("#refresh").addEventListener("click", () => load());
+$("#mrefresh").addEventListener("click", () => load());
 let resizeT;
-window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (S.ov && !$("#sheet").classList.contains("on")) render(); }, 150); });
+window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (S.ov && !$("#sheet").classList.contains("on")) render(); }, Perf.low() ? 400 : 150); });
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && Date.now() - S.lastOk > 60000) load({ quiet: true }); });
-setInterval(() => { if (document.visibilityState === "visible" && !S.loading) load({ quiet: true }); }, 120000);
-setTimeout(() => document.body.classList.remove("intro"), 1200);   // entrance stagger plays once
-if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "127.0.0.1" || location.hostname === "localhost")) {
-  navigator.serviceWorker.register("/sw.js").catch(() => {});
-}
-let startTab = (location.hash.match(/^#\/(\w+)/) || [])[1];
-try { startTab = startTab || localStorage.getItem("radar-tab"); } catch (_) { /* ignore */ }
-go(startTab || "overview", { push: false });
+matchMedia("(prefers-reduced-motion: reduce)").addEventListener?.("change", () => { if (Perf.pref() === "auto") { Perf.apply(); render(); } });
+if ("serviceWorker" in navigator && (location.protocol === "https:" || ["127.0.0.1", "localhost"].includes(location.hostname))) navigator.serviceWorker.register("/sw.js").catch(() => {});
+let start = (location.hash.match(/^#\/(\w+)/) || [])[1];
+try { start = start || localStorage.getItem("radar-tab"); } catch (_) { /* ignore */ }
+go(start || "overview");
+renderStatus();
+schedule();
 load();

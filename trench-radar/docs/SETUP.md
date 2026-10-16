@@ -32,6 +32,8 @@ dashboard says so instead of showing old numbers as live.
 
 Requires iOS/iPadOS 16+ (uses `dvh`, `inert`, `backdrop-filter`). The interface is dark only.
 
+Display modes (System screen): **Auto** picks Low visual when the device reports reduced motion, Data Saver, ≤4 GB memory, ≤4 CPU threads or a 2G/3G connection; **Premium** and **Low visual** can be forced. See `docs/DESIGN.md`.
+
 ## Run it from source
 
 Python 3.12+ (uses `statistics.correlation(method="ranked")`).
