@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import hmac
 import json
+import sys
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -26,7 +27,8 @@ from .reports import make_report
 from .scheduler import State, run_forever
 from .sources.base import Http
 
-WEB = ROOT / "web"
+# inside a PyInstaller bundle, data files are unpacked under sys._MEIPASS
+WEB = Path(getattr(sys, "_MEIPASS", ROOT)) / "web"
 
 
 def create_app(settings: Settings | None = None, *, with_scheduler: bool = False) -> FastAPI:

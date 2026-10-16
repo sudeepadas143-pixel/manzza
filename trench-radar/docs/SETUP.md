@@ -1,6 +1,21 @@
 # Setup, costs and limitations
 
-## Run it
+## Windows app (no Python needed)
+
+1. On GitHub, open **Actions → "TrenchRadar Windows exe"**, pick the latest green run, and download
+   the **TrenchRadar-windows** artifact (a zip containing `TrenchRadar.exe`).
+2. Double-click `TrenchRadar.exe`. Windows SmartScreen will warn that the publisher is unknown,
+   because the exe isn't code-signed: choose **More info → Run anyway**.
+3. A console window opens and the dashboard opens in your browser at http://127.0.0.1:8787.
+   Keep the window open to keep collecting; close it to stop. Data stays between runs.
+4. Data and settings live in `%LOCALAPPDATA%\TrenchRadar`. To add API keys, edit `settings.env`
+   there (same keys as `.env.example`) and restart.
+
+The exe binds to 127.0.0.1 only, so other people can't reach it. It only collects while it's
+running, and gaps show up as lower coverage and confidence on the dashboard. To build it yourself
+on Windows: `pip install -r requirements.txt pyinstaller` and then `pyinstaller TrenchRadar.spec`.
+
+## Run it from source
 
 Python 3.12+ (uses `statistics.correlation(method="ranked")`).
 
