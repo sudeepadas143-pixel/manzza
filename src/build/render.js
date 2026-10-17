@@ -29,6 +29,7 @@ export async function loadData(root, { worst = false } = {}) {
     products: read('products.json').products,
     materials: read('materials.json').materials,
     company: read('company.json'),
+    southIndia: read('south-india.json'),
   };
 }
 
@@ -511,19 +512,66 @@ function quality(d) {
  * from company.json's about text or figures approved elsewhere on the site.
  * Animated by src/js/about-info.js (draw-in on scroll; static under reduced motion).
  */
+/* ---- About: infographics in one technical-drawing language (thin lines, steel, one blue) */
+
+// shared paint servers for every About figure
+const ABOUT_DEFS = `<svg class="abt__defs" aria-hidden="true" focusable="false"><defs>
+  <linearGradient id="ab-steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9e0ec"/><stop offset=".45" stop-color="#8d98ad"/><stop offset=".7" stop-color="#b9c3d4"/><stop offset="1" stop-color="#6f7a90"/></linearGradient>
+  <linearGradient id="ab-blue" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3169e3" stop-opacity=".62"/><stop offset="1" stop-color="#1f4bb0" stop-opacity=".38"/></linearGradient>
+  <linearGradient id="ab-axis" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="600" y2="0"><stop offset="0" stop-color="#80a3ef" stop-opacity=".15"/><stop offset="1" stop-color="#3169e3"/></linearGradient>
+  <marker id="ab-tick" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1.5 L9 5 L0 8.5" fill="none" stroke="currentColor" stroke-width="1.4"/></marker>
+</defs></svg>`;
+
+function southMap(d) {
+  const m = d.southIndia;
+  const [bx, by] = m.blr;
+  const arcs = m.served.filter((s) => s.name !== 'Karnataka').map((s, i) => {
+    const mx = (bx + s.cx) / 2, my = (by + s.cy) / 2;
+    const dx = s.cx - bx, dy = s.cy - by, k = 0.22;
+    return `<path class="smap__arc" style="--i:${i}" d="M${bx} ${by} Q${(mx - dy * k).toFixed(1)} ${(my + dx * k).toFixed(1)} ${s.cx} ${s.cy}" pathLength="1"/>`;
+  }).join('');
+  return `<figure class="smap" data-draw>
+    <svg viewBox="0 0 ${m.width} ${m.height}" role="img" aria-label="Map: MANZZA in Bengaluru serves ${esc(m.served.map((s) => s.name).join(', '))}">
+      <g class="smap__ctx">${m.context.map((c) => `<path d="${c.d}"/>`).join('')}</g>
+      <g class="smap__served">${m.served.map((s, i) => `<path style="--i:${i}" d="${s.d}"/>`).join('')}</g>
+      <g class="smap__arcs">${arcs}</g>
+      <g class="smap__labels">${m.served.map((s, i) => `<text style="--i:${i}" x="${s.cx}" y="${s.name === 'Karnataka' ? s.cy - 18 : s.cy + (s.name === 'Tamil Nadu' ? 18 : 0)}" text-anchor="middle">${esc(s.name)}</text>`).join('')}</g>
+      <g class="smap__city" transform="translate(${bx} ${by})"><circle class="smap__pulse" r="9"/><circle class="smap__dot" r="4.5"/><text x="-10" y="4" text-anchor="end">Bengaluru</text></g>
+    </svg>
+  </figure>`;
+}
+
+// four small engineering drawings for the focus points (no figures: nothing to back up)
+const FOCUS_ART = {
+  cut: `<g class="fa__dim"><path d="M22 30 V16 M138 30 V16"/><path d="M26 22 H134" marker-start="url(#ab-tick)" marker-end="url(#ab-tick)"/></g>
+    <rect class="fa__steel" x="22" y="36" width="116" height="24" rx="1"/>
+    <g class="fa__hole"><circle cx="46" cy="48" r="3.2"/><circle cx="80" cy="48" r="3.2"/><circle cx="114" cy="48" r="3.2"/></g>
+    <path class="fa__cut" d="M138 30 V68" pathLength="1"/>`,
+  // mitre laminations (45° ends), identical, stacked
+  repeat: [4, 3, 2, 1, 0].map((k) => `<path class="fa__steel fa__stack" style="--k:${k}" d="M${18 + k * 6} ${74 - k * 9} H${126 + k * 6} L${112 + k * 6} ${60 - k * 9} H${32 + k * 6} Z"/>`).join(''),
+  spec: `<rect class="fa__sheet" x="20" y="10" width="120" height="76" rx="2"/>
+    <g class="fa__draw"><rect x="40" y="20" width="44" height="44" pathLength="1"/><rect x="52" y="32" width="20" height="20" pathLength="1"/><path d="M40 20 L52 32 M84 20 L72 32 M40 64 L52 52 M84 64 L72 52" pathLength="1"/></g>
+    <g class="fa__block"><rect x="98" y="62" width="38" height="20"/><path d="M98 72 H136 M114 62 V82"/></g>`,
+  supply: `<path class="fa__axis" d="M14 66 H146"/>
+    ${[0, 1, 2, 3, 4, 5, 6].map((k) => `<path class="fa__tickm" d="M${22 + k * 19} 62 V70"/>`).join('')}
+    ${[0, 1, 2, 3, 4, 5, 6].map((k) => `<g class="fa__lot" style="--k:${k}"><rect class="fa__steel" x="${15 + k * 19}" y="40" width="14" height="5"/><rect class="fa__steel" x="${15 + k * 19}" y="46" width="14" height="5"/><circle class="fa__pt" cx="${22 + k * 19}" cy="66" r="2.6"/></g>`).join('')}`,
+};
+
 function aboutInfo(d) {
-  // editorial, not diagrammatic: a statement, the key figures, then spec-sheet rows in the approved copy
   const regions = d.config.company.serviceRegions;
   const cap = String(d.config.capacity.value).match(/(\d+)/)?.[1] || '';
-  const states = regions.map((r) => `<b>${esc(r)}</b>`);
-  const stateList = `${states.slice(0, -1).join(', ')} and ${states[states.length - 1]}`;
-  // conventional → advanced, as the copy reads
   const order = ['ei-laminations', 'strip-laminations', 'mitre-core'];
   const range = order.map((slug) => d.products.find((p) => p.slug === slug)).filter(Boolean);
-  const focus = ['Precision-cut electrical steel laminations', 'Consistent manufacturing', 'Customer-specific specifications', 'Dependable B2B supply'];
-  const n = (i) => String(i + 1).padStart(2, '0');
+  const art = { 'ei-laminations': 'ei', 'strip-laminations': 'strip', 'mitre-core': 'core' };
+  const focus = [['cut', 'Precision-cut', 'electrical steel laminations'], ['repeat', 'Consistent', 'manufacturing'], ['spec', 'Customer-specific', 'specifications'], ['supply', 'Dependable', 'B2B supply']];
+  const inputs = [
+    ['Engineering drawings', '<rect x="6" y="4" width="36" height="40" rx="2" class="fl__sheet"/><path d="M13 11 h16 v4 h-11 v5 h9 v4 h-9 v5 h11 v4 h-16 z" class="fl__ink"/><path d="M26 39 h12" class="fl__ink"/>'],
+    ['Core designs', '<rect x="6" y="6" width="36" height="36" class="fl__ink"/><rect x="16" y="16" width="16" height="16" class="fl__ink"/><path d="M6 6 L16 16 M42 6 L32 16 M6 42 L16 32 M42 42 L32 32" class="fl__ink"/>'],
+    ['Production requirements', '<path d="M8 40 V26 M18 40 V18 M28 40 V22 M38 40 V10" class="fl__ink fl__bars"/><path d="M4 42 H44" class="fl__sheet"/>'],
+  ];
   return `<div class="abt">
-  <p class="abt__lead" data-rise><span>MANZZA Industry Pvt. Ltd. is an Indian manufacturer</span> specializing in electrical steel laminations used in transformer core construction.</p>
+  ${ABOUT_DEFS}
+  <p class="abt__lead" data-rise>An Indian manufacturer specializing in electrical steel laminations used in transformer core construction.</p>
 
   <ul class="abt__stats" aria-label="MANZZA at a glance">
     <li class="astat"><span class="astat__k">Based in</span><span class="astat__v">Bengaluru</span><span class="astat__s">Karnataka, India</span></li>
@@ -532,27 +580,50 @@ function aboutInfo(d) {
     <li class="astat"><span class="astat__k">Product families</span><span class="astat__v num" data-count="${range.length}">${range.length}</span><span class="astat__s">mitre core, E&amp;I, strip</span></li>
   </ul>
 
-  <dl class="abt__rows">
-    <div class="abt__row" data-line>
-      <dt class="eyebrow">Markets</dt>
-      <dd><p class="abt__big">Transformer manufacturers across ${stateList}.</p><p class="abt__note">With the capability to serve a broader customer base as the business grows.</p></dd>
+  <section class="abt__block abt__block--map" aria-labelledby="ab-where">
+    <div class="abt__copy">
+      <p class="eyebrow" data-line>Where we serve</p>
+      <h3 id="ab-where" class="abt__h" data-rise>Transformer manufacturers across South India</h3>
+      <ul class="abt__states">${regions.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
+      <p class="abt__note">With the capability to serve a broader customer base as the business grows.</p>
     </div>
-    <div class="abt__row" data-line>
-      <dt class="eyebrow">Range</dt>
-      <dd>
-        <p class="abt__note">Different types of transformer laminations to support a range of transformer designs, from conventional E&amp;I constructions to advanced mitre-core assemblies using step-lap construction.</p>
-        <ol class="abt__range">${range.map((p, i) => `<li><a href="/products/${p.slug}"><span class="abt__n">${n(i)}</span><span class="abt__name">${esc(p.name)}</span><span class="abt__meta">${esc(p.navNote)}</span>${icon.arrow}</a></li>`).join('')}</ol>
-      </dd>
+    ${southMap(d)}
+  </section>
+
+  <section class="abt__block" aria-labelledby="ab-make">
+    <div class="abt__copy abt__copy--wide">
+      <p class="eyebrow" data-line>What we make</p>
+      <h3 id="ab-make" class="abt__h" data-rise>From conventional E&amp;I constructions to advanced mitre-core assemblies</h3>
     </div>
-    <div class="abt__row" data-line>
-      <dt class="eyebrow">Focus</dt>
-      <dd><ol class="abt__focus">${focus.map((f, i) => `<li><span class="abt__n">${n(i)}</span><span>${f}</span></li>`).join('')}</ol></dd>
+    <div class="prange" data-draw>
+      <ol class="prange__list">${range.map((p, i) => `<li style="--i:${i}"><a class="prange__card" href="/products/${p.slug}"><span class="prange__art">${miniSVG(art[p.slug])}</span><span class="prange__name">${esc(p.name)}</span><span class="prange__note">${esc(p.navNote)}</span></a></li>`).join('')}</ol>
+      <div class="prange__axis" aria-hidden="true"><svg viewBox="0 0 600 12" preserveAspectRatio="none"><path d="M0 6 H600" pathLength="1"/></svg><span>Conventional</span><span>Advanced</span></div>
     </div>
-    <div class="abt__row" data-line>
-      <dt class="eyebrow">Requirements</dt>
-      <dd><p class="abt__big">Standard and customized requirements, suited to your <b>engineering drawings</b>, <b>core designs</b> and <b>production requirements</b>.</p></dd>
+  </section>
+
+  <section class="abt__block" aria-labelledby="ab-focus">
+    <div class="abt__copy abt__copy--wide">
+      <p class="eyebrow" data-line>Our focus</p>
+      <h3 id="ab-focus" class="sr-only">Our focus</h3>
     </div>
-  </dl>
+    <ul class="focus" data-draw>${focus.map(([k, a, b], i) => `<li class="focus__card fa--${k}" style="--i:${i}"><svg class="focus__art" viewBox="0 0 160 96" aria-hidden="true">${FOCUS_ART[k]}</svg><p class="focus__a">${a}</p><p class="focus__b">${b}</p></li>`).join('')}</ul>
+  </section>
+
+  <section class="abt__block" aria-labelledby="ab-std">
+    <div class="abt__copy abt__copy--wide">
+      <p class="eyebrow" data-line>Standard and customized</p>
+      <h3 id="ab-std" class="abt__h" data-rise>Laminations suited to your requirements</h3>
+    </div>
+    <div class="flow" data-draw>
+      <ul class="flow__in">${inputs.map(([t, g], i) => `<li style="--i:${i}"><svg viewBox="0 0 48 48" aria-hidden="true">${g}</svg><span>${t}</span></li>`).join('')}</ul>
+      <svg class="flow__wires" viewBox="0 0 200 300" width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true"><path d="M0 50 C110 50 90 150 200 150" pathLength="1"/><path d="M0 150 H200" pathLength="1"/><path d="M0 250 C110 250 90 150 200 150" pathLength="1"/></svg>
+      <div class="flow__out">
+        <svg viewBox="0 0 160 96" aria-hidden="true">${[3, 2, 1, 0].map((k) => `<path class="fa__steel" d="M${18 + k * 6} ${76 - k * 9} H${126 + k * 6} L${112 + k * 6} ${62 - k * 9} H${32 + k * 6} Z"/>`).join('')}</svg>
+        <p class="flow__k">MANZZA</p>
+        <p class="flow__t">Standard and customized laminations</p>
+      </div>
+    </div>
+  </section>
 </div>`;
 }
 
