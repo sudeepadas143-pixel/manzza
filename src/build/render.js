@@ -135,10 +135,23 @@ function pill(href, label, { cls = '', attrs: extra = '', primary = false } = {}
  *  MANZZA orders, photographed at another site: never captioned as MANZZA's own plant. */
 const PHOTO_CAPTION = 'The machine line for your orders';
 const PHOTO_ALT = {
-  'mitre-core': 'The automated lamination cutting line for MANZZA orders, with cut mitre core laminations laid out on the floor',
+  'mitre-core': 'The automated lamination cutting line for MANZZA orders, with its stacking tables in front',
   'strip-laminations': 'A coil of electrical steel feeding strip into the automated cutting line for MANZZA orders',
   'ei-laminations': 'The stacking end of the automated lamination cutting line for MANZZA orders',
 };
+
+/** Pixel size of a WebP/PNG/JPEG on disk (no dependency), or null. */
+function imageSize(file) {
+  const b = fs.readFileSync(file);
+  if (b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP') {
+    const kind = b.toString('ascii', 12, 16);
+    if (kind === 'VP8 ') return [b.readUInt16LE(26) & 0x3fff, b.readUInt16LE(28) & 0x3fff];
+    if (kind === 'VP8L') { const n = b.readUInt32LE(21); return [(n & 0x3fff) + 1, ((n >> 14) & 0x3fff) + 1]; }
+    if (kind === 'VP8X') return [1 + b.readUIntLE(24, 3), 1 + b.readUIntLE(27, 3)];
+  }
+  if (b.readUInt32BE(0) === 0x89504e47) return [b.readUInt32BE(16), b.readUInt32BE(20)];
+  return null;
+}
 
 /** Real-photo slot: shows /images/<id>.(webp|jpg|png) when present, else a neutral placeholder. */
 function photo(d, { id, label, alt, ratio = '4/3' }) {
@@ -149,7 +162,8 @@ function photo(d, { id, label, alt, ratio = '4/3' }) {
     const large = file.replace(/\.(\w+)$/, '-1920.$1');
     const big = fs.existsSync(path.join(dir, large)) ? `, /images/${large} 1920w` : '';
     const srcset = fs.existsSync(path.join(dir, small)) ? ` srcset="/images/${small} 640w, /images/${file} 1280w${big}" sizes="(max-width: 900px) 100vw, 50vw"` : '';
-    return `<figure class="photo" style="aspect-ratio:${ratio}"><img src="/images/${file}"${srcset} alt="${esc(alt || label)}" width="1280" height="${id === 'factory-cnc-line' ? 566 : 960}" loading="lazy" decoding="async"><figcaption>${esc(label)}</figcaption></figure>`;
+    const [w, h] = imageSize(path.join(dir, file)) || [1280, 960];
+    return `<figure class="photo" style="aspect-ratio:${w}/${h}"><img src="/images/${file}"${srcset} alt="${esc(alt || label)}" width="${w}" height="${h}" loading="lazy" decoding="async"><figcaption>${esc(label)}</figcaption></figure>`;
   }
   return `<figure class="photo photo--slot" style="aspect-ratio:${ratio}" data-photo-slot="${esc(id)}">
     <div class="photo__hatch" aria-hidden="true"></div>
