@@ -512,83 +512,47 @@ function quality(d) {
  * Animated by src/js/about-info.js (draw-in on scroll; static under reduced motion).
  */
 function aboutInfo(d) {
+  // editorial, not diagrammatic: a statement, the key figures, then spec-sheet rows in the approved copy
   const regions = d.config.company.serviceRegions;
   const cap = String(d.config.capacity.value).match(/(\d+)/)?.[1] || '';
-  // hub-and-spoke: Bengaluru in the middle, the four states around it, a dashed ring beyond
-  const nodes = [[-150, -78], [150, -78], [-150, 78], [150, 78]];
-  const spokes = regions.map((r, i) => {
-    const [x, y] = nodes[i];
-    return `<g class="hub__node" style="--i:${i}" tabindex="0" aria-label="${esc(r)}">
-      <path class="hub__spoke" d="M0 0 L${x * 0.62} ${y * 0.62} L${x} ${y}" pathLength="1"/>
-      <circle class="hub__dot" cx="${x}" cy="${y}" r="7"/>
-      <text class="hub__label" x="${x}" y="${y + (y < 0 ? -18 : 30)}" text-anchor="middle">${esc(r)}</text>
-    </g>`;
-  }).join('');
-  const range = [['ei', 'E&I constructions', 'Conventional'], ['strip', 'Strip laminations', 'Customized'], ['core', 'Mitre-core assemblies', 'Step-lap construction']];
-  const focus = [
-    ['Precision-cut', 'electrical steel laminations', '<path d="M6 30 L30 6 M14 30 L30 14 M22 30 L30 22" /><path d="M4 32 H32" />'],
-    ['Consistent', 'manufacturing', '<path d="M4 26 H32" /><path d="M4 18 H32" /><path d="M4 10 H32" />'],
-    ['Customer-specific', 'specifications', '<rect x="7" y="4" width="22" height="28" rx="2" /><path d="M12 12 H24 M12 18 H24 M12 24 H19" />'],
-    ['Dependable', 'B2B supply', '<path d="M4 22 H22 V10 H4 Z" /><path d="M22 14 H28 L32 19 V22 H22" /><circle cx="10" cy="25" r="3" /><circle cx="27" cy="25" r="3" />'],
-  ];
-  return `<div class="ainfo">
-  <p class="ainfo__lead" data-rise>An Indian manufacturer specializing in electrical steel laminations used in transformer core construction.</p>
+  const states = regions.map((r) => `<b>${esc(r)}</b>`);
+  const stateList = `${states.slice(0, -1).join(', ')} and ${states[states.length - 1]}`;
+  // conventional → advanced, as the copy reads
+  const order = ['ei-laminations', 'strip-laminations', 'mitre-core'];
+  const range = order.map((slug) => d.products.find((p) => p.slug === slug)).filter(Boolean);
+  const focus = ['Precision-cut electrical steel laminations', 'Consistent manufacturing', 'Customer-specific specifications', 'Dependable B2B supply'];
+  const n = (i) => String(i + 1).padStart(2, '0');
+  return `<div class="abt">
+  <p class="abt__lead" data-rise><span>MANZZA Industry Pvt. Ltd. is an Indian manufacturer</span> specializing in electrical steel laminations used in transformer core construction.</p>
 
-  <ul class="ainfo__stats" aria-label="MANZZA at a glance">
-    <li class="astat" data-line><span class="astat__k">Based in</span><span class="astat__v">Bengaluru</span><span class="astat__s">Karnataka, India</span></li>
-    <li class="astat" data-line><span class="astat__k">States served</span><span class="astat__v num" data-count="${regions.length}">${regions.length}</span><span class="astat__s">across South India</span></li>
-    ${cap ? `<li class="astat" data-line><span class="astat__k">Production capacity</span><span class="astat__v num"><span data-count="${cap}">${cap}</span><small> t</small></span><span class="astat__s">metric tonnes per month</span></li>` : ''}
-    <li class="astat" data-line><span class="astat__k">Product families</span><span class="astat__v num" data-count="3">3</span><span class="astat__s">mitre core, E&amp;I, strip</span></li>
+  <ul class="abt__stats" aria-label="MANZZA at a glance">
+    <li class="astat"><span class="astat__k">Based in</span><span class="astat__v">Bengaluru</span><span class="astat__s">Karnataka, India</span></li>
+    <li class="astat"><span class="astat__k">States served</span><span class="astat__v num" data-count="${regions.length}">${regions.length}</span><span class="astat__s">across South India</span></li>
+    ${cap ? `<li class="astat"><span class="astat__k">Production capacity</span><span class="astat__v num"><span data-count="${cap}">${cap}</span><small> t</small></span><span class="astat__s">metric tonnes per month</span></li>` : ''}
+    <li class="astat"><span class="astat__k">Product families</span><span class="astat__v num" data-count="${range.length}">${range.length}</span><span class="astat__s">mitre core, E&amp;I, strip</span></li>
   </ul>
 
-  <div class="ainfo__row ainfo__row--hub">
-    <div class="ainfo__copy">
-      <p class="eyebrow" data-line>Where we serve</p>
-      <h3 class="ainfo__h" data-rise>Transformer manufacturers across Karnataka, Andhra Pradesh, Telangana and Tamil Nadu.</h3>
-      <p class="ainfo__p">With the capability to serve a broader customer base as the business grows.</p>
+  <dl class="abt__rows">
+    <div class="abt__row" data-line>
+      <dt class="eyebrow">Markets</dt>
+      <dd><p class="abt__big">Transformer manufacturers across ${stateList}.</p><p class="abt__note">With the capability to serve a broader customer base as the business grows.</p></dd>
     </div>
-    <figure class="hub" data-draw>
-      <svg viewBox="-230 -150 460 300" role="img" aria-label="MANZZA in Bengaluru serves ${esc(regions.join(', '))}">
-        <circle class="hub__ring" r="132" pathLength="1"/>
-        ${spokes}
-        <circle class="hub__pulse" r="16"/>
-        <circle class="hub__core" r="11"/>
-        <text class="hub__city" y="38" text-anchor="middle">Bengaluru</text>
-      </svg>
-      <figcaption class="hub__cap">Dashed ring: a broader customer base as the business grows</figcaption>
-    </figure>
-  </div>
-
-  <div class="ainfo__row ainfo__row--range">
-    <div class="ainfo__copy">
-      <p class="eyebrow" data-line>What we make</p>
-      <h3 class="ainfo__h" data-rise>Different types of transformer laminations, for a range of transformer designs.</h3>
+    <div class="abt__row" data-line>
+      <dt class="eyebrow">Range</dt>
+      <dd>
+        <p class="abt__note">Different types of transformer laminations to support a range of transformer designs, from conventional E&amp;I constructions to advanced mitre-core assemblies using step-lap construction.</p>
+        <ol class="abt__range">${range.map((p, i) => `<li><a href="/products/${p.slug}"><span class="abt__n">${n(i)}</span><span class="abt__name">${esc(p.name)}</span><span class="abt__meta">${esc(p.navNote)}</span>${icon.arrow}</a></li>`).join('')}</ol>
+      </dd>
     </div>
-    <figure class="range" data-draw>
-      <div class="range__track" aria-hidden="true"><span class="range__fill"></span></div>
-      <ol class="range__list">${range.map(([t, name, note], i) => `<li class="range__item" style="--i:${i}"><div class="range__art">${miniSVG(t)}</div><p class="range__name">${esc(name)}</p><p class="range__note">${esc(note)}</p></li>`).join('')}</ol>
-      <figcaption class="range__cap"><span>From conventional E&amp;I constructions</span><span>to advanced mitre-core assemblies using step-lap construction</span></figcaption>
-    </figure>
-  </div>
-
-  <div class="ainfo__row ainfo__row--focus">
-    <div class="ainfo__copy">
-      <p class="eyebrow" data-line>Our focus</p>
+    <div class="abt__row" data-line>
+      <dt class="eyebrow">Focus</dt>
+      <dd><ol class="abt__focus">${focus.map((f, i) => `<li><span class="abt__n">${n(i)}</span><span>${f}</span></li>`).join('')}</ol></dd>
     </div>
-    <ul class="focus" data-draw>${focus.map(([a, b, ico], i) => `<li class="focus__tile" style="--i:${i}"><svg class="focus__ico" viewBox="0 0 36 36" aria-hidden="true">${ico}</svg><p class="focus__a">${a}</p><p class="focus__b">${b}</p></li>`).join('')}</ul>
-  </div>
-
-  <div class="ainfo__row ainfo__row--fit">
-    <div class="ainfo__copy">
-      <p class="eyebrow" data-line>Standard and customized</p>
-      <h3 class="ainfo__h" data-rise>Laminations suited to your</h3>
+    <div class="abt__row" data-line>
+      <dt class="eyebrow">Requirements</dt>
+      <dd><p class="abt__big">Standard and customized requirements, suited to your <b>engineering drawings</b>, <b>core designs</b> and <b>production requirements</b>.</p></dd>
     </div>
-    <div class="fit" data-draw>
-      <ul class="fit__in">${['Engineering drawings', 'Core designs', 'Production requirements'].map((t, i) => `<li class="fit__chip" style="--i:${i}">${t}</li>`).join('')}</ul>
-      <svg class="fit__lines" viewBox="0 0 120 120" preserveAspectRatio="none" aria-hidden="true"><path d="M0 20 C60 20 60 60 120 60" pathLength="1"/><path d="M0 60 H120" pathLength="1"/><path d="M0 100 C60 100 60 60 120 60" pathLength="1"/></svg>
-      <p class="fit__out"><span class="fit__out-k">MANZZA</span>Standard and customized requirements</p>
-    </div>
-  </div>
+  </dl>
 </div>`;
 }
 

@@ -12,6 +12,3 @@ if (root.classList.contains('globe-intro')) {
   document.querySelector('.globe-veil')?.remove();
 }
 import('./main.js');
-// the infographics wait for the globe so they draw in on the page, not under the veil
-const info = () => import('./about-info.js').then((m) => m.initAboutInfo());
-if (root.classList.contains('globe-intro')) addEventListener('globe:done', info, { once: true }); else info();
