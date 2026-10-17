@@ -880,9 +880,6 @@ html.capture .site-header { display: none; }
 .reel__slide { position: absolute; inset: 0; margin: 0; visibility: hidden; clip-path: inset(0 0 0 0); }
 .reel__slide img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; filter: brightness(0.9) saturate(0.94); }
 .reel__slide.is-active, .reel__slide.is-leaving { visibility: visible; }
-/* a panorama wider than the stage: show all of it, over a blurred copy of itself */
-.reel__slide--wide img:not(.reel__fill-bg) { position: relative; object-fit: contain; }
-.reel__slide--wide .reel__fill-bg { position: absolute; inset: 0; filter: blur(22px) brightness(0.45) saturate(0.8); transform: scale(1.15); animation: none !important; }
 .reel__slide.is-active { z-index: 2; }
 .reel__slide.is-leaving { z-index: 1; }
 .reel__slide.is-active img { animation: reel-push 9s linear forwards; }
