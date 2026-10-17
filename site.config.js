@@ -42,7 +42,7 @@ export default {
     // Factory / office address, one line per array item.
     address: ['Bommasandra Industrial Area', 'Bengaluru, Karnataka'],
     // Optional: office hours, e.g. 'Mon–Sat, 9:00–18:00'
-    hours: TODO('Office hours (optional; delete this line to hide)'),
+    hours: '10 am – 6 pm',
   },
 
   quoteForm: {

@@ -478,6 +478,10 @@ html.motion [data-line]:not(.is-in)::before { background: var(--blue); }
 .footer__col a { display: inline-flex; align-items: center; min-height: 48px; color: var(--body); text-decoration: none; overflow-wrap: anywhere; }
 @media (hover: hover) and (pointer: fine) { .footer__col a:hover { color: var(--white); text-decoration: underline; text-underline-offset: 4px; } }
 .footer__hours { margin-top: 12px; }
+/* office number: label, number, hours underneath */
+.ophone { display: inline-flex; flex-wrap: wrap; align-items: center; column-gap: 10px; }
+.ophone__k { font: 500 var(--t-label)/1.6 var(--f-body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--note); }
+.ophone__h { flex-basis: 100%; font-size: 0.875em; line-height: 1.4; color: var(--note); }
 .footer__base { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--hairline); font: 500 var(--t-label)/2 var(--f-body); letter-spacing: 0.12em; text-transform: uppercase; }
 
 /* -------------------------------------------------------------- inner page heads */

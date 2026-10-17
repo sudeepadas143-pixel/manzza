@@ -75,6 +75,12 @@ function phoneLink(d, cls = '') {
   const p = d.config.contact.phone;
   return isTodo(p) ? tbc('Phone number') : `<a class="${cls}" href="${telHref(p)}">${esc(p)}</a>`;
 }
+/** Office line: labelled, with office hours when set. */
+function officePhone(d) {
+  const h = d.config.contact.hours;
+  const hours = isTodo(h) || !h ? '' : `<span class="ophone__h">${esc(h)}</span>`;
+  return `<span class="ophone"><span class="ophone__k">Office</span>${phoneLink(d)}${hours}</span>`;
+}
 function emailLink(d, cls = '') {
   const e = d.config.contact.email;
   return isTodo(e) ? tbc('Email address') : `<a class="${cls}" href="mailto:${esc(e)}">${esc(e)}</a>`;
@@ -299,7 +305,7 @@ function header(d, a) {
       </ul>
       <a class="btn btn--primary mobile-menu__cta" href="/quote"><span class="btn__label">Request a quote</span></a>
       <div class="mobile-menu__contact">
-        ${isTodo(d.config.contact.phone) ? '' : `<p>${phoneLink(d)}</p>`}
+        ${isTodo(d.config.contact.phone) ? '' : `<p>${officePhone(d)}</p>`}
         <p>${emailLink(d)}</p>
         <p class="mobile-menu__addr">${esc(d.config.contact.address.join(', '))}</p>
       </div>
@@ -329,12 +335,12 @@ function footer(d) {
       <div class="footer__col">
         <p class="footer__h">Contact</p>
         <ul>
-          ${isTodo(d.config.contact.phone) ? '' : `<li>${phoneLink(d)}</li>`}
+          ${isTodo(d.config.contact.phone) ? '' : `<li>${officePhone(d)}</li>`}
           <li>${emailLink(d)}</li>
           ${wa ? `<li><a href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a></li>` : ''}
           <li>${addressHTML(d)}</li>
         </ul>
-        ${isTodo(c.contact.hours) || !c.contact.hours ? '' : `<p class="footer__hours">${esc(c.contact.hours)}</p>`}
+        ${isTodo(c.contact.phone) && !(isTodo(c.contact.hours) || !c.contact.hours) ? `<p class="footer__hours">${esc(c.contact.hours)}</p>` : ''}
       </div>
     </div>
     <div class="footer__base">
@@ -584,7 +590,7 @@ function cta(d, a) {
     <h2 id="cta-h" class="d-xl cta__h" data-rise>${esc(a.title || 'Discuss your next requirement with our team.')}</h2>
     <p class="body-lg cta__p">${esc(a.text || 'Submit your requirements for an individual quotation.')}</p>
     ${pill(`/quote${a.product ? `?product=${esc(a.product)}` : ''}`, 'Request a quote', { primary: true })}
-    ${wa || !isTodo(phone) ? `<p class="cta__alt">${wa ? `<a href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}${!isTodo(phone) ? phoneLink(d) : ''}</p>` : ''}
+    ${wa || !isTodo(phone) ? `<p class="cta__alt">${wa ? `<a href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}${!isTodo(phone) ? officePhone(d) : ''}</p>` : ''}
   </div>
 </section>`;
 }
@@ -806,7 +812,7 @@ function contactCard(d) {
   return `<aside class="qside">
     <h2 class="eyebrow">Contact</h2>
     <ul class="qside__list">
-      ${isTodo(d.config.contact.phone) ? '' : `<li>${phoneLink(d)}</li>`}
+      ${isTodo(d.config.contact.phone) ? '' : `<li>${officePhone(d)}</li>`}
       <li>${emailLink(d)}</li>
       ${wa ? `<li><a href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a></li>` : ''}
       <li>${addressHTML(d)}</li>
