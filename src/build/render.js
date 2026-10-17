@@ -618,7 +618,7 @@ function aboutInfo(d) {
       <ul class="flow__in">${inputs.map(([t, g], i) => `<li style="--i:${i}"><svg viewBox="0 0 48 48" aria-hidden="true">${g}</svg><span>${t}</span></li>`).join('')}</ul>
       <svg class="flow__wires" viewBox="0 0 200 300" width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true"><path d="M0 50 C110 50 90 150 200 150" pathLength="1"/><path d="M0 150 H200" pathLength="1"/><path d="M0 250 C110 250 90 150 200 150" pathLength="1"/></svg>
       <div class="flow__out">
-        <svg viewBox="0 0 160 96" aria-hidden="true">${[3, 2, 1, 0].map((k) => `<path class="fa__steel" d="M${18 + k * 6} ${76 - k * 9} H${126 + k * 6} L${112 + k * 6} ${62 - k * 9} H${32 + k * 6} Z"/>`).join('')}</svg>
+        <div class="flow__parts" aria-hidden="true">${['ei', 'strip', 'core'].map((t, i) => `<span style="--i:${i}">${miniSVG(t)}</span>`).join('')}</div>
         <p class="flow__k">MANZZA</p>
         <p class="flow__t">Standard and customized laminations</p>
       </div>

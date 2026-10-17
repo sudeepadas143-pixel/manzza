@@ -1138,9 +1138,13 @@ html.globe-intro body { overflow: hidden; }
 .flow__wires { display: block; width: 100%; height: 100%; min-width: 0; align-self: stretch; justify-self: stretch; aspect-ratio: auto; }
 .flow__wires path { fill: none; stroke: var(--blue); stroke-width: 1.2; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1s var(--ease-out) 0.5s; }
 .flow__out { display: grid; gap: 6px; justify-items: start; padding: clamp(20px, 2.4vw, 30px); border-radius: var(--r-xs); border: 1px solid rgba(128, 163, 239, 0.45); background: linear-gradient(160deg, rgba(49, 105, 227, 0.22), rgba(49, 105, 227, 0.04)); opacity: 0; transform: scale(0.97); transition: opacity 0.7s var(--ease-out) 1.2s, transform 0.7s var(--ease-out) 1.2s; }
-.flow__out svg { width: min(220px, 100%); height: auto; margin-bottom: 8px; }
+.flow__parts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; width: 100%; margin-bottom: 14px; }
+.flow__parts span { display: grid; place-items: center; aspect-ratio: 1; padding: 14%; border: 1px solid rgba(128, 163, 239, 0.22); border-radius: var(--r-xs); background: rgba(8, 14, 27, 0.35); opacity: 0; transform: translate3d(0, 8px, 0); transition: opacity 0.5s var(--ease-out) calc(1.4s + var(--i) * 0.12s), transform 0.5s var(--ease-out) calc(1.4s + var(--i) * 0.12s); }
+.flow__parts svg { width: 100%; height: 100%; }
+.flow__parts .f-steel { fill: url(#ab-steel); stroke: rgba(230, 235, 243, 0.55); stroke-width: 1; }
+.is-drawn .flow__parts span { opacity: 1; transform: none; }
 .flow__k { margin: 0; font: 700 var(--t-label)/1 var(--f-body); letter-spacing: 0.2em; color: var(--blue-text); }
-.flow__t { margin: 0; font: 700 var(--t-h3)/1.05 var(--f-display); text-transform: uppercase; letter-spacing: 0.02em; color: var(--white); max-width: 14ch; }
+.flow__t { margin: 0; font: 700 var(--t-h3)/1.05 var(--f-display); text-transform: uppercase; letter-spacing: 0.02em; color: var(--white); }
 .is-drawn .flow__in li, .is-drawn .flow__out { opacity: 1; transform: none; }
 .is-drawn .flow__wires path { stroke-dashoffset: 0; }
 
@@ -1164,6 +1168,6 @@ html.globe-intro body { overflow: hidden; }
 
 /* no motion: everything simply drawn */
 html.rm .abt *, html:not(.js) .abt * { transition: none !important; animation: none !important; }
-html.rm .abt [data-draw] .smap__served path, html.rm .abt [data-draw] .smap__labels text, html.rm .abt [data-draw] .prange__list li, html.rm .abt [data-draw] .focus__card, html.rm .abt [data-draw] .fa__stack, html.rm .abt [data-draw] .fa__lot, html.rm .abt [data-draw] .flow__in li, html.rm .abt [data-draw] .flow__out,
-html:not(.js) .abt [data-draw] .smap__served path, html:not(.js) .abt [data-draw] .smap__labels text, html:not(.js) .abt [data-draw] .prange__list li, html:not(.js) .abt [data-draw] .focus__card, html:not(.js) .abt [data-draw] .fa__stack, html:not(.js) .abt [data-draw] .fa__lot, html:not(.js) .abt [data-draw] .flow__in li, html:not(.js) .abt [data-draw] .flow__out { opacity: 1; transform: none; }
+html.rm .abt [data-draw] .smap__served path, html.rm .abt [data-draw] .smap__labels text, html.rm .abt [data-draw] .prange__list li, html.rm .abt [data-draw] .focus__card, html.rm .abt [data-draw] .fa__stack, html.rm .abt [data-draw] .fa__lot, html.rm .abt [data-draw] .flow__in li, html.rm .abt [data-draw] .flow__out, html.rm .abt [data-draw] .flow__parts span,
+html:not(.js) .abt [data-draw] .smap__served path, html:not(.js) .abt [data-draw] .smap__labels text, html:not(.js) .abt [data-draw] .prange__list li, html:not(.js) .abt [data-draw] .focus__card, html:not(.js) .abt [data-draw] .fa__stack, html:not(.js) .abt [data-draw] .fa__lot, html:not(.js) .abt [data-draw] .flow__in li, html:not(.js) .abt [data-draw] .flow__out, html:not(.js) .abt [data-draw] .flow__parts span { opacity: 1; transform: none; }
 html.rm .abt [data-draw] [pathLength], html:not(.js) .abt [data-draw] [pathLength], html.rm .abt .prange__axis path, html:not(.js) .abt .prange__axis path { stroke-dashoffset: 0; }
