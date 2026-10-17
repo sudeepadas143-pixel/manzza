@@ -543,15 +543,11 @@ html.motion [data-line]:not(.is-in)::before { background: var(--blue); }
 .mats { display: grid; gap: 0 64px; }
 @media (min-width: 960px) { .mats { grid-template-columns: 1fr 1fr; } }
 .mat { padding: 36px 0 48px; }
-.mat__code { font-size: clamp(4rem, 9vw, 7rem); line-height: 0.88; }
-.mat__name { font-size: var(--t-h3); margin-top: 22px; }
-.mat__summary { margin-top: 18px; font-size: var(--t-base); color: var(--mute); }
-.mat__detail { margin-top: 12px; color: var(--body); }
-.mat__specs { margin-top: 32px; }
-.mat__specs div { display: grid; grid-template-columns: 7.5rem 1fr; gap: 14px; padding: 16px 0; border-top: 1px solid var(--hairline); }
-.mat__specs div:last-child { border-bottom: 1px solid var(--hairline); }
-.mat__specs dt { font: 500 var(--t-label)/2 var(--f-body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--note); }
-.mat__specs dd { color: var(--white); }
+.mat__code { font-size: var(--t-h2); }
+.mat__facts { list-style: none; margin: 24px 0 0; padding: 0; }
+.mat__facts li { position: relative; padding: 16px 0 16px 26px; border-top: 1px solid var(--hairline); color: var(--body); max-width: 60ch; }
+.mat__facts li:last-child { border-bottom: 1px solid var(--hairline); }
+.mat__facts li::before { content: ''; position: absolute; left: 2px; top: calc(16px + 0.62em); width: 10px; height: 2px; background: var(--blue); }
 
 /* -------------------------------------------------------------- quote page */
 .quote { display: grid; gap: 64px; }

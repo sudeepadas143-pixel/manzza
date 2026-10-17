@@ -672,16 +672,11 @@ function productPage(d, a) {
 /* --------------------------------------------------------- materials page */
 
 function materialsDetail(d) {
+  // the full names and specs live in the table above; here only a few lesser-known facts
   return `<div class="mats">${d.materials.map((m) => `
     <article class="mat" id="${m.code.toLowerCase()}" data-line>
-      <p class="mat__code d-xxl">${esc(m.code)}</p>
-      <h2 class="mat__name">${esc(m.name)}</h2>
-      <p class="mat__summary">${esc(m.summary)}</p>
-      <p class="mat__detail">${esc(m.detail)}</p>
-      <dl class="mat__specs">
-        <div><dt>Thickness</dt><dd class="num">${esc(m.thickness)}</dd></div>
-        <div><dt>Grades</dt><dd>${esc(m.grades)}</dd></div>
-      </dl>
+      <h2 class="mat__code d-xl">${esc(m.code)}</h2>
+      <ul class="mat__facts">${(m.facts || []).map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
     </article>`).join('')}</div>`;
 }
 

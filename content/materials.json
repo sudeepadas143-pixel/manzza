@@ -1,5 +1,5 @@
 {
-  "_readme": "Electrical steel grades offered. Edit the text values freely; keep the keys. Shown on the home page, /materials and each product page.",
+  "_readme": "Electrical steel grades offered. Edit the text values freely; keep the keys. Shown on the home page, /materials and each product page. \"facts\" are the short bullet points under the specification table on /materials.",
   "materials": [
     {
       "code": "CRGO",
@@ -11,7 +11,12 @@
       "thicknessScale": {
         "from": 0.2,
         "to": 0.35
-      }
+      },
+      "facts": [
+        "Its grains run along the rolling direction, so flux flows best along the length of the strip. Core corners are mitred at 45° to keep the flux close to the grain at the joints.",
+        "Step-lap stacking staggers the joints in small steps, so the flux crosses them gradually. This lowers core loss and transformer noise.",
+        "Each sheet carries a thin insulating coating that limits eddy currents. Cutting burrs can bridge that coating, so clean edges matter."
+      ]
     },
     {
       "code": "CRNO",
@@ -35,6 +40,11 @@
           "thickness": "0.50 mm",
           "grades": "350 to 1000"
         }
+      ],
+      "facts": [
+        "Its magnetic properties are the same in every direction, which suits the changing flux path in E&I cores. It is also the standard steel for electric motors for the same reason.",
+        "Many standard E&I sizes are scrapless: the I is punched from the window of the E, so very little steel is wasted.",
+        "Thinner sheet has lower eddy-current loss, so 0.35 mm loses less energy than 0.50 mm."
       ]
     }
   ]
