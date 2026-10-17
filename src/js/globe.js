@@ -71,7 +71,7 @@ const BEAT = { india: 1250, leave: 2050, city: 3350, out: 4200, end: 4700 };
 // (0..1; its starting slope carries the same angular speed, see globe()); log-space
 // zoom (0 = whole globe, 1 = the city); tilt across the surface for the last stretch
 const TO_INDIA = track([[0, 0, 0], [BEAT.india, 0.94, 7.5e-5], [BEAT.leave, 1, 7.5e-5]]);
-const ZOOM = track([[0, 0, 0], [BEAT.india, 0.38, 1.2e-4], [BEAT.leave, 0.476, 1.2e-4], [BEAT.city, 0.9, 1.3e-4], [BEAT.end, 1, 6e-5]]);
+const ZOOM = track([[0, 0, 0], [BEAT.india, 0.38, 1.2e-4], [BEAT.leave, 0.476, 1.2e-4], [BEAT.city, 0.94, 1.0e-4], [BEAT.end, 1, 4e-5]]);
 const TILT = track([[0, 0, 0], [BEAT.leave, 0, 0], [BEAT.city, 0.85, 8e-5], [BEAT.end, 1, 0]]);
 
 /** lat/lon (deg) -> unit vector; lon 0 faces +z, north is +y. */
@@ -303,7 +303,9 @@ export async function playGlobe() {
     pin.setAttribute('aria-hidden', 'true');
     pin.innerHTML = '<svg class="globe-pin__mark" viewBox="0 0 24 32" aria-hidden="true"><path d="M12 31s10-11.1 10-18.5C22 6.2 17.5 1.5 12 1.5S2 6.2 2 12.5C2 19.9 12 31 12 31z"/><circle cx="12" cy="12.5" r="4"/></svg><span class="globe-pin__label">Bengaluru</span>';
     veil.append(pin);
-    const pinAt = blr.clone().multiplyScalar(1.0065), pinScreen = new THREE.Vector3();
+    // the pin's tip rests on the district's northern edge, so it points at the city without covering its outline
+    const blrTop = Math.max(...lines.blr[0].map(([lat]) => lat));
+    const pinAt = dir(blrTop, BLR[1]).multiplyScalar(1.0022), pinScreen = new THREE.Vector3();
 
     const onResize = () => {
       renderer.setSize(innerWidth, innerHeight, false);
@@ -326,7 +328,7 @@ export async function playGlobe() {
     // start far enough that the whole globe (plus rim) fits the narrower screen side
     const halfFov = Math.tan((camera.fov * Math.PI) / 360);
     const far = Math.max(3.7, 1.22 / (halfFov * Math.min(1, camera.aspect)));
-    const near = 1.06;
+    const near = 1.012; // close enough to read the Bengaluru outline
     // the last stretch tilts to look across the surface (south of the city, facing north),
     // so the raised borders read as 3D instead of a flat map
     const north = new THREE.Vector3(0, 1, 0);
@@ -383,8 +385,8 @@ export async function playGlobe() {
         // Bengaluru: the boundary rises out of the ground as we arrive, then fills
         const rise = easeOut(span(t, 2700, 3350));
         blrWall.uOpacity.value = easeOut(span(t, 2650, 3000));
-        blrWall.uH.value = 0.0045 * rise;
-        blrCapU.uH.value = 0.0045 * rise;
+        blrWall.uH.value = 0.0022 * rise;
+        blrCapU.uH.value = 0.0022 * rise;
         blrCapU.uOpacity.value = 0.45 * easeOut(span(t, 2950, 3450));
         // a slow, soft ring breathing out from the city (the pin marks the place)
         const s = (dist - 1) * 0.008;

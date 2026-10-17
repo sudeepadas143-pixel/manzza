@@ -1029,7 +1029,7 @@ html.globe-intro .globe-veil canvas { position: absolute; inset: 0; width: 100%;
   opacity: var(--label, 0); transform: translate3d(calc((1 - var(--label, 0)) * -8px), 0, 0);
 }
 @media (max-width: 400px) {
-  .globe-pin__label { left: 0; top: 16px; transform: translate3d(-50%, calc((1 - var(--label, 0)) * -6px), 0); }
+  .globe-pin__label { left: 0; top: -108px; transform: translate3d(-50%, calc((1 - var(--label, 0)) * 6px), 0); }
 }
 html.globe-intro .globe-veil::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
