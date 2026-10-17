@@ -565,7 +565,7 @@ function aboutInfo(d) {
   const art = { 'ei-laminations': 'ei', 'strip-laminations': 'strip', 'mitre-core': 'core' };
   const focus = [['cut', 'Precision-cut', 'electrical steel laminations'], ['repeat', 'Consistent', 'manufacturing'], ['spec', 'Customer-specific', 'specifications'], ['supply', 'Dependable', 'B2B supply']];
   const inputs = [
-    ['Engineering drawings', '<rect x="6" y="4" width="36" height="40" rx="2" class="fl__sheet"/><path d="M13 11 h16 v4 h-11 v5 h9 v4 h-9 v5 h11 v4 h-16 z" class="fl__ink"/><path d="M26 39 h12" class="fl__ink"/>'],
+    ['Engineered drawings', '<rect x="6" y="4" width="36" height="40" rx="2" class="fl__sheet"/><path d="M13 11 h16 v4 h-11 v5 h9 v4 h-9 v5 h11 v4 h-16 z" class="fl__ink"/><path d="M26 39 h12" class="fl__ink"/>'],
     ['Core designs', '<rect x="6" y="6" width="36" height="36" class="fl__ink"/><rect x="16" y="16" width="16" height="16" class="fl__ink"/><path d="M6 6 L16 16 M42 6 L32 16 M6 42 L16 32 M42 42 L32 32" class="fl__ink"/>'],
     ['Production requirements', '<path d="M8 40 V26 M18 40 V18 M28 40 V22 M38 40 V10" class="fl__ink fl__bars"/><path d="M4 42 H44" class="fl__sheet"/>'],
   ];

@@ -33,7 +33,7 @@ export default {
 
   contact: {
     // Shown in the footer and on /quote. Use international format.
-    phone: '+91 81056 67729',
+    phone: '+91 90085 44041',
     // Business email that receives enquiries.
     email: 'purchase@manzza.in',
     // WhatsApp number: digits only, with country code, no + or spaces.
