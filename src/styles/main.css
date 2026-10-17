@@ -1116,14 +1116,14 @@ html.globe-intro body { overflow: hidden; }
 .fa__dim path { fill: none; stroke: currentColor; stroke-width: 0.9; }
 .fa__cut { fill: none; stroke: var(--blue-text); stroke-width: 1.4; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 0.9s var(--ease-out) 0.5s; }
 .fa__stack { opacity: 0; transform: translate3d(0, 6px, 0); transition: opacity 0.5s var(--ease-out) calc(0.25s + (4 - var(--k)) * 0.1s), transform 0.5s var(--ease-out) calc(0.25s + (4 - var(--k)) * 0.1s); }
-.fa__sheet { fill: rgba(255, 255, 255, 0.03); stroke: rgba(163, 171, 187, 0.5); stroke-width: 0.9; }
-.fa__draw rect, .fa__draw path { fill: none; stroke: var(--blue-text); stroke-width: 1.2; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.1s var(--ease-out) 0.4s; }
-.fa__block rect, .fa__block path { fill: none; stroke: rgba(163, 171, 187, 0.6); stroke-width: 0.8; }
+.fa__seam { fill: none; stroke: rgba(11, 20, 38, 0.55); stroke-width: 1; }
+.fa__frame { opacity: 0; transform: translate3d(0, 6px, 0); transition: opacity 0.6s var(--ease-out) 0.3s, transform 0.6s var(--ease-out) 0.3s; }
 .fa__axis, .fa__tickm { fill: none; stroke: rgba(163, 171, 187, 0.55); stroke-width: 0.9; }
 .fa__pt { fill: var(--blue); stroke: #e6ebf3; stroke-width: 0.8; }
 .fa__lot { opacity: 0; transition: opacity 0.4s var(--ease-out) calc(0.3s + var(--k) * 0.11s); }
 .is-drawn .focus__card { opacity: 1; transform: none; }
-.is-drawn .fa__cut, .is-drawn .fa__draw rect, .is-drawn .fa__draw path { stroke-dashoffset: 0; }
+.is-drawn .fa__cut { stroke-dashoffset: 0; }
+.is-drawn .fa__frame { opacity: 1; transform: none; }
 .is-drawn .fa__stack { opacity: 1; transform: none; }
 .is-drawn .fa__lot { opacity: 1; }
 
@@ -1168,6 +1168,6 @@ html.globe-intro body { overflow: hidden; }
 
 /* no motion: everything simply drawn */
 html.rm .abt *, html:not(.js) .abt * { transition: none !important; animation: none !important; }
-html.rm .abt [data-draw] .smap__served path, html.rm .abt [data-draw] .smap__labels text, html.rm .abt [data-draw] .prange__list li, html.rm .abt [data-draw] .focus__card, html.rm .abt [data-draw] .fa__stack, html.rm .abt [data-draw] .fa__lot, html.rm .abt [data-draw] .flow__in li, html.rm .abt [data-draw] .flow__out, html.rm .abt [data-draw] .flow__parts span,
-html:not(.js) .abt [data-draw] .smap__served path, html:not(.js) .abt [data-draw] .smap__labels text, html:not(.js) .abt [data-draw] .prange__list li, html:not(.js) .abt [data-draw] .focus__card, html:not(.js) .abt [data-draw] .fa__stack, html:not(.js) .abt [data-draw] .fa__lot, html:not(.js) .abt [data-draw] .flow__in li, html:not(.js) .abt [data-draw] .flow__out, html:not(.js) .abt [data-draw] .flow__parts span { opacity: 1; transform: none; }
+html.rm .abt [data-draw] .smap__served path, html.rm .abt [data-draw] .smap__labels text, html.rm .abt [data-draw] .prange__list li, html.rm .abt [data-draw] .focus__card, html.rm .abt [data-draw] .fa__stack, html.rm .abt [data-draw] .fa__frame, html.rm .abt [data-draw] .fa__lot, html.rm .abt [data-draw] .flow__in li, html.rm .abt [data-draw] .flow__out, html.rm .abt [data-draw] .flow__parts span,
+html:not(.js) .abt [data-draw] .smap__served path, html:not(.js) .abt [data-draw] .smap__labels text, html:not(.js) .abt [data-draw] .prange__list li, html:not(.js) .abt [data-draw] .focus__card, html:not(.js) .abt [data-draw] .fa__stack, html:not(.js) .abt [data-draw] .fa__frame, html:not(.js) .abt [data-draw] .fa__lot, html:not(.js) .abt [data-draw] .flow__in li, html:not(.js) .abt [data-draw] .flow__out, html:not(.js) .abt [data-draw] .flow__parts span { opacity: 1; transform: none; }
 html.rm .abt [data-draw] [pathLength], html:not(.js) .abt [data-draw] [pathLength], html.rm .abt .prange__axis path, html:not(.js) .abt .prange__axis path { stroke-dashoffset: 0; }

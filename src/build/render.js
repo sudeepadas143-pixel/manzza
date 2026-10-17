@@ -549,9 +549,9 @@ const FOCUS_ART = {
     <path class="fa__cut" d="M138 30 V68" pathLength="1"/>`,
   // mitre laminations (45° ends), identical, stacked
   repeat: [4, 3, 2, 1, 0].map((k) => `<path class="fa__steel fa__stack" style="--k:${k}" d="M${18 + k * 6} ${74 - k * 9} H${126 + k * 6} L${112 + k * 6} ${60 - k * 9} H${32 + k * 6} Z"/>`).join(''),
-  spec: `<rect class="fa__sheet" x="20" y="10" width="120" height="76" rx="2"/>
-    <g class="fa__draw"><rect x="40" y="20" width="44" height="44" pathLength="1"/><rect x="52" y="32" width="20" height="20" pathLength="1"/><path d="M40 20 L52 32 M84 20 L72 32 M40 64 L52 52 M84 64 L72 52" pathLength="1"/></g>
-    <g class="fa__block"><rect x="98" y="62" width="38" height="20"/><path d="M98 72 H136 M114 62 V82"/></g>`,
+  // a steel mitre-core frame dimensioned to the customer's drawing
+  spec: `<g class="fa__dim"><path d="M50 18 V8 M110 18 V8"/><path d="M54 12 H106" marker-start="url(#ab-tick)" marker-end="url(#ab-tick)"/><path d="M114 22 H126 M114 82 H126"/><path d="M120 26 V78" marker-start="url(#ab-tick)" marker-end="url(#ab-tick)"/></g>
+    <g class="fa__frame"><path class="fa__steel" fill-rule="evenodd" d="M50 22 H110 V82 H50 Z M66 38 V66 H94 V38 Z"/><path class="fa__seam" d="M50 22 L66 38 M110 22 L94 38 M50 82 L66 66 M110 82 L94 66"/></g>`,
   supply: `<path class="fa__axis" d="M14 66 H146"/>
     ${[0, 1, 2, 3, 4, 5, 6].map((k) => `<path class="fa__tickm" d="M${22 + k * 19} 62 V70"/>`).join('')}
     ${[0, 1, 2, 3, 4, 5, 6].map((k) => `<g class="fa__lot" style="--k:${k}"><rect class="fa__steel" x="${15 + k * 19}" y="40" width="14" height="5"/><rect class="fa__steel" x="${15 + k * 19}" y="46" width="14" height="5"/><circle class="fa__pt" cx="${22 + k * 19}" cy="66" r="2.6"/></g>`).join('')}`,
