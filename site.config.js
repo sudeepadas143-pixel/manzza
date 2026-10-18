@@ -29,7 +29,7 @@ export default {
 
   // Public URL of the live site, without a trailing slash.
   // Used for canonical links, Open Graph tags, sitemap.xml and JSON-LD.
-  siteUrl: 'https://manzza-website.vercel.app', // change to the custom domain when there is one
+  siteUrl: 'https://www.manzza.in',
 
   contact: {
     // Shown in the footer and on /quote. Use international format.
