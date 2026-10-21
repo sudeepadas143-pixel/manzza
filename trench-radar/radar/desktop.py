@@ -33,6 +33,19 @@ def free_port(preferred: int) -> int:
     raise SystemExit("no free port between %d and %d" % (preferred, preferred + 19))
 
 
+def keep_awake() -> bool:
+    """Stop Windows from going to sleep while the app runs; collection stops when the PC sleeps.
+    The display may still turn off. Closing a laptop lid follows its own power setting."""
+    if sys.platform != "win32":
+        return False
+    try:
+        import ctypes
+        ES_CONTINUOUS, ES_SYSTEM_REQUIRED = 0x80000000, 0x00000001
+        return bool(ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED))
+    except Exception:
+        return False
+
+
 def main() -> None:
     d = data_dir()
     env = d / "settings.env"
@@ -50,6 +63,7 @@ def main() -> None:
     from .api import create_app
     from .config import load_settings
 
+    awake = keep_awake()
     settings = load_settings(env)
     port = free_port(settings.dashboard_port)
     url = f"http://127.0.0.1:{port}/"
@@ -61,6 +75,8 @@ def main() -> None:
     print(f" Data + settings: {d}", flush=True)
     print(f"   edit {env.name} there to add API keys, then restart", flush=True)
     print(" Keep this window open to keep collecting. Close it to stop.", flush=True)
+    if awake:
+        print(" Windows won't sleep while this runs (the screen can still turn off).", flush=True)
     print(" Live data: every pump.fun launch and trade, read from the Solana chain", flush=True)
     print(" (uses about 0.3 MB/s of download). 'chain/pump_stream ok' each minute", flush=True)
     print(" means it is listening. reddit / x_api are optional extras.", flush=True)
