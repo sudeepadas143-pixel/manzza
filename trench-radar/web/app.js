@@ -222,6 +222,9 @@ function tokenFlags(t, now = nowS()) {
   if ((t.deployer_launches_24h || 0) >= 3) out.push(["neg", "Serial deployer"]);
   if ((t.dev_sold_sol || 0) >= 0.5) out.push(["neg", `Creator sold ${nf(t.dev_sold_sol, 1)} SOL`]);
   if (isNum(t.organic_buyers_h1) && t.buyers_h1 >= 5 && t.organic_buyers_h1 < 0.5 * t.buyers_h1) out.push(["", "Bot-heavy buying"]);
+  if ((t.launch_block_buyers || 0) >= 3) out.push(["neg", `Bundled launch (${t.launch_block_buyers} wallets)`]);
+  if ((t.insider_buyers_h1 || 0) >= 1) out.push(["neg", "Labelled insiders buying"]);
+  if (isNum(t.top10_pct) && t.top10_pct >= 0.3) out.push(["", `Top 10 hold ${pct(t.top10_pct)}`]);
   if (t.observed_at && now - t.observed_at > 1800) out.push(["", "Stale stats"]);
   return out;
 }
@@ -351,34 +354,42 @@ function renderLive() {
       <div class="figs">
         <div class="fig"><div class="k">Launches, last 60 min</div><div class="v">${compact(last60)}</div><div class="c">${nf(last5 / 5, 1)} per minute over the last 5 minutes</div></div>
         <div class="fig"><div class="k">Tokens being bought now</div><div class="v sm">${hot.length}${hot.length >= 20 ? "+" : ""}</div><div class="c">3+ distinct buyers in the last 5 minutes</div></div>
-        <div class="fig"><div class="k">Proven wallets tracked</div><div class="v sm">${compact(s.smart_wallets)}</div><div class="c">early into 2+ graduates at a 10%+ hit rate, last 7 days</div></div>
+        <div class="fig"><div class="k">Proven wallets tracked</div><div class="v sm">${compact(s.smart_wallets + s.labelled_wallets)}</div><div class="c">${compact(s.smart_wallets)} learned here (early into 2+ graduates, 10%+ hit rate), ${compact(s.labelled_wallets)} from a June 2026 dataset</div></div>
       </div>
       <div class="charts"><div class="chart-h"><h3>Launches per minute</h3><span class="note">last hour, local time; the current minute is partial</span></div><div class="chart" id="lpm"></div></div>
     </div>
     <div class="sec">
       <div class="sec-h"><h2>Being bought right now</h2><span class="note">last 5 minutes; sorted by proven wallets, then distinct buyers</span></div>
-      <table class="tbl" id="hot"><thead><tr><th>Token</th><th class="r hide-s">Age</th><th>Buyers / sellers</th><th class="r">Net SOL</th><th class="r" title="Buys from wallets with a proven early-entry record">Proven</th><th class="hide-s">Curve</th><th class="hide-s">Flags</th></tr></thead>
+      <table class="tbl" id="hot"><thead><tr><th>Token</th><th class="r hide-s">Age</th><th>Buyers / sellers</th><th class="r">Net SOL</th><th class="r" title="Buyers with a proven early-entry record (learned here) or labelled smart money (June 2026 dataset)">Proven</th><th class="hide-s">Curve</th><th class="hide-s">Flags</th></tr></thead>
         <tbody>${hot.map((h, i) => {
           const fl = [];
           if (h.dev_sold_sol >= 0.5) fl.push(flag("neg", `Creator sold ${nf(h.dev_sold_sol, 1)} SOL`));
+          if (h.launch_block_buyers >= 3) fl.push(flag("neg", `Bundled: ${h.launch_block_buyers} wallets in launch block`));
+          if (h.insider_5m) fl.push(flag("neg", `${h.insider_5m} labelled insider${h.insider_5m > 1 ? "s" : ""}`));
+          if (isNum(h.top10_pct) && h.top10_pct >= 0.3) fl.push(flag("", `Top 10 hold ${pct(h.top10_pct)}`));
           if (h.sellers_5m > h.buyers_5m) fl.push(flag("neg", "More sellers"));
           if (h.graduated) fl.push(flag("ok", "Graduated"));
           return `<tr data-h="${i}"><td><span class="tk"><b>${esc(h.symbol || short(h.mint))}</b><span>${esc(h.name || "")}</span></span></td>
             <td class="r hide-s">${secs(h.age_s)}</td><td>${bsr(h.buyers_5m, h.sellers_5m)}</td>
             <td class="r ${h.net_sol_5m > 0 ? "up" : h.net_sol_5m < 0 ? "down" : ""}">${signed(h.net_sol_5m, 1)}</td>
-            <td class="r ${h.smart_5m ? "up" : "i3"}">${h.smart_5m || "—"}</td>
+            <td class="r ${h.smart_5m + h.labelled_5m ? "up" : "i3"}" title="learned ${h.smart_5m}, dataset-labelled ${h.labelled_5m}">${h.smart_5m + h.labelled_5m || "—"}</td>
             <td class="hide-s">${h.graduated ? `<span class="i2">Graduated</span>` : curveCell(h)}</td>
             <td class="hide-s">${fl.length ? `<span class="flags">${fl.join("")}</span>` : ""}</td></tr>`;
         }).join("") || `<tr><td colspan="7"><div class="empty"><h3>Nothing yet</h3>Tokens show up here once three or more wallets buy within five minutes.</div></td></tr>`}</tbody></table>
     </div>
     <div class="sec split">
-      <div><div class="sec-h"><h2>Launch tape</h2><span class="note">newest 15; flags clone waves and serial creators</span></div>
+      <div><div class="sec-h"><h2>Launch tape</h2><span class="note">newest 15; flags clone waves, serial creators and bundled launches</span></div>
         <table class="tbl" id="tape"><thead><tr><th>Token</th><th class="r">When</th><th>Signals</th></tr></thead><tbody>
         ${d.launches.slice(0, 15).map((l, i) => `<tr data-l="${i}"><td><span class="tk"><b>${esc(l.symbol || short(l.mint))}</b><span>${esc(l.name || "")}</span></span></td>
           <td class="r">${secs(now - l.ts)} ago</td>
-          <td><span class="flags">${[l.clones >= 2 ? flag("", `${l.clones} wallets, same name, 15 min`) : "", l.creator_launches_24h >= 3 ? flag("neg", `Creator's ${ordinal(l.creator_launches_24h)} launch today`) : ""].join("")}</span>${l.clones < 2 && l.creator_launches_24h < 3 ? `<span class="i3">—</span>` : ""}</td></tr>`).join("")
+          <td><span class="flags">${[l.clones >= 2 ? flag("", `${l.clones} wallets, same name, 15 min`) : "", l.creator_launches_24h >= 3 ? flag("neg", `Creator's ${ordinal(l.creator_launches_24h)} launch today`) : "",
+            l.launch_block_buyers >= 3 ? flag("neg", `${l.launch_block_buyers} wallets bought in the launch block`) : ""].join("")}</span>${l.clones < 2 && l.creator_launches_24h < 3 && !(l.launch_block_buyers >= 3) ? `<span class="i3">—</span>` : ""}</td></tr>`).join("")
           || `<tr><td colspan="3" class="i3">Waiting for the first launch.</td></tr>`}</tbody></table></div>
-      <div><div class="sec-h"><h2>Just graduated</h2><span class="note">bonding curve completed</span></div>
+      <div><div class="sec-h"><h2>Posts spawning coins</h2><span class="note">X posts linked by 2+ launches in 3 hours</span></div>
+        <div class="ledger">${(d.source_posts || []).map((p) => `<div class="li"><span class="k"><a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer nofollow">@${esc(p.account)}</a> <span class="i3">post</span></span>
+          <span class="v">${p.launches} launches</span><span class="c">${p.creators} creator${p.creators === 1 ? "" : "s"}, ${p.buyers_1h} buyers in the last hour, ${signed(p.net_sol_1h, 1)} SOL net</span></div>`).join("")
+          || `<div class="li"><span class="k i3">No post has been linked by two launches yet.</span></div>`}</div>
+        <div class="sec-h" style="margin-top:28px"><h2>Just graduated</h2><span class="note">bonding curve completed</span></div>
         <div class="ledger">${d.graduations.map((g) => `<div class="li"><span class="k">${esc(g.symbol ? "$" + g.symbol : short(g.mint))} <span class="i3">${esc(g.name || "")}</span></span><span class="v">${secs(now - g.ts)} ago</span></div>`).join("")
           || `<div class="li"><span class="k i3">No graduation since the app started.</span></div>`}</div></div>
     </div>`;
@@ -450,7 +461,7 @@ function coverage(m) {
     ["Fresh trading stats", d.tokens_tracked >= 3, `${d.tokens_tracked} tokens`, `${d.tokens_tracked} token${d.tokens_tracked === 1 ? "" : "s"} only`],
     ["Bonding-curve flow", isNum(d.curve_net_sol_1h), `${d.curve_tokens_compared} curves`, "no curve history yet"],
     ["Net USD flow", isNum(d.net_flow_usd_h1), "Bitquery", "needs a Bitquery key"],
-    ["Deployer history", (e.creators?.known || 0) > 0, `${e.creators?.known} known`, "no deployers looked up"],
+    ["Creator history", (e.creators?.known || 0) > 0, `${e.creators?.known} known`, "no creators seen yet"],
     ["Validated against outcomes", !!m.validated, "backtest passed", "no validated backtest yet"],
   ];
 }
@@ -464,13 +475,14 @@ function dossierHtml(m) {
     return `<span>${esc(label)} <span class="w">×${m.weights[k]}</span></span>${isNum(v) ? meter(v, k === "demand" ? "dem" : k === "attention" ? "att" : "") : `<span class="na">no data, left out</span>`}<span class="v">${isNum(v) ? nf(v, 2) : ""}</span>`;
   };
   const fresh = S.ov.freshness;
-  const srcs = [["geckoterminal/refresh", "GeckoTerminal trading stats"], ["geckoterminal/new_pools", "GeckoTerminal launches"], ["solana_rpc/bonding_curves", "Solana RPC curves"],
+  const srcs = [["chain/pump_stream", "Live chain stream"], ["chain/snapshot", "Trading stats from the chain"],
     ["dexscreener/boosts_profiles", "DexScreener promotion"], ["x_api/recent_search", "X"], ["reddit/new_posts", "Reddit"]]
     .filter(([k]) => fresh[k]).map(([k, n]) => `${n} (${fresh[k].state}${isNum(fresh[k].age_s) ? `, ${ago(fresh[k].age_s)}` : ""})`);
   const toks = d.top_tokens || [];
   return `
     <div class="d-id"><div>${vst(m.verdict)}</div><h2 style="margin-top:8px">${esc(m.meta_key)}</h2>
       <div class="terms">${esc(m.terms.length > 1 ? `Matches ${m.terms.join(", ")}` : `${l.launches_6h} launches in 6 hours, ${d.tokens_tracked} tokens trading`)}</div>
+      ${e.merged_by_meaning?.length ? `<div class="terms i3">Grouped by meaning: ${esc(e.merged_by_meaning.map(([w, s]) => `${w} (${nf(s, 2)})`).join(", "))}</div>` : ""}
       <div class="hype">${esc(cap(m.hype_check))}.</div></div>
     <div class="verdict">
       <div class="${isProv(m) ? "prov" : ""}"><div class="k">Readiness score</div><div class="big">${isNum(m.score) ? Math.round(m.score) : "—"}<small> / 100</small></div>
@@ -583,6 +595,7 @@ async function openToken(mint) {
     <div class="links"><a href="https://pump.fun/coin/${encodeURIComponent(k.mint)}" target="_blank" rel="noopener noreferrer">pump.fun</a>
       <a href="https://dexscreener.com/solana/${encodeURIComponent(k.mint)}" target="_blank" rel="noopener noreferrer">DexScreener</a>
       <a href="https://solscan.io/token/${encodeURIComponent(k.mint)}" target="_blank" rel="noopener noreferrer">Solscan</a></div>
+    ${aboutHtml(k, t.same_x_post_24h)}
     <div class="dsec"><h3>Risk flags</h3>${flags.length ? `<ul class="ev cau">${flags.map(([c, f]) => `<li><span class="g" style="color:var(--${c === "neg" ? "sell" : "caution"})">▲</span><span>${esc(f)}</span></li>`).join("")}</ul>`
       : `<p class="notes" style="margin:0">None of the automatic checks fired. They do not detect rugs, bundled buys or insider wallets.</p>`}</div>
     <div class="dsec"><h3>Now<span class="note">${last.observed_at ? `observed ${esc(ago(t.now - last.observed_at))}` : "no recent observation"}</span></h3>
@@ -593,17 +606,21 @@ async function openToken(mint) {
         ${isNum(last.smart_buyers_h1) ? `<div><div class="k">Proven wallets buying 1h</div><div class="v ${last.smart_buyers_h1 ? "up" : ""}">${last.smart_buyers_h1}</div></div>
         <div><div class="k">Buyers that aren’t bots 1h</div><div class="v">${last.organic_buyers_h1 ?? "—"}</div></div>
         <div><div class="k">Net SOL in 1h</div><div class="v ${last.net_sol_h1 > 0 ? "up" : last.net_sol_h1 < 0 ? "down" : ""}">${signed(last.net_sol_h1, 1)}</div></div>
-        <div><div class="k">Creator sold</div><div class="v ${last.dev_sold_sol >= 0.5 ? "down" : ""}">${nf(last.dev_sold_sol, 2)} SOL</div></div>` : ""}</div></div>
+        <div><div class="k">Creator sold</div><div class="v ${last.dev_sold_sol >= 0.5 ? "down" : ""}">${isNum(last.dev_sold_sol) ? nf(last.dev_sold_sol, 2) + " SOL" : "—"}</div></div>
+        <div><div class="k">Labelled smart / insider buyers 1h</div><div class="v">${last.labelled_buyers_h1 ?? "—"}<small> / ${last.insider_buyers_h1 ?? "—"}</small></div></div>
+        <div><div class="k">Wallets buying in the launch block</div><div class="v ${last.launch_block_buyers >= 3 ? "down" : ""}">${last.launch_block_buyers ?? "—"}${isNum(last.launch_block_pct) ? `<small> · ${pct(last.launch_block_pct, 1)} of supply</small>` : ""}</div></div>
+        <div><div class="k">Top 10 wallets / creator hold</div><div class="v">${isNum(last.top10_pct) ? pct(last.top10_pct) : "—"}<small> / ${isNum(last.dev_holds_pct) ? pct(last.dev_holds_pct, 1) : "—"}</small></div></div>` : ""}</div>
+      ${last.sol_paired === 0 ? `<p class="notes">Paired with a token other than SOL: SOL and USD figures are left out.</p>` : ""}</div>
     <div class="dsec"><div class="chart-h">${seg("Metric", [["mcap", "Market cap"], ["buyers", "Buyers per hour"], ["curve", "Curve progress"]], tokState.metric, "data-m")}
       <span class="end">${seg("Range", [[6, "6H"], [24, "24H"], [72, "3D"]], tokState.hours, "data-h")}</span></div><div class="chart" id="tchart"></div></div>
-    <div class="dsec"><h3>Deployer<span class="note">${t.deployer ? esc(short(t.deployer.wallet)) : "not looked up"}</span></h3>
+    <div class="dsec"><h3>Creator<span class="note">${t.deployer ? esc(short(t.deployer.wallet)) : "unknown"}</span></h3>
       ${t.deployer ? `<div class="ledger"><div class="li"><span class="k">Launches we saw in 24 hours</span><span class="v ${t.deployer.launches_seen_24h >= 3 ? "down" : ""}">${t.deployer.launches_seen_24h}</span></div>
-        <div class="li"><span class="k">SOL balance</span><span class="v">${isNum(t.deployer.activity?.sol_balance) ? nf(t.deployer.activity.sol_balance, 2) : "—"}</span></div>
-        <div class="li"><span class="k">Recent transactions</span><span class="v">${t.deployer.activity?.recent_tx ?? "—"}${t.deployer.activity?.recent_tx >= 100 ? "+" : ""}</span></div></div>`
-        : `<p class="notes" style="margin:0">Deployer lookups cost two RPC calls, so only the most active tokens get one.</p>`}</div>
+        ${t.deployer.label ? `<div class="li"><span class="k">Dataset label</span><span class="v ${t.deployer.label === "insider" ? "down" : ""}">${t.deployer.label === "insider" ? "Insider" : "Smart money"}</span><span class="c">June 2026 wallet labels</span></div>` : ""}
+        ${t.deployer.activity ? `<div class="li"><span class="k">SOL balance</span><span class="v">${isNum(t.deployer.activity.sol_balance) ? nf(t.deployer.activity.sol_balance, 2) : "—"}</span></div>` : ""}</div>`
+        : `<p class="notes" style="margin:0">This token launched before the app started listening, so its creator wasn't seen.</p>`}</div>
     ${out ? `<div class="dsec"><h3>Outcomes<span class="note">measured after launch</span></h3><table class="tbl"><thead><tr><th>Horizon</th><th>Result</th><th class="r">Return</th><th class="r">Peak</th></tr></thead><tbody>${out}</tbody></table>
       <p class="notes">Return runs from the first observed candle and ignores fees. Graduation and profit are separate outcomes.</p></div>` : ""}
-    <p class="attr">Trading stats: GeckoTerminal pool ${esc(short(k.pool))}, ${t.observations.length} observations in range. Curve: Solana RPC account state${curve ? `, read ${esc(ago(t.now - curve.observed_at))}` : ", not read"}.${t.attention.length ? ` Paid DexScreener ${esc(t.attention[0].kind)} seen.` : ""}</p>`;
+    <p class="attr">Trading stats: live chain stream, ${t.observations.length} snapshots in range${t.pool?.length ? `; ${t.pool.length} PumpSwap pool readings after graduation` : ""}. Curve: Solana RPC account state${curve ? `, read ${esc(ago(t.now - curve.observed_at))}` : ", not read"}.${t.attention.length ? ` Paid DexScreener ${esc(t.attention[0].kind)} seen.` : ""}</p>`;
   $("#copy", root).addEventListener("click", async () => { try { await navigator.clipboard.writeText(k.mint); toast("Address copied"); } catch (_) { toast("Copying isn’t allowed here"); } });
   const draw = () => {
     const first = Math.min(...[k.created_at, t.observations[0]?.observed_at, t.curve[0]?.observed_at].filter(isNum));
@@ -615,6 +632,17 @@ async function openToken(mint) {
   draw();
   $$("[data-m]", root).forEach((b) => b.addEventListener("click", () => { tokState.metric = b.dataset.m; $$("[data-m]", root).forEach((x) => x.setAttribute("aria-pressed", x === b)); draw(); }));
   $$("[data-h]", root).forEach((b) => b.addEventListener("click", () => { tokState.hours = +b.dataset.h; openToken(mint); }));
+}
+
+function aboutHtml(k, same) {
+  const xUrl = k.x_post ? `https://x.com/${k.x_post}` : k.x_account ? `https://x.com/${k.x_account}` : null;
+  const safe = (u) => (/^https:\/\//i.test(u || "") ? u : null);
+  const links = [[xUrl, k.x_post ? "Linked X post" : "Linked X account"], [safe(k.website), "Website"], [safe(k.telegram), "Telegram"]].filter((l) => l[0]);
+  if (!k.description && !links.length) return k.meta_status === "failed" ? `<div class="dsec"><h3>About</h3><p class="notes" style="margin:0">Its metadata file couldn’t be fetched.</p></div>` : "";
+  return `<div class="dsec"><h3>About<span class="note">from the creator; unverified</span></h3>
+    ${k.description ? `<p style="margin:0 0 10px">${esc(k.description)}</p>` : ""}
+    ${links.length ? `<div class="links">${links.map(([u, l]) => `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer nofollow">${esc(l)}</a>`).join("")}</div>` : ""}
+    ${same && same.n > 1 ? `<p class="notes">${same.n} launches by ${same.c} creator${same.c === 1 ? "" : "s"} linked this same X post in the last 24 hours.</p>` : ""}</div>`;
 }
 
 // ---------------------------------------------------------------- TOKENS
@@ -730,8 +758,8 @@ async function writeReport(e) {
 }
 
 // ---------------------------------------------------------------- SYSTEM
-const SRC_NAMES = { "geckoterminal/new_pools": "New launches", "geckoterminal/active_pools": "Most-traded tokens", "geckoterminal/refresh": "Token trading stats",
-  "solana_rpc/bonding_curves": "Bonding curves", "solana_rpc/deployers": "Deployer wallets", "dexscreener/boosts_profiles": "Paid promotion",
+const SRC_NAMES = { "chain/pump_stream": "Live chain stream", "chain/snapshot": "Token stats from the stream",
+  "chain/pumpswap_pools": "PumpSwap pools after graduation", "defillama/sol_price": "SOL price", "dexscreener/boosts_profiles": "Paid promotion",
   "defillama/launchpad_volume": "Launchpad volume", "x_api/recent_search": "X posts", "reddit/new_posts": "Reddit posts",
   "pumpfun/latest_coins": "pump.fun API", "bitquery/net_flow": "Net flow (Bitquery)", "outcomes/label": "Outcome labelling" };
 const SRC_STATE = { fresh: ["pos", "●", "Fresh"], degraded: ["warn", "▲", "Degraded"], stale: ["warn", "▲", "Stale"], expired: ["neg", "✕", "Expired"],

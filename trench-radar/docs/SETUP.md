@@ -92,7 +92,7 @@ by the API, and they are redacted from logs and error messages
 | Source | Cost | This app's default usage |
 |---|---|---|
 | DexScreener, DefiLlama | free | a few calls per 10 and 60 min |
-| Solana public RPC | free | 1 websocket (the live stream, **~0.3 MB/s ≈ 25 GB/day download**) + 1 batched call per 2 min for curves near graduation |
+| Solana public RPC (publicnode, then mainnet-beta as fallback) | free | 1 websocket (the live stream, **~0.3 MB/s ≈ 25 GB/day download**) + 1 batched call per 2 min for curves near graduation |
 | Helius RPC (recommended) | free tier 1M credits/month at 10 rps; Developer $49/mo for 10M (per helius.dev) | ~2–4k credits/day at defaults, well inside the free tier |
 | X API v2 | pay-per-use, ~$0.005 per post returned; legacy Basic/Pro closed to new signups | capped by `X_DAILY_READ_BUDGET` (default 1,000 posts/day ≈ $5/day ≈ $150/mo). Lower it to cut cost. |
 | Reddit | free with OAuth app (personal use) | 4 subreddits per 30 min |
@@ -119,11 +119,30 @@ sends is discarded. `LIVE_STREAM=0` turns it off (and with it most of the app). 
     graduations already seen, so there is no look-ahead. Evidence only; not in the score
     weights until a backtest says it helps;
   - *creator sold*: SOL the token's creator sold back into its own curve;
-  - *clones*: the same name launched by several wallets within 15 minutes.
+  - *clones*: the same name launched by several wallets within 15 minutes;
+  - *bundled launches*: other wallets buying in the launch block (the same or next slot).
+    That is how Jito bundles and snipers land, but same-block buying alone does not prove a
+    bundle;
+  - *top-10 share* and *creator holds*: tallied from every buy and sell the stream saw. Exact
+    for tokens launched while the app runs, except wallet-to-wallet transfers, which are not
+    trades. (Free public RPCs refuse `getTokenLargestAccounts`, so this is the free way.);
+  - *labelled wallets*: 1,600 smart-money and 6,126 insider wallets from the Solana Memecoin
+    Dataset (June 2026, labels from GMGN; see `THIRD_PARTY.md`). They can be stale.
+  Coins paired with a token other than SOL (about 1 trade in 8) are counted for wallets only;
+  their SOL and USD figures are left empty rather than shown wrong.
   Every 2 minutes a row per active token (5+ buyers in the hour) goes into `token_obs` and
   `curve_obs`, which the analytics and backtest read.
 - **Solana RPC**: every 2 minutes, the `complete` flag of curves above 90% (the completing
   transaction's logs are sometimes truncated by the RPC, so the stream alone can miss one).
+  Every 10 minutes, the PumpSwap pool price of tokens that graduated in the last 48 hours,
+  priced on effective quote reserves (vault + signed virtual reserves) as pump.fun documents.
+- **Launch metadata**: each launch's metadata JSON (description, image, X/website/Telegram
+  links), fetched once per launch. IPFS files go through filebase and 4everland because
+  ipfs.io now refuses scripted requests. Many launches link the X post they are about; posts
+  linked by several launches are shown on the Live screen as "posts spawning coins".
+- **Narratives by meaning**: all-MiniLM-L6-v2 (23 MB, downloaded from Hugging Face on first
+  start, run with onnxruntime) merges narrative clusters whose head words mean the same
+  (cat/kitty, frog/toad). Every merge is listed in the dossier. `SEMANTIC_METAS=0` turns it off.
 - **DefiLlama**: SOL/USD every 5 minutes, and launchpad volume.
 - **DexScreener**: paid boosts and profiles — attention someone is buying.
 - **DefiLlama**: 30-day daily volume for the pump.fun launchpad and PumpSwap.
@@ -160,12 +179,15 @@ sends is discarded. `LIVE_STREAM=0` turns it off (and with it most of the app). 
    Claude call goes through the real SDK against a local stub). The Bitquery query is
    written against the schema documented in `bitquery/Pump-Fun-API` and has not been
    executed.
-9. **Deployer.** The creator comes from the launch event itself. Tokens launched before the
+9. **Dataset evidence.** `docs/RESEARCH_DATA.md` checks which early signals went with a 2x
+   in a June 2026 dataset of graduated and trending tokens. It informs risk notes, not the
+   score weights, and it found no signal group that made money when bought at detection.
+10. **Deployer.** The creator comes from the launch event itself. Tokens launched before the
    app started have no creator until their next snapshot names one from trade events.
-10. **Event layouts.** The pump.fun event layouts were verified against live mainnet traffic
-   on 2026-10-21. A program upgrade that reorders fields would break decoding; one that only
+11. **Event layouts.** The pump.fun event layouts follow pump.fun's published IDL and were
+   verified against live mainnet traffic on 2026-10-21. A program upgrade that reorders fields would break decoding; one that only
    appends fields would not.
-11. **Out of scope by design:** launching tokens, signing transactions, trading, and
+12. **Out of scope by design:** launching tokens, signing transactions, trading, and
     browser-scraping X with a personal session.
 
 ## Free 24/7 server (Oracle Cloud) with phone access

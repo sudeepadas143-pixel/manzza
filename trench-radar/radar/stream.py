@@ -30,6 +30,7 @@ import time
 from collections import defaultdict, deque
 
 from .db import insert, now, one, rows
+from .wallet_labels import WalletLabels
 from .sources.base import SourceUnavailable, record_run
 from .sources.pump_events import PUMP_PROGRAM, parse_notification, progress_from_real_tokens
 
@@ -44,14 +45,21 @@ SUPPLY = 1_000_000_000       # pump.fun tokens: 1B supply
 
 
 class MintState:
-    __slots__ = ("mint", "name", "symbol", "creator", "created_at", "pool", "trades", "hours", "price",
+    __slots__ = ("mint", "name", "symbol", "creator", "created_at", "pool", "amm_pool", "init_tokens",
+                 "sol_paired", "create_slot", "block_buyers", "block_tokens", "holdings", "trades", "hours", "price",
                  "price_hist", "real_sol", "real_tokens", "last_ts", "dev_sold", "early",
                  "graduated", "snap_ts")
 
     def __init__(self, mint: str):
         self.mint = mint
         self.name = self.symbol = self.creator = None
-        self.created_at = self.pool = None
+        self.created_at = self.pool = self.amm_pool = self.init_tokens = self.create_slot = None
+        self.sol_paired = True              # False: paired with another token, amounts aren't SOL
+        self.block_buyers: set[str] = set() # wallets (not the creator) buying in the launch block
+        self.block_tokens = 0.0             # tokens they bought there
+        # tokens each wallet holds, from the trades seen (exact for tokens launched while the
+        # stream was running, except wallet-to-wallet transfers, which are not trades)
+        self.holdings: dict[str, float] = defaultdict(float)
         self.trades: deque = deque()          # (ts, wallet, is_buy, sol) for the last hour
         self.hours: dict[int, list] = {}      # hour -> [buys, sells, buy_sol, sell_sol, first price]
         self.price = None                     # SOL per token
@@ -74,20 +82,24 @@ class Live:
         self.grads: deque = deque(maxlen=200)
         self.names: dict[str, deque] = defaultdict(deque)       # lowercase name -> (ts, creator)
         self.creators: dict[str, deque] = defaultdict(deque)    # creator -> launch ts (24h)
-        self.smart: set[str] = set()
+        self.smart: set[str] = set()                            # learned from graduations seen
+        self.labels = WalletLabels.load()                       # shipped labels (see wallet_labels.py)
         self.smart_computed_at = 0
         self.connected = False
         self.connected_since = None
         self.last_event_at = 0.0
         self.last_error: str | None = None
         self.down_since: float | None = None
+        self.endpoint: str | None = None          # host of the websocket in use
         self.lag_s: float | None = None
         self.events = 0                 # decoded events since the last heartbeat
         self.connected_s = 0.0          # seconds connected since the last heartbeat
         self._mark: float | None = None # when the current connection (or window) started
         self.reconnects = 0             # since the last heartbeat
         self.total_events = 0
-        self.pending: dict[str, list] = {"tokens": [], "early": [], "grads": []}
+        self.pending: dict[str, list] = {"tokens": [], "early": [], "grads": [], "pools": []}
+        self.meta_queue: deque = deque(maxlen=600)   # (mint, uri) awaiting a metadata fetch
+        self.x_posts: dict[str, str] = {}            # mint -> X post its metadata links
 
     def set_connected(self, on: bool, t: float | None = None) -> None:
         t = t or time.time()
@@ -136,6 +148,11 @@ class Live:
             self._on_trade(ev)
         elif kind == "complete":
             self._graduate(self._state(ev["mint"]), ev["ts"])
+        elif kind == "migration":
+            ms = self._state(ev["mint"])
+            ms.amm_pool = ev["pool"]
+            self._graduate(ms, ev["ts"])
+            self.pending["pools"].append((ev["pool"], ev["mint"]))
 
     def _state(self, mint: str) -> MintState:
         ms = self.mints.get(mint)
@@ -147,6 +164,7 @@ class Live:
         ms = self._state(ev["mint"])
         ms.name, ms.symbol, ms.creator, ms.created_at = ev["name"], ev["symbol"], ev["creator"], ev["ts"]
         ms.pool = ev["bonding_curve"]
+        ms.init_tokens, ms.sol_paired, ms.create_slot = ev.get("initial_real_tokens"), ev.get("sol_paired", True), ev.get("slot")
         key = (ev["name"] or "").strip().lower()
         same = self.names[key]
         while same and same[0][0] < ev["ts"] - 900:
@@ -160,6 +178,8 @@ class Live:
                               "creator": ev["creator"], "ts": ev["ts"],
                               "clones": len({c for _, c in same}), "creator_launches_24h": len(dq)})
         self.launch_minutes[ev["ts"] // 60 * 60] += 1
+        if ev.get("uri"):
+            self.meta_queue.append((ev["mint"], ev["uri"]))
         self.pending["tokens"].append({
             "mint": ev["mint"], "name": ev["name"], "symbol": ev["symbol"], "creator": ev["creator"],
             "uri": ev["uri"], "pool": ev["bonding_curve"], "launchpad": "pump-fun",
@@ -169,15 +189,21 @@ class Live:
         ms = self._state(ev["mint"])
         ts, sol, buy, user = ev["ts"], ev["sol"], ev["is_buy"], ev["user"]
         ms.creator = ms.creator or ev.get("creator")
+        if not ev.get("sol_paired", True):
+            ms.sol_paired, sol = False, 0.0         # amounts are in another token; count wallets only
+        if (buy and ms.create_slot is not None and ev.get("slot") is not None
+                and ev["slot"] <= ms.create_slot + 1 and user != ms.creator):
+            ms.block_buyers.add(user)               # same block as the launch: bundled or sniped
+            ms.block_tokens += ev["tokens"]
         ms.trades.append((ts, user, buy, sol))
-        if ev["v_tokens"]:
+        if ev["v_tokens"] and ms.sol_paired:
             ms.price = ev["v_sol"] / ev["v_tokens"]
         b = ms.hours.setdefault(ts // H * H, [0, 0, 0.0, 0.0, ms.price])
         if buy:
             b[0] += 1; b[2] += sol
         else:
             b[1] += 1; b[3] += sol
-        if ev["v_tokens"]:
+        if ev["v_tokens"] and ms.sol_paired:
             if not ms.price_hist or ts - ms.price_hist[-1][0] >= 300:
                 ms.price_hist.append((ts, ms.price))
         ms.real_sol, ms.real_tokens = ev["real_sol"], ev["real_tokens"]
@@ -188,6 +214,9 @@ class Live:
                                           "rank": len(ms.early)})
         if not buy and ms.creator and user == ms.creator:
             ms.dev_sold += sol
+        ms.holdings[user] += ev["tokens"] if buy else -ev["tokens"]
+        if ms.holdings[user] <= 1e-6:
+            del ms.holdings[user]
         if ev["real_tokens"] == 0 and not ms.graduated:
             self._graduate(ms, ts)
 
@@ -196,7 +225,7 @@ class Live:
         truncated by the RPC, so these are also checked directly (see check_curves)."""
         return [ms for ms in self.mints.values()
                 if not ms.graduated and ms.real_tokens is not None and ms.last_ts > t - 6 * H
-                and progress_from_real_tokens(ms.real_tokens) >= min_progress]
+                and progress_from_real_tokens(ms.real_tokens, ms.init_tokens) >= min_progress]
 
     def _graduate(self, ms: MintState, ts: int) -> None:
         if ms.graduated:
@@ -209,7 +238,7 @@ class Live:
     # ------------------------------------------------------------------ persistence
     def flush(self, con) -> int:
         """Write buffered launches, early buyers and graduations in one transaction."""
-        p, self.pending = self.pending, {"tokens": [], "early": [], "grads": []}
+        p, self.pending = self.pending, {"tokens": [], "early": [], "grads": [], "pools": []}
         n = sum(len(v) for v in p.values())
         if not n:
             return 0
@@ -226,11 +255,26 @@ class Live:
                 insert(con, "early_buyers", r, or_ignore=True)
             for r in p["grads"]:
                 insert(con, "graduations", r, or_ignore=True)
+            for pool, mint in p["pools"]:
+                con.execute("UPDATE graduations SET pool=? WHERE mint=? AND pool IS NULL", (pool, mint))
             con.execute("COMMIT")
         except Exception:
             con.execute("ROLLBACK")
             raise
         return n
+
+    @staticmethod
+    def top10(ms: MintState) -> float | None:
+        """Top-10 wallets' share of supply. Only for tokens whose launch the stream saw."""
+        if ms.create_slot is None:
+            return None
+        return round(sum(sorted(ms.holdings.values(), reverse=True)[:10]) / SUPPLY, 4)
+
+    @staticmethod
+    def dev_holds(ms: MintState) -> float | None:
+        if ms.create_slot is None or not ms.creator:
+            return None
+        return round(ms.holdings.get(ms.creator, 0.0) / SUPPLY, 4)
 
     def bots(self, t: int) -> set[str]:
         seen: dict[str, set] = defaultdict(set)
@@ -252,7 +296,8 @@ class Live:
             else:
                 sells += 1; ssol += sol; sellers.add(w)
         out = {"buys": buys, "sells": sells, "buyers": len(buyers), "sellers": len(sellers),
-               "buy_sol": bsol, "sell_sol": ssol, "smart": len(buyers & self.smart)}
+               "buy_sol": bsol, "sell_sol": ssol, "smart": len(buyers & self.smart),
+               "labelled": len(buyers & self.labels.smart), "insider": len(buyers & self.labels.insider)}
         if bots is not None:
             out["organic"] = len(buyers - bots)
         return out
@@ -288,27 +333,34 @@ class Live:
                                            "creator": ms.creator, "uri": None, "pool": None,
                                            "launchpad": "pump-fun", "created_at": ms.created_at,
                                            "first_seen_at": t, "source": "chain_trade"}, or_ignore=True)
-                price_usd = usd(ms.price) if ms.price else None
+                usd_t = usd if ms.sol_paired else (lambda x: None)
+                sol_t = (lambda x: round(x, 4)) if ms.sol_paired else (lambda x: None)
+                price_usd = usd_t(ms.price) if ms.price else None
                 insert(con, "token_obs", {
                     "mint": ms.mint, "observed_at": t, "source": "chain", "dex": "pump-fun", "pool": None,
                     "price_usd": price_usd, "mcap_usd": price_usd * SUPPLY if price_usd else None,
-                    "liquidity_usd": usd(ms.real_sol) if ms.real_sol is not None else None,
-                    "vol_m5": usd(m5["buy_sol"] + m5["sell_sol"]),
-                    "vol_h1": usd(h1["buy_sol"] + h1["sell_sol"]), "vol_h6": usd(vol(6)), "vol_h24": usd(vol(24)),
+                    "liquidity_usd": usd_t(ms.real_sol) if ms.real_sol is not None else None,
+                    "vol_m5": usd_t(m5["buy_sol"] + m5["sell_sol"]),
+                    "vol_h1": usd_t(h1["buy_sol"] + h1["sell_sol"]), "vol_h6": usd_t(vol(6)), "vol_h24": usd_t(vol(24)),
                     "buys_h1": h1["buys"], "sells_h1": h1["sells"],
                     "buyers_h1": h1["buyers"], "sellers_h1": h1["sellers"],
                     "buys_h24": sum(v[0] for v in hrs.values()), "sells_h24": sum(v[1] for v in hrs.values()),
                     "chg_h1": round((ms.price / old - 1) * 100, 2) if old and ms.price else None,
                     "chg_h24": round((ms.price / first24 - 1) * 100, 2) if first24 and ms.price else None,
-                    "buy_vol_h1": usd(h1["buy_sol"]), "sell_vol_h1": usd(h1["sell_sol"]),
-                    "net_sol_h1": round(h1["buy_sol"] - h1["sell_sol"], 4),
+                    "buy_vol_h1": usd_t(h1["buy_sol"]), "sell_vol_h1": usd_t(h1["sell_sol"]),
+                    "net_sol_h1": sol_t(h1["buy_sol"] - h1["sell_sol"]),
                     "organic_buyers_h1": h1["organic"], "smart_buyers_h1": h1["smart"],
-                    "dev_sold_sol": round(ms.dev_sold, 4)})
+                    "labelled_buyers_h1": h1["labelled"], "insider_buyers_h1": h1["insider"],
+                    "dev_sold_sol": sol_t(ms.dev_sold),
+                    "launch_block_buyers": len(ms.block_buyers) if ms.create_slot is not None else None,
+                    "launch_block_pct": round(ms.block_tokens / SUPPLY, 4) if ms.create_slot is not None else None,
+                    "top10_pct": self.top10(ms), "dev_holds_pct": self.dev_holds(ms),
+                    "sol_paired": int(ms.sol_paired)})
                 if ms.real_tokens is not None:
                     insert(con, "curve_obs", {
                         "mint": ms.mint, "observed_at": t, "real_sol": ms.real_sol,
                         "real_token_reserves": ms.real_tokens, "complete": int(ms.graduated),
-                        "progress": progress_from_real_tokens(ms.real_tokens), "price_sol": ms.price})
+                        "progress": progress_from_real_tokens(ms.real_tokens, ms.init_tokens), "price_sol": ms.price})
                 ms.snap_ts = t
                 n += 1
             self._market_stats(con, t)
@@ -360,6 +412,31 @@ class Live:
         self.smart_computed_at = t
         return len(self.smart)
 
+    def source_posts(self, con, t: int, window_s: int = 3 * H, top: int = 10) -> list[dict]:
+        """X posts that launches link to, ranked by launches; with live buying in those coins."""
+        found = rows(con, """SELECT x_post, COUNT(*) AS launches, COUNT(DISTINCT creator) AS creators,
+                                    MIN(created_at) AS first_at, MAX(created_at) AS last_at,
+                                    GROUP_CONCAT(mint) AS mints
+                             FROM tokens WHERE x_post IS NOT NULL AND created_at > ?
+                             GROUP BY x_post HAVING launches >= 2
+                             ORDER BY launches DESC, last_at DESC LIMIT ?""", (t - window_s, top))
+        for p in found:
+            mints = p.pop("mints").split(",")
+            buyers = set()
+            net = 0.0
+            for m in mints:
+                ms = self.mints.get(m)
+                if ms:
+                    for ts, w, buy, sol in ms.trades:
+                        if ts > t - H:
+                            if buy:
+                                buyers.add(w); net += sol
+                            else:
+                                net -= sol
+            p.update(buyers_1h=len(buyers), net_sol_1h=round(net, 2),
+                     account=p["x_post"].split("/", 1)[0], url="https://x.com/" + p["x_post"])
+        return found
+
     # ------------------------------------------------------------------ live view
     def view(self, t: float | None = None, top: int = 20) -> dict:
         t = int(t or time.time())
@@ -373,12 +450,23 @@ class Live:
             hot.append({"mint": ms.mint, "name": ms.name, "symbol": ms.symbol,
                         "age_s": t - ms.created_at if ms.created_at else None,
                         "buyers_5m": w["buyers"], "sellers_5m": w["sellers"], "buys_5m": w["buys"],
-                        "sells_5m": w["sells"], "net_sol_5m": round(w["buy_sol"] - w["sell_sol"], 3),
-                        "vol_sol_5m": round(w["buy_sol"] + w["sell_sol"], 3), "smart_5m": w["smart"],
-                        "progress": progress_from_real_tokens(ms.real_tokens) if ms.real_tokens is not None else None,
+                        "sells_5m": w["sells"],
+                        "net_sol_5m": round(w["buy_sol"] - w["sell_sol"], 3) if ms.sol_paired else None,
+                        "vol_sol_5m": round(w["buy_sol"] + w["sell_sol"], 3) if ms.sol_paired else None,
+                        "smart_5m": w["smart"], "labelled_5m": w["labelled"], "insider_5m": w["insider"],
+                        "launch_block_buyers": len(ms.block_buyers) if ms.create_slot is not None else None,
+                        "launch_block_pct": round(ms.block_tokens / SUPPLY, 3) if ms.create_slot is not None else None,
+                        "top10_pct": self.top10(ms), "dev_holds_pct": self.dev_holds(ms),
+                        "sol_paired": ms.sol_paired,
+                        "progress": progress_from_real_tokens(ms.real_tokens, ms.init_tokens) if ms.real_tokens is not None else None,
                         "real_sol": ms.real_sol, "dev_sold_sol": round(ms.dev_sold, 3),
                         "graduated": ms.graduated})
-        hot.sort(key=lambda h: (h["smart_5m"], h["buyers_5m"], h["net_sol_5m"]), reverse=True)
+        hot.sort(key=lambda h: (h["smart_5m"] + h["labelled_5m"], h["buyers_5m"], h["net_sol_5m"] or 0), reverse=True)
+        tape = []
+        for launch in list(self.launches)[-30:][::-1]:
+            ms = self.mints.get(launch["mint"])
+            tape.append({**launch, "launch_block_buyers": len(ms.block_buyers) if ms else None,
+                         "launch_block_pct": round(ms.block_tokens / SUPPLY, 3) if ms else None})
         mins = [[m, self.launch_minutes.get(m, 0)] for m in range((t // 60 - 59) * 60, (t // 60 + 1) * 60, 60)]
         return {
             "now": t,
@@ -389,9 +477,11 @@ class Live:
                        "lag_s": round(self.lag_s, 1) if self.lag_s is not None else None,
                        "last_event_age_s": round(t - self.last_event_at, 1) if self.last_event_at else None,
                        "error": None if self.connected or (self.down_since and t - self.down_since < 10) else self.last_error,
-                       "smart_wallets": len(self.smart), "tokens_in_memory": len(self.mints)},
+                       "smart_wallets": len(self.smart), "labelled_wallets": len(self.labels.smart),
+                       "insider_wallets": len(self.labels.insider), "endpoint": self.endpoint,
+                       "tokens_in_memory": len(self.mints)},
             "launches_per_min": mins,
-            "launches": list(self.launches)[-30:][::-1],
+            "launches": tape,
             "hot": hot[:top],
             "graduations": list(self.grads)[-12:][::-1],
         }
@@ -400,11 +490,20 @@ class Live:
 LIVE = Live()
 
 
-def ws_url(settings) -> str:
-    if settings.solana_ws_url:
-        return settings.solana_ws_url
+# Free public websockets that serve logsSubscribe without a key (checked 2026-10-21).
+# mainnet-beta closes the socket every 10-30s but has always delivered; publicnode sometimes
+# acknowledges the subscription and then sends nothing, so it is the fallback.
+PUBLIC_WS = ("wss://api.mainnet-beta.solana.com", "wss://solana-rpc.publicnode.com")
+
+
+def ws_urls(settings) -> list[str]:
+    """Your own endpoint first when configured, then the free public ones as fallbacks."""
+    from .config import DEFAULT_RPC
+    own = settings.solana_ws_url
     u = settings.solana_rpc_url
-    return "wss://" + u.split("://", 1)[1] if u.startswith("https://") else u.replace("http://", "ws://", 1)
+    if not own and u and u != DEFAULT_RPC:
+        own = "wss://" + u.split("://", 1)[1] if u.startswith("https://") else u.replace("http://", "ws://", 1)
+    return ([own] if own else []) + [w for w in PUBLIC_WS if w != own]
 
 
 async def run_stream(ctx, live: Live = LIVE) -> None:
@@ -413,12 +512,14 @@ async def run_stream(ctx, live: Live = LIVE) -> None:
     failures back off. 60s of silence counts as a dead connection (pump.fun never goes a
     minute without a trade)."""
     import websockets
-    url = ws_url(ctx.s)
+    urls, k = ws_urls(ctx.s), 0
     sub = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "logsSubscribe",
                       "params": [{"mentions": [PUMP_PROGRAM]}, {"commitment": "confirmed"}]})
     backoff, fails = 1.0, 0
     while True:
-        opened = time.time()
+        opened, events_before = time.time(), live.total_events
+        url = urls[k % len(urls)]
+        live.endpoint = url.split("://", 1)[-1].split("/", 1)[0].split("?", 1)[0]
         try:
             async with websockets.connect(url, open_timeout=20, ping_interval=20, ping_timeout=30,
                                           max_size=2 ** 23, max_queue=8192) as ws:
@@ -431,17 +532,20 @@ async def run_stream(ctx, live: Live = LIVE) -> None:
                 live.set_connected(True)
                 live.last_error = None
                 while True:
-                    live.on_raw(await asyncio.wait_for(ws.recv(), 60))
+                    live.on_raw(await asyncio.wait_for(ws.recv(), 30))
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # network drop, RPC limit, server close: always reconnect
             live.set_connected(False)
             live.last_error = ctx.s.redact(f"{type(exc).__name__}: {exc}")[:300]
-            if time.time() - opened > 10:
+            if live.total_events == events_before:
+                live.last_error = f"{live.endpoint} sent no events ({live.last_error})"
+            elif time.time() - opened > 10:
                 backoff, fails = 1.0, 0
                 await asyncio.sleep(0.2)
                 continue
             fails += 1
+            k += 1                                   # quick failure: try the next endpoint
             if fails == 3:
                 log.warning("live chain stream can't stay connected (%s); retrying with backoff", live.last_error)
             await asyncio.sleep(backoff)
@@ -497,10 +601,26 @@ async def fill_names(ctx, live: Live, limit: int = 60) -> int:
     return len(found)
 
 
+async def track_pools(ctx, window_s: int = 48 * H) -> int:
+    """Price of recently graduated tokens on their PumpSwap pool (2-4 batched RPC calls)."""
+    from .sources import solana_rpc
+    due = {r["mint"]: r["pool"] for r in rows(ctx.con, """SELECT mint, pool FROM graduations
+            WHERE pool IS NOT NULL AND COALESCE(graduated_at, detected_at) > ?""", (now() - window_s,))}
+    if not due:
+        return 0
+    prices = await solana_rpc.pumpswap_prices(ctx.http, ctx.s.solana_rpc_url, due)
+    t = now()
+    ctx.con.execute("BEGIN")
+    for mint, p in prices.items():
+        insert(ctx.con, "pool_obs", {"mint": mint, "observed_at": t, **p})
+    ctx.con.execute("COMMIT")
+    return len(prices)
+
+
 async def run_maintenance(ctx, live: Live = LIVE, snapshot_every_s: int = 120) -> None:
     """Flush buffered writes every 5s, record a heartbeat every 60s, snapshot activity,
     refresh the smart-wallet set every 30 min, prune raw tables daily."""
-    last_beat = last_snap = last_smart = last_prune = last_curves = time.time()
+    last_beat = last_snap = last_smart = last_prune = last_curves = last_pools = time.time()
     await asyncio.sleep(5)
     while True:
         try:
@@ -537,6 +657,10 @@ async def run_maintenance(ctx, live: Live = LIVE, snapshot_every_s: int = 120) -
                     await check_curves(ctx, live)
                 except SourceUnavailable as exc:
                     log.debug("curve check skipped: %s", exc)
+            if t - last_pools >= 600:
+                last_pools = t
+                async with record_run(ctx.con, ctx.s, "chain", "pumpswap_pools") as run:
+                    run.items = await track_pools(ctx)
             if t - last_prune >= 86400:
                 last_prune = t
                 prune(ctx.con)
@@ -547,8 +671,43 @@ async def run_maintenance(ctx, live: Live = LIVE, snapshot_every_s: int = 120) -
         await asyncio.sleep(5)
 
 
+async def run_metadata(ctx, live: Live = LIVE) -> None:
+    """Fetch launch metadata (description, links, the X post a coin cites) in the background."""
+    from . import metadata
+    async with metadata.httpx.AsyncClient(headers={"User-Agent": "trench-radar/0.2 (+research)"},
+                                          follow_redirects=True) as client:
+        while True:
+            batch = [live.meta_queue.popleft() for _ in range(min(24, len(live.meta_queue)))]
+            if not batch:
+                await asyncio.sleep(5)
+                continue
+            try:
+                live.flush(ctx.con)                   # the token rows must exist before the UPDATE
+                got = await metadata.fetch_many(client, batch)
+                ctx.con.execute("BEGIN")
+                for mint, m in got.items():
+                    if m is None:
+                        ctx.con.execute("UPDATE tokens SET meta_status='failed' WHERE mint=?", (mint,))
+                        continue
+                    ctx.con.execute("""UPDATE tokens SET description=?, twitter=?, website=?, telegram=?, image=?,
+                                       x_post=?, x_account=?, meta_status='ok' WHERE mint=?""",
+                                    (m["description"], m["twitter"], m["website"], m["telegram"], m["image"],
+                                     m["x_post"], m["x_account"], mint))
+                    if m["x_post"]:
+                        live.x_posts[mint] = m["x_post"]
+                ctx.con.execute("COMMIT")
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                if ctx.con.in_transaction:
+                    ctx.con.execute("ROLLBACK")
+                log.exception("metadata batch failed; continuing")
+            await asyncio.sleep(1)
+
+
 def prune(con, keep_obs_days: int = 21, keep_early_days: int = 30) -> None:
     t = now()
     con.execute("DELETE FROM token_obs WHERE source='chain' AND observed_at < ?", (t - keep_obs_days * 86400,))
     con.execute("DELETE FROM curve_obs WHERE observed_at < ?", (t - keep_obs_days * 86400,))
+    con.execute("DELETE FROM pool_obs WHERE observed_at < ?", (t - keep_obs_days * 86400,))
     con.execute("DELETE FROM early_buyers WHERE ts < ?", (t - keep_early_days * 86400,))

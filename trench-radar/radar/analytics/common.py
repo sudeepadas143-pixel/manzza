@@ -15,6 +15,7 @@ from ..db import rows
 # Expected cadence per (source, job); used for freshness. Matches config defaults.
 EXPECTED_EVERY_S = {
     ("chain", "pump_stream"): 60, ("chain", "snapshot"): 120, ("defillama", "sol_price"): 300,
+    ("chain", "pumpswap_pools"): 600,
     ("dexscreener", "boosts_profiles"): 600,
     ("defillama", "launchpad_volume"): 3600, ("x_api", "recent_search"): 900,
     ("reddit", "new_posts"): 900, ("bitquery", "net_flow"): 300, ("outcomes", "label"): 1800,

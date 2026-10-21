@@ -103,6 +103,10 @@ def explain(meta: dict, comps: dict, sat: dict, mkt: dict, social_measured: bool
     if D.get("smart_buyers_h1_sum"):
         reasons.append(f"{D['smart_buyers_h1_sum']} buy(s) in the last hour from wallets with a proven early-entry "
                        f"record, across {D['tokens_with_smart_buyers']} token(s). Evidence only; not weighted in the score.")
+    if D.get("labelled_buyers_h1_sum"):
+        reasons.append(f"{D['labelled_buyers_h1_sum']} buyer(s) in the last hour are labelled smart money in the June 2026 "
+                       "dataset; there, tokens with smart-money buys reached 2x about 3x as often (17% vs 6%), "
+                       "though buying at detection still lost money on average. Evidence only.")
     if D.get("net_flow_source") == "chain" and D["net_flow_usd_h1"] and D["net_flow_usd_h1"] > 2000:
         reasons.append(f"${D['net_flow_usd_h1']:,.0f} more bought than sold in the last hour (on-chain).")
     if D["graduations_24h"]:
@@ -112,6 +116,10 @@ def explain(meta: dict, comps: dict, sat: dict, mkt: dict, social_measured: bool
 
     if social_measured and S["copy_paste_posts_6h"] >= 5:
         risks.append(f"{S['copy_paste_posts_6h']} copy-paste posts in 6h: coordinated shilling inflates mentions.")
+    if D["buyer_share_h1"] is not None and D["buyer_share_h1"] >= 0.8:
+        risks.append(f"Very one-sided buying ({D['buyer_share_h1']:.0%} of active wallets buying). In the June 2026 "
+                     "dataset the most buy-heavy fifth of tokens reached 2x far less often (0.8% vs 9%): it tends "
+                     "to mark late entries near a top.")
     if D["buyer_share_h1"] is not None and D["buyer_share_h1"] < 0.45:
         risks.append(f"Sellers dominate: only {D['buyer_share_h1']:.0%} of active wallets were buying in the last hour.")
     if D["curve_net_sol_1h"] is not None and D["curve_net_sol_1h"] < -2:
@@ -120,6 +128,11 @@ def explain(meta: dict, comps: dict, sat: dict, mkt: dict, social_measured: bool
             and D["organic_buyers_h1_sum"] < 0.5 * D["unique_buyers_h1_sum"]:
         risks.append(f"Bot-heavy: only {D['organic_buyers_h1_sum']} of {D['unique_buyers_h1_sum']} buyers in the last hour "
                      "are not high-frequency bot wallets.")
+    if D.get("insider_buyers_h1_sum"):
+        risks.append(f"{D['insider_buyers_h1_sum']} buyer(s) in the last hour are labelled insiders in the June 2026 dataset.")
+    if D.get("tokens_bundled"):
+        risks.append(f"{D['tokens_bundled']} active token(s) had 3+ other wallets buying in the launch block "
+                     "(bundled or sniped launches).")
     if D.get("tokens_dev_sold"):
         risks.append(f"Creator sold 0.5+ SOL back into {D['tokens_dev_sold']} of this meta's active token(s).")
     for sig in sat["signals"].values():
@@ -194,7 +207,8 @@ def score_meta(meta: dict, mkt: dict, fresh: dict, social_measured: bool, valida
         "reasons": reasons, "risks": risks,
         "evidence": {"launch": {k: v for k, v in L.items() if k not in ("mints_6h", "mints_all")},
                      "social": S, "demand": D, "saturation": sat,
-                     "attention_purchased": meta.get("attention"), "creators": meta.get("creators")},
+                     "attention_purchased": meta.get("attention"), "creators": meta.get("creators"),
+                     "merged_by_meaning": meta.get("merged_by_meaning", [])},
     }
 
 

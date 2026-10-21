@@ -1,12 +1,13 @@
 # Build: pyinstaller TrenchRadar.spec   ->  dist/TrenchRadar(.exe)
 from PyInstaller.utils.hooks import collect_submodules
 
-hidden = collect_submodules("uvicorn") + collect_submodules("radar") + collect_submodules("websockets")
+hidden = (collect_submodules("uvicorn") + collect_submodules("radar") + collect_submodules("websockets")
+          + collect_submodules("tokenizers"))
 
 a = Analysis(
     ["launcher.py"],
     pathex=["."],
-    datas=[("web", "web"), (".env.example", ".")],
+    datas=[("web", "web"), (".env.example", "."), ("radar/data", "radar/data"), ("THIRD_PARTY.md", ".")],
     hiddenimports=hidden,
     excludes=["pytest", "tkinter"],
 )

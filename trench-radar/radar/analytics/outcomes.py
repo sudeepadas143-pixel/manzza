@@ -67,14 +67,19 @@ async def label_batch(ctx, horizons=(6, 24)) -> int:
                    "graduated": int(graduated_by_h or (bool(c.get("complete")) and not late_read)),
                    "bucket": bucket(c.get("real_sol"), bool(c.get("complete"))) if not late_read else "unknown",
                    "source": "rpc+graduations"}
+            end = r["created_at"] + hz * H
             snaps = rows(ctx.con, """SELECT observed_at, price_sol FROM curve_obs WHERE mint=? AND price_sol > 0
-                                     AND observed_at <= ?""", (r["mint"], r["created_at"] + hz * H))
+                                     AND observed_at <= ?
+                                     UNION ALL
+                                     SELECT observed_at, price_sol FROM pool_obs WHERE mint=? AND price_sol > 0
+                                     AND observed_at <= ?""", (r["mint"], end, r["mint"], end))
             pp = price_path([(s["observed_at"],) + (s["price_sol"],) * 4 for s in snaps], r["created_at"], hz)
             if pp:
-                if graduated_by_h:
-                    pp.update(end_price=None, ret_end=None)   # traded on PumpSwap after graduation: not observed
+                pooled = any(1 for s in rows(ctx.con, "SELECT 1 AS x FROM pool_obs WHERE mint=? LIMIT 1", (r["mint"],)))
+                if graduated_by_h and not pooled:
+                    pp.update(end_price=None, ret_end=None)   # traded on PumpSwap, pool not observed
                 row.update(pp)
-                row["source"] += "+curve"
+                row["source"] += "+curve" + ("+pool" if pooled else "")
             insert(ctx.con, "token_outcomes", row, or_replace=True)
             labelled += 1
         ctx.con.commit()

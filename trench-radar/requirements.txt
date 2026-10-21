@@ -2,6 +2,10 @@ fastapi==0.115.12
 uvicorn==0.34.2
 httpx==0.28.1
 websockets==17.3   # live chain stream (BSD-3-Clause)
+# semantic narrative grouping with all-MiniLM-L6-v2 (optional: without them metas stay lexical)
+onnxruntime==1.31.0   # MIT
+tokenizers==0.23.3    # Apache-2.0
+numpy==2.5.4          # BSD-3-Clause
 # optional: AI analyst (rules analyst is used when absent or no ANTHROPIC_API_KEY)
 anthropic>=1.15,<2
 # tests

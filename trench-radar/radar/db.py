@@ -32,7 +32,12 @@ CREATE TABLE IF NOT EXISTS tokens (
   launchpad TEXT,                  -- pump-fun | other
   created_at INTEGER,              -- pool creation time per source
   first_seen_at INTEGER NOT NULL,
-  source TEXT NOT NULL
+  source TEXT NOT NULL,
+  -- from the launch's metadata JSON (creator-supplied, untrusted text)
+  description TEXT, twitter TEXT, website TEXT, telegram TEXT, image TEXT,
+  x_post TEXT,                     -- 'user/status/id' of the X post the coin links, if any
+  x_account TEXT,                  -- lowercase X handle linked, if any
+  meta_status TEXT                 -- NULL = not fetched, 'ok' | 'failed'
 );
 CREATE INDEX IF NOT EXISTS ix_tokens_created ON tokens(created_at);
 CREATE INDEX IF NOT EXISTS ix_tokens_creator ON tokens(creator, created_at);
@@ -50,7 +55,14 @@ CREATE TABLE IF NOT EXISTS token_obs (
   net_sol_h1 REAL,                            -- SOL bought minus SOL sold (chain stream)
   organic_buyers_h1 INTEGER,                  -- unique buyers excluding bot wallets
   smart_buyers_h1 INTEGER,                    -- buyers with a proven early-entry record
-  dev_sold_sol REAL                           -- SOL the creator has sold back so far
+  dev_sold_sol REAL,                          -- SOL the creator has sold back so far
+  labelled_buyers_h1 INTEGER,                 -- buyers labelled smart money in the shipped dataset
+  insider_buyers_h1 INTEGER,                  -- buyers labelled insider in the shipped dataset
+  launch_block_buyers INTEGER,                -- non-creator wallets buying in the launch block
+  launch_block_pct REAL,                      -- share of supply they bought there
+  top10_pct REAL,                             -- top-10 wallets' share of supply, from trades seen
+  dev_holds_pct REAL,                         -- creator's share of supply, from trades seen
+  sol_paired INTEGER                          -- 0: paired with another token, SOL fields empty
 );
 CREATE INDEX IF NOT EXISTS ix_tobs_mint ON token_obs(mint, observed_at);
 CREATE INDEX IF NOT EXISTS ix_tobs_time ON token_obs(observed_at);
@@ -62,6 +74,13 @@ CREATE TABLE IF NOT EXISTS curve_obs (
   price_sol REAL
 );
 CREATE INDEX IF NOT EXISTS ix_curve_mint ON curve_obs(mint, observed_at);
+
+CREATE TABLE IF NOT EXISTS pool_obs (           -- PumpSwap pool after graduation (RPC)
+  id INTEGER PRIMARY KEY,
+  mint TEXT NOT NULL, observed_at INTEGER NOT NULL,
+  price_sol REAL, quote_sol REAL, base_tokens REAL
+);
+CREATE INDEX IF NOT EXISTS ix_pool_mint ON pool_obs(mint, observed_at);
 
 CREATE TABLE IF NOT EXISTS graduations (
   mint TEXT PRIMARY KEY, detected_at INTEGER NOT NULL, graduated_at INTEGER,
@@ -164,9 +183,17 @@ def connect(path: Path | str) -> sqlite3.Connection:
     con.execute("PRAGMA foreign_keys=ON")
     con.executescript(SCHEMA)
     # columns added after v1: add them to databases created earlier
+    have_tok = {r[1] for r in con.execute("PRAGMA table_info(tokens)")}
+    for col in ("description", "twitter", "website", "telegram", "image", "x_post", "x_account", "meta_status"):
+        if col not in have_tok:
+            con.execute(f"ALTER TABLE tokens ADD COLUMN {col} TEXT")
+    con.execute("CREATE INDEX IF NOT EXISTS ix_tokens_xpost ON tokens(x_post, created_at)")
     have_cols = {r[1] for r in con.execute("PRAGMA table_info(token_obs)")}
     for col, typ in (("net_sol_h1", "REAL"), ("organic_buyers_h1", "INTEGER"),
-                     ("smart_buyers_h1", "INTEGER"), ("dev_sold_sol", "REAL")):
+                     ("smart_buyers_h1", "INTEGER"), ("dev_sold_sol", "REAL"),
+                     ("labelled_buyers_h1", "INTEGER"), ("insider_buyers_h1", "INTEGER"),
+                     ("launch_block_buyers", "INTEGER"), ("launch_block_pct", "REAL"),
+                     ("top10_pct", "REAL"), ("dev_holds_pct", "REAL"), ("sol_paired", "INTEGER")):
         if col not in have_cols:
             con.execute(f"ALTER TABLE token_obs ADD COLUMN {col} {typ}")
     have = con.execute("SELECT value FROM meta_info WHERE key='schema_version'").fetchone()

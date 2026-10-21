@@ -10,6 +10,7 @@ import math
 from collections import Counter, defaultdict
 
 from ..db import rows
+from ..embed import merge_clusters
 from ..text import classify, terms, token_terms
 from .common import Lineage
 
@@ -148,12 +149,16 @@ def detect(con, as_of: int, lineage: Lineage | None = None) -> tuple[list[dict],
     posts = load_posts(con, as_of, lineage)
     all_window = sum(1 for r in launches if r["created_at"] > as_of - WINDOW_S)
     clusters = cluster_terms(candidate_terms(launches, posts, as_of), launches, posts, as_of)
+    clusters, merges = merge_clusters(clusters)
+    merged_into = defaultdict(list)
+    for kept, gone, sim in merges:
+        merged_into[kept].append([gone, sim])
     metas = []
     for cl in clusters:
         ts = set(cl)
-        metas.append({"key": cl[0], "terms": cl,
+        metas.append({"key": cl[0], "terms": cl, "merged_by_meaning": merged_into.get(cl[0], []),
                       "launch": meta_launches(launches, ts, as_of, all_window),
                       "social": meta_social(posts, ts, as_of)})
     ctx = {"launches_6h_total": all_window, "posts_6h_total": sum(1 for p in posts if p["created_at"] > as_of - WINDOW_S),
-           "launches_loaded": len(launches), "posts_loaded": len(posts)}
+           "launches_loaded": len(launches), "posts_loaded": len(posts), "semantic_merges": len(merges)}
     return metas, ctx

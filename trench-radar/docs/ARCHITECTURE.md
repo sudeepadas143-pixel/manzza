@@ -32,6 +32,16 @@ tokens, signs transactions or trades.
 | Anthropic API | **yes** | ⛔ no key here | AI analyst narrative. Deterministic rule-based analyst is the fallback. |
 | Telegram Bot API | **yes** | reachable | Alerts and scheduled reports. |
 
+### Repositories evaluated on 2026-10-21
+
+Licences, availability and what was used are recorded in [`THIRD_PARTY.md`](../THIRD_PARTY.md).
+In short: the MIT Solana Memecoin Dataset supplies wallet labels and the evidence check in
+[`RESEARCH_DATA.md`](RESEARCH_DATA.md); pump.fun's public IDL and docs define the event and
+pool layouts; all-MiniLM-L6-v2 groups narratives by meaning through onnxruntime. Code from
+unlicensed or "all rights reserved" repositories was not copied. open_clip was not integrated
+(PyTorch and an image download per launch are too heavy for a desktop app), and PumpArchive's
+API is offline.
+
 ## 3. Architecture
 
 ```

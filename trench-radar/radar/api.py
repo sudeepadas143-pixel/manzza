@@ -137,6 +137,8 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
         out = rows(con, f"""SELECT o.mint, k.name, k.symbol, k.created_at, k.creator, o.observed_at,
                                   o.vol_h1, o.vol_h24, o.buyers_h1, o.sellers_h1, o.buys_h1, o.sells_h1,
                                   o.organic_buyers_h1, o.smart_buyers_h1, o.net_sol_h1, o.dev_sold_sol,
+                                  o.labelled_buyers_h1, o.insider_buyers_h1, o.launch_block_buyers, o.top10_pct,
+                                  o.dev_holds_pct, k.x_post,
                                   COALESCE(o.mcap_usd, o.fdv_usd) AS mcap_usd, o.liquidity_usd, o.chg_h1, o.dex,
                                   (SELECT progress FROM curve_obs c WHERE c.mint=o.mint ORDER BY id DESC LIMIT 1) AS progress,
                                   (SELECT 1 FROM graduations g WHERE g.mint=o.mint) AS graduated,
@@ -152,25 +154,32 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
     @app.get("/api/tokens/{mint}")
     async def token_detail(mint: str, hours: int = 24):
         t = now()
-        tok = rows(con, "SELECT mint, name, symbol, creator, pool, created_at, first_seen_at, source FROM tokens "
-                        "WHERE mint=?", (mint,))
+        tok = rows(con, "SELECT mint, name, symbol, creator, pool, created_at, first_seen_at, source, description, "
+                        "twitter, website, telegram, x_post, x_account, meta_status FROM tokens WHERE mint=?", (mint,))
         if not tok:
             raise HTTPException(404, "unknown token")
         since = t - min(max(hours, 1), 72) * 3600
         obs = rows(con, f"""SELECT observed_at, price_usd, COALESCE(mcap_usd, fdv_usd) AS mcap_usd, liquidity_usd,
                                   vol_h1, vol_h24, buyers_h1, sellers_h1, buys_h1, sells_h1, chg_h1, dex, source,
-                                  organic_buyers_h1, smart_buyers_h1, net_sol_h1, dev_sold_sol
+                                  organic_buyers_h1, smart_buyers_h1, net_sol_h1, dev_sold_sol, labelled_buyers_h1,
+                                  insider_buyers_h1, launch_block_buyers, launch_block_pct, top10_pct, dev_holds_pct,
+                                  sol_paired
                            FROM token_obs WHERE mint=? AND observed_at > ? AND source IN {in_list(OBS_SOURCES)}
                            ORDER BY observed_at""", (mint, since))
         curve = rows(con, """SELECT observed_at, real_sol, progress, complete FROM curve_obs
                              WHERE mint=? AND observed_at > ? ORDER BY observed_at""", (mint, since))
         grad = rows(con, "SELECT detected_at, graduated_at, source, pool FROM graduations WHERE mint=?", (mint,))
+        pool = rows(con, "SELECT observed_at, price_sol, quote_sol FROM pool_obs WHERE mint=? AND observed_at > ? "
+                         "ORDER BY observed_at", (mint, since))
+        same_post = (rows(con, "SELECT COUNT(*) AS n, COUNT(DISTINCT creator) AS c FROM tokens WHERE x_post=? "
+                               "AND created_at > ?", (tok[0]["x_post"], t - 86400))[0] if tok[0]["x_post"] else None)
         creator = tok[0]["creator"]
         dep = None
         if creator and creator != "unknown":
             dep = {"wallet": creator,
                    "launches_seen_24h": rows(con, "SELECT COUNT(*) n FROM tokens WHERE creator=? AND created_at > ?",
                                              (creator, t - 86400))[0]["n"],
+                   "label": "insider" if creator in LIVE.labels.insider else "smart" if creator in LIVE.labels.smart else None,
                    "activity": (rows(con, "SELECT sol_balance, recent_tx, observed_at FROM creator_obs WHERE creator=? "
                                           "ORDER BY id DESC LIMIT 1", (creator,)) or [None])[0]}
         outcome = rows(con, "SELECT horizon_h, graduated, bucket, ret_end, ret_max, evaluated_at FROM token_outcomes "
@@ -178,13 +187,15 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
         boosts = rows(con, "SELECT kind, amount, observed_at FROM attention_obs WHERE mint=? ORDER BY id DESC LIMIT 5",
                       (mint,))
         return {"now": t, "token": tok[0], "observations": obs, "curve": curve,
-                "graduation": grad[0] if grad else None, "deployer": dep, "outcomes": outcome,
+                "graduation": grad[0] if grad else None, "pool": pool, "same_x_post_24h": same_post,
+                "deployer": dep, "outcomes": outcome,
                 "attention": boosts}
 
     @app.get("/api/live")
     async def live():
         """What the chain stream is seeing right now (in memory, updated per event)."""
         v = LIVE.view()
+        v["source_posts"] = LIVE.source_posts(con, v["now"])
         v["stream"]["enabled"] = bool(settings.intervals.get("stream", 1)) and with_scheduler
         return v
 

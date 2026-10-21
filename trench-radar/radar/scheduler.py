@@ -67,9 +67,13 @@ async def run_forever(ctx: c.Ctx) -> None:
     intervals = dict(ctx.s.intervals)
     intervals.setdefault("bitquery", 300 if ctx.s.bitquery_token else 0)
     tasks = []
+    if intervals.get("semantic", 1):
+        from . import embed
+        tasks.append(asyncio.create_task(asyncio.to_thread(embed.load, ctx.s.db_path.parent / "models")))
     if intervals.get("stream", 1):
         tasks.append(asyncio.create_task(stream.run_stream(ctx)))
         tasks.append(asyncio.create_task(stream.run_maintenance(ctx, snapshot_every_s=intervals.get("snapshot", 120))))
+        tasks.append(asyncio.create_task(stream.run_metadata(ctx)))
     # stagger start so jobs that feed analysis run first
     order = ["solprice", "macro", "attention", "social", "bitquery", "analyze", "outcomes"]
     fns = jobs(ctx)

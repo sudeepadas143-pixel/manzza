@@ -144,6 +144,7 @@ def load_settings(env_file: Path | None = None) -> Settings:
         dashboard_token=e("DASHBOARD_TOKEN") or None,
         intervals={
             "stream": _int("LIVE_STREAM", 1),              # 0 disables the live chain stream
+            "semantic": _int("SEMANTIC_METAS", 1),         # 0: lexical narratives only (no model download)
             "snapshot": _int("EVERY_SNAPSHOT_S", 120),     # live stream -> token_obs/curve_obs
             "solprice": _int("EVERY_SOLPRICE_S", 300),     # SOL/USD (DefiLlama coins API)
             "attention": _int("EVERY_ATTENTION_S", 600),   # DexScreener boosts/profiles
