@@ -42,6 +42,10 @@ BOT_MINTS_PER_H = 15         # a wallet trading this many tokens in an hour is t
 MIN_BUYERS_TO_SNAPSHOT = 5   # below this a token gets no token_obs row (keeps the DB small)
 SMART_MIN_GRADS, SMART_MIN_HIT, SMART_LOOKBACK_S = 2, 0.10, 7 * 86400
 SUPPLY = 1_000_000_000       # pump.fun tokens: 1B supply
+# Addresses that appear as the trader on pump.fun trades without being a market participant.
+# BwWK17... shows up on ~20% of trades (Pumpfun Memecoin Corpus KNOWN_ISSUES §3.3, also seen in
+# this stream). Left in, it adds a phantom buyer/seller to a third of all tokens.
+NON_TRADERS = frozenset({"BwWK17cbHxwWBKZkUYvzxLcNQ1YVyaFezduWbtm2de6s"})
 
 
 class MintState:
@@ -99,6 +103,7 @@ class Live:
         self.total_events = 0
         self.pending: dict[str, list] = {"tokens": [], "early": [], "grads": [], "pools": []}
         self.meta_queue: deque = deque(maxlen=600)   # (mint, uri) awaiting a metadata fetch
+        self.source = "chain"                        # provenance written on rows; "shrine_replay" when backfilling
         self.x_posts: dict[str, str] = {}            # mint -> X post its metadata links
 
     def set_connected(self, on: bool, t: float | None = None) -> None:
@@ -162,6 +167,8 @@ class Live:
 
     def _on_create(self, ev: dict, t: int) -> None:
         ms = self._state(ev["mint"])
+        if ms.created_at is not None:          # duplicate launch event (reconnects, archive merges)
+            return
         ms.name, ms.symbol, ms.creator, ms.created_at = ev["name"], ev["symbol"], ev["creator"], ev["ts"]
         ms.pool = ev["bonding_curve"]
         ms.init_tokens, ms.sol_paired, ms.create_slot = ev.get("initial_real_tokens"), ev.get("sol_paired", True), ev.get("slot")
@@ -178,12 +185,12 @@ class Live:
                               "creator": ev["creator"], "ts": ev["ts"],
                               "clones": len({c for _, c in same}), "creator_launches_24h": len(dq)})
         self.launch_minutes[ev["ts"] // 60 * 60] += 1
-        if ev.get("uri"):
+        if ev.get("uri") and self.source == "chain":
             self.meta_queue.append((ev["mint"], ev["uri"]))
         self.pending["tokens"].append({
             "mint": ev["mint"], "name": ev["name"], "symbol": ev["symbol"], "creator": ev["creator"],
             "uri": ev["uri"], "pool": ev["bonding_curve"], "launchpad": "pump-fun",
-            "created_at": ev["ts"], "first_seen_at": t, "source": "chain"})
+            "created_at": ev["ts"], "first_seen_at": t, "source": self.source})
 
     def _on_trade(self, ev: dict) -> None:
         ms = self._state(ev["mint"])
@@ -191,7 +198,8 @@ class Live:
         ms.creator = ms.creator or ev.get("creator")
         if not ev.get("sol_paired", True):
             ms.sol_paired, sol = False, 0.0         # amounts are in another token; count wallets only
-        if (buy and ms.create_slot is not None and ev.get("slot") is not None
+        human = user not in NON_TRADERS
+        if (human and buy and ms.create_slot is not None and ev.get("slot") is not None
                 and ev["slot"] <= ms.create_slot + 1 and user != ms.creator):
             ms.block_buyers.add(user)               # same block as the launch: bundled or sniped
             ms.block_tokens += ev["tokens"]
@@ -208,16 +216,17 @@ class Live:
                 ms.price_hist.append((ts, ms.price))
         ms.real_sol, ms.real_tokens = ev["real_sol"], ev["real_tokens"]
         ms.last_ts = max(ms.last_ts, ts)
-        if buy and len(ms.early) < EARLY_N and user != ms.creator and user not in ms.early:
+        if human and buy and len(ms.early) < EARLY_N and user != ms.creator and user not in ms.early:
             ms.early.append(user)
             self.pending["early"].append({"mint": ms.mint, "wallet": user, "ts": ts, "sol": sol,
                                           "rank": len(ms.early)})
         if not buy and ms.creator and user == ms.creator:
             ms.dev_sold += sol
-        ms.holdings[user] += ev["tokens"] if buy else -ev["tokens"]
-        if ms.holdings[user] <= 1e-6:
-            del ms.holdings[user]
-        if ev["real_tokens"] == 0 and not ms.graduated:
+        if human:
+            ms.holdings[user] += ev["tokens"] if buy else -ev["tokens"]
+            if ms.holdings[user] <= 1e-6:
+                del ms.holdings[user]
+        if ev.get("real_tokens") == 0 and not ms.graduated:
             self._graduate(ms, ts)
 
     def near_complete(self, t: int, min_progress: float = 0.9) -> list[MintState]:
@@ -280,7 +289,7 @@ class Live:
         seen: dict[str, set] = defaultdict(set)
         for ms in self.mints.values():
             for ts, w, _, _ in ms.trades:
-                if ts > t - H:
+                if ts > t - H and w not in NON_TRADERS:
                     seen[w].add(ms.mint)
         return {w for w, m in seen.items() if len(m) >= BOT_MINTS_PER_H}
 
@@ -292,9 +301,13 @@ class Live:
             if ts <= since:
                 break
             if buy:
-                buys += 1; bsol += sol; buyers.add(w)
+                buys += 1; bsol += sol
+                if w not in NON_TRADERS:
+                    buyers.add(w)
             else:
-                sells += 1; ssol += sol; sellers.add(w)
+                sells += 1; ssol += sol
+                if w not in NON_TRADERS:
+                    sellers.add(w)
         out = {"buys": buys, "sells": sells, "buyers": len(buyers), "sellers": len(sellers),
                "buy_sol": bsol, "sell_sol": ssol, "smart": len(buyers & self.smart),
                "labelled": len(buyers & self.labels.smart), "insider": len(buyers & self.labels.insider)}
@@ -302,7 +315,7 @@ class Live:
             out["organic"] = len(buyers - bots)
         return out
 
-    def snapshot(self, con, sol_usd: float | None, t: int | None = None) -> int:
+    def snapshot(self, con, sol_usd: float | None, t: int | None = None, source: str = "chain") -> int:
         """token_obs + curve_obs rows for tokens with real activity since their last snapshot."""
         t = t or now()
         for ms in self.mints.values():
@@ -337,7 +350,7 @@ class Live:
                 sol_t = (lambda x: round(x, 4)) if ms.sol_paired else (lambda x: None)
                 price_usd = usd_t(ms.price) if ms.price else None
                 insert(con, "token_obs", {
-                    "mint": ms.mint, "observed_at": t, "source": "chain", "dex": "pump-fun", "pool": None,
+                    "mint": ms.mint, "observed_at": t, "source": source, "dex": "pump-fun", "pool": None,
                     "price_usd": price_usd, "mcap_usd": price_usd * SUPPLY if price_usd else None,
                     "liquidity_usd": usd_t(ms.real_sol) if ms.real_sol is not None else None,
                     "vol_m5": usd_t(m5["buy_sol"] + m5["sell_sol"]),
@@ -430,7 +443,9 @@ class Live:
                     for ts, w, buy, sol in ms.trades:
                         if ts > t - H:
                             if buy:
-                                buyers.add(w); net += sol
+                                if w not in NON_TRADERS:
+                                    buyers.add(w)
+                                net += sol
                             else:
                                 net -= sol
             p.update(buyers_1h=len(buyers), net_sol_1h=round(net, 2),

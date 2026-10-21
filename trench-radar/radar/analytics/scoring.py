@@ -175,7 +175,7 @@ def score_meta(meta: dict, mkt: dict, fresh: dict, social_measured: bool, valida
     coverage = sum(have.values()) / sum(WEIGHTS.values())
     D, L, S = meta["demand"], meta["launch"], meta["social"]
     sample = 0.6 * clip01(D["tokens_tracked"] / 8) + 0.4 * clip01((L["launches_6h"] + S["mentions_6h"]) / 20)
-    used = ["chain/pump_stream", "chain/snapshot", "defillama/launchpad_volume"]
+    used = ["chain/pump_stream", "chain/snapshot", "defillama/launchpad_volume", "corpus/collection"]
     if social_measured:
         used += [k for k in fresh if k.startswith(("x_api/", "reddit/")) and fresh[k]["freshness"] > 0]
     fvals = [fresh[k]["freshness"] for k in used if k in fresh]

@@ -69,13 +69,14 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
     @app.get("/api/overview")
     async def overview():
         r = current()
-        bt = rows(con, "SELECT created_at, results FROM backtests ORDER BY id DESC LIMIT 1")
+        bt = rows(con, "SELECT created_at, params, results FROM backtests ORDER BY id DESC LIMIT 1")
         return {
             "as_of": r["as_of"], "model_version": r["model_version"], "market": r["market"],
             "metas": r["metas"], "context": r["context"], "social_measured": r["social_measured"],
             "freshness": r["freshness"], "config": settings.public_view(),
-            "backtest": ({"created_at": bt[0]["created_at"], **{k: v for k, v in json.loads(bt[0]["results"]).items()
-                                                                  if k != "sample"}} if bt else None),
+            "backtest": ({"created_at": bt[0]["created_at"], "dataset": json.loads(bt[0]["params"]).get("dataset"),
+                          "range": [json.loads(bt[0]["params"]).get("start"), json.loads(bt[0]["params"]).get("end")],
+                          **{k: v for k, v in json.loads(bt[0]["results"]).items() if k != "sample"}} if bt else None),
             "db": {t: rows(con, f"SELECT COUNT(*) n FROM {t}")[0]["n"]
                    for t in ("tokens", "token_obs", "curve_obs", "social_posts", "graduations", "token_outcomes",
                              "early_buyers")},

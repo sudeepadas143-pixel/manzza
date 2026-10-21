@@ -69,6 +69,42 @@ outcomes on top of the baseline.
 The SQLite file (`data/radar.db`, WAL mode) is the shared database. Dashboard, CLI and
 scheduler can all use it at the same time.
 
+## Skip the wait: backfill from Shrine's archive (optional)
+
+Shrine (shrine.trade) publishes a free, keyless hourly archive of every pump.fun launch and
+trade. Replaying recent hours gives the baselines at once instead of after ~7 hours:
+
+```bash
+python -m radar backfill --hours 7        # about 230 MB per hour, ~15 s per hour to replay
+```
+
+In the desktop app, add `SHRINE_BACKFILL_HOURS=7` to `settings.env`; it runs once in the
+background at start and skips hours already replayed. Each file covers every Solana DEX, so 7
+hours is about 1.6 GB of download; mind a metered connection. Replayed rows are stamped
+`shrine_replay` and as first seen when the archive hour became public (hour end + 5 min).
+
+`python -m radar check-coverage --hours 3` measures how complete the live stream is by
+comparing its launches with the archive hour by hour. On 2026-10-21 the free public RPC stream
+caught 77% of launches in a sample window; the coverage shown on the dashboard counts seconds
+connected and so reads higher than that.
+
+## Historical backtest on the Pump.fun Memecoin Corpus (research, optional)
+
+Every pump.fun launch from 2026-06-05 to 2026-07-14, with trades and graduations, from
+huggingface.co/datasets/jocry/Pumpfun_Memecoin_Corpus (CC BY 4.0). Needs `pip install pyarrow`
+and about 6 GB of disk for the download plus ~1 GB for the research database:
+
+```bash
+python -m radar corpus-download corpus/              # ~5.9 GB, pinned to a revision
+python -m radar corpus-build corpus/ --db research.db
+python -m radar corpus-backtest --db research.db --step-hours 3
+```
+
+The research database is separate from the live one. The backtest re-runs the real scoring at
+each step with only the rows that existed then (a step that reads anything newer is skipped),
+labels every launch in the follow window, graduated or not, and skips the Jul 2–4 collection
+outage. Results and caveats: `docs/RESEARCH_CORPUS.md`.
+
 ## Credentials
 
 Everything is optional. A missing key shows as "not configured" on the dashboard,

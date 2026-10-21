@@ -27,6 +27,25 @@ built by `scripts/build_wallet_labels.py`. The labels in that dataset originally
 
 **Fonts** in `web/fonts/` are under the SIL Open Font License; their licences sit next to them.
 
+## Used for historical backtests (not shipped; downloaded on request)
+
+**Pump.fun Memecoin Corpus** ("PumpFun Launch-to-Graduation Corpus"),
+https://huggingface.co/datasets/jocry/Pumpfun_Memecoin_Corpus, by Slink Dev (slink21taken), 2026.
+Revision used: `bd8aed6452fb81665a74e6c308323f2c825dc82a`. The dataset card lists MIT and the
+README states CC BY 4.0; this project follows CC BY 4.0 (attribution) as the stricter of the two.
+`radar/corpus.py` changes it as follows: it converts the token and trade tables into this app's
+schema, aggregates trades per token per hour, and applies the exclusions from the corpus's own
+KNOWN_ISSUES.md (non-human wallet, inconsistent or missing SOL amounts, out-of-range curve
+values, the Jul 3 outage). No corpus data is distributed with the app.
+
+## Optional live source
+
+**Shrine trade data API**, https://shrine.trade/pump/data-api/overview/ (checked 2026-10-21):
+free, no key for streams, REST or the hourly replay archive (`replay.shrine.trade`, archived
+since 2026-09-14); limits of 3 REST requests per second per IP and one open stream per type per
+IP. Only the replay archive is used, opt-in (`SHRINE_BACKFILL_HOURS`, `python -m radar backfill`,
+`python -m radar check-coverage`). No terms of service beyond the API documentation were found.
+
 ## Downloaded on first start
 
 **all-MiniLM-L6-v2** (ONNX export, quantized), https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2,
@@ -49,4 +68,8 @@ onnxruntime (MIT), tokenizers (Apache-2.0), NumPy (BSD-3-Clause), anthropic (MIT
 | jito-foundation/jito-solana | Apache-2.0 | Validator software; not needed. Bundled launches are detected from same-block buys instead. |
 | mlfoundations/open_clip | MIT | Not integrated: needs PyTorch (~2 GB) and downloading every token image. |
 | UKPLab/sentence-transformers | Apache-2.0 | Not installed (needs PyTorch); its MiniLM model runs through onnxruntime instead. |
-| PumpArchive/PumpArchive | none stated | Its API and docs site are offline (HTTP 404, 2026-10-21). |
+| git-disl/MemeTrans → renamed git-disl/MELT | CC BY-NC 4.0 (non-commercial) | Research reference only. ~41k migrated tokens from early 2025 with high/low-risk labels; the raw transactions are on Google Drive. Not shipped or imported because of the non-commercial licence; its design (bundle traces, pre-migration features) informed the launch-block signal. |
+
+Removed: **PumpArchive** (github.com/PumpArchive/PumpArchive). Its API (`api.pumparchive.com`)
+and docs site returned HTTP 404 / "deployment not found" on 2026-10-21; replaced by the
+Pump.fun Memecoin Corpus above.

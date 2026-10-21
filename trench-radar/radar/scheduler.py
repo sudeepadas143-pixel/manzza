@@ -63,6 +63,23 @@ async def _reports(ctx: c.Ctx) -> None:
         await asyncio.sleep(20)
 
 
+async def _backfill(ctx: c.Ctx, hours: int) -> None:
+    """Optional: fill recent history from Shrine's archive so baselines exist from the start.
+    Runs in a thread on its own connection; already-replayed hours are skipped."""
+    from . import shrine
+    from .db import connect
+
+    def go():
+        con = connect(ctx.s.db_path)
+        sol = con.execute("SELECT value FROM market_obs WHERE metric='sol_price_usd' ORDER BY id DESC LIMIT 1").fetchone()
+        return shrine.backfill(con, hours, sol_usd=sol[0] if sol else None)
+    try:
+        log.info("backfilling %dh from Shrine's archive (about %d MB to download)", hours, hours * 230)
+        log.info("backfill done: %s", await asyncio.to_thread(go))
+    except Exception:
+        log.exception("Shrine backfill failed; collection continues without it")
+
+
 async def run_forever(ctx: c.Ctx) -> None:
     intervals = dict(ctx.s.intervals)
     intervals.setdefault("bitquery", 300 if ctx.s.bitquery_token else 0)
@@ -70,6 +87,8 @@ async def run_forever(ctx: c.Ctx) -> None:
     if intervals.get("semantic", 1):
         from . import embed
         tasks.append(asyncio.create_task(asyncio.to_thread(embed.load, ctx.s.db_path.parent / "models")))
+    if intervals.get("shrine_backfill_h", 0):
+        tasks.append(asyncio.create_task(_backfill(ctx, intervals["shrine_backfill_h"])))
     if intervals.get("stream", 1):
         tasks.append(asyncio.create_task(stream.run_stream(ctx)))
         tasks.append(asyncio.create_task(stream.run_maintenance(ctx, snapshot_every_s=intervals.get("snapshot", 120))))

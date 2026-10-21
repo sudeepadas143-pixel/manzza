@@ -60,11 +60,18 @@ def _bootstrap_lower(signals: list[dict], key: str, iters: int = 1000, q: float 
 
 
 def run_backtest(con, start: int, end: int, *, step_s: int = 3600, follow_h: int = 6, horizon_h: int = 24,
-                 cost: float = 0.03, min_signals: int = 30, min_future: int = 3, persist: bool = True) -> dict:
-    """`end` is capped so every follow window plus horizon has already happened."""
+                 cost: float = 0.03, min_signals: int = 30, min_future: int = 3, persist: bool = True,
+                 exclude: list[tuple[int, int]] | None = None) -> dict:
+    """`end` is capped so every follow window plus horizon has already happened. `exclude`
+    lists (start, end) periods whose steps are skipped (collection outages, regime breaks):
+    a step is skipped when its lookback or follow window overlaps one."""
     end = min(end, now() - (follow_h + horizon_h) * H)
-    signals, leaks = [], 0
+    exclude = exclude or []
+    signals, leaks, skipped = [], 0, 0
     for t in range(start, end, step_s):
+        if any(a < t + follow_h * H and t - 7 * H < b for a, b in exclude):
+            skipped += 1
+            continue
         res = run_analysis(con, t, persist=False)
         if res["lineage"]["max_ts"] > t:
             leaks += 1
@@ -79,6 +86,7 @@ def run_backtest(con, start: int, end: int, *, step_s: int = 3600, follow_h: int
             signals.append({
                 "t": t, "meta": m["meta_key"], "score": m["score"], "verdict": m["verdict"],
                 "confidence": m["confidence"], "n_future": r["n"],
+                "accel_z": m["evidence"]["launch"].get("launch_accel_z"),
                 "grad_rate": r["grad_rate"], "base_grad_rate": base["grad_rate"],
                 "grad_lift": (r["grad_rate"] - base["grad_rate"]) if base["grad_rate"] is not None else None,
                 "net_positive_rate": r["net_positive_rate"], "base_net_positive_rate": base["net_positive_rate"],
@@ -100,6 +108,18 @@ def run_backtest(con, start: int, end: int, *, step_s: int = 3600, follow_h: int
             "false_positive_rate": round(sum(x <= 0 for x in lifts) / len(lifts), 3)
             if lifts and v == "favorable" else None,
         }
+    # The launch-acceleration signal on its own (usable even where demand data is missing)
+    by_accel = {}
+    for name, lo, hi in (("accelerating (z >= 2)", 2, float("inf")), ("flat (0 <= z < 2)", 0, 2),
+                         ("cooling (z < 0)", float("-inf"), 0)):
+        ss = [s for s in signals if s["accel_z"] is not None and lo <= s["accel_z"] < hi and s["grad_lift"] is not None]
+        lifts = [s["grad_lift"] for s in ss]
+        by_accel[name] = {"signals": len(ss),
+                          "mean_grad_rate": round(sum(s["grad_rate"] for s in ss) / len(ss), 4) if ss else None,
+                          "mean_base_grad_rate": round(sum(s["base_grad_rate"] for s in ss) / len(ss), 4) if ss else None,
+                          "mean_grad_lift": round(sum(lifts) / len(lifts), 4) if lifts else None,
+                          "grad_lift_lower90": _bootstrap_lower(ss, "grad_lift"),
+                          "grad_lift_upper90": _bootstrap_lower(ss, "grad_lift", q=0.95)}
     scored = [s for s in signals if s["score"] is not None and s["grad_lift"] is not None]
     corr = None
     if len(scored) >= 10:
@@ -113,8 +133,9 @@ def run_backtest(con, start: int, end: int, *, step_s: int = 3600, follow_h: int
                      and fav["grad_lift_lower90"] > 0)
     results = {
         "model_version": MODEL_VERSION, "validated": validated, "leaked_steps_skipped": leaks,
-        "steps": len(range(start, end, step_s)) if end > start else 0, "signals": len(signals),
-        "by_verdict": by, "spearman_score_vs_grad_lift": corr,
+        "steps": len(range(start, end, step_s)) if end > start else 0, "steps_excluded": skipped,
+        "signals": len(signals), "by_verdict": by, "by_acceleration": by_accel,
+        "spearman_score_vs_grad_lift": corr,
         "verdict": ("validated: favorable calls beat the all-launch baseline on graduation (90% bootstrap)"
                     if validated else
                     f"not validated: need >= {min_signals} favorable signals with a positive lower bound "
@@ -124,6 +145,7 @@ def run_backtest(con, start: int, end: int, *, step_s: int = 3600, follow_h: int
     if persist:
         insert(con, "backtests", {"created_at": now(), "params": dumps({
             "start": start, "end": end, "step_s": step_s, "follow_h": follow_h, "horizon_h": horizon_h,
-            "cost": cost, "min_signals": min_signals, "min_future": min_future}), "results": dumps(results)})
+            "cost": cost, "min_signals": min_signals, "min_future": min_future, "exclude": exclude}),
+            "results": dumps(results)})
         con.commit()
     return results

@@ -334,3 +334,28 @@ def test_posts_spawning_coins_are_grouped(settings):
     posts = Live().source_posts(con, t0)
     assert len(posts) == 1 and posts[0]["launches"] == 3 and posts[0]["creators"] == 2
     assert posts[0]["url"] == "https://x.com/a/status/1"
+
+
+def test_shrine_archive_lines_map_to_stream_events_and_duplicates_are_ignored(settings):
+    from radar.db import connect, rows
+    from radar.shrine import to_events
+    from radar.stream import Live
+    create = {"action": "create", "protocol": "PUMPFUN", "mint": "M", "name": "Frog", "symbol": "FROG", "uri": "u",
+              "pool": "C", "txSigner": "dev", "creator": "dev", "timestamp": 1000, "block": 5,
+              "quoteMint": "So11111111111111111111111111111111111111112", "signature": "s1"}
+    buy = {"action": "buy", "protocol": "PUMPFUN_MAYHEM", "mint": "M", "timestamp": 1001, "block": 5, "price": 3e-8,
+           "quoteInPool": 1.2, "quoteMint": "So11111111111111111111111111111111111111112",
+           "breakdown": [{"action": "buy", "price": 3e-8, "quoteAmount": 0.5, "tokenAmount": 1.6e7, "trader": "w1"},
+                         {"action": "buy", "price": 3e-8, "quoteAmount": 0.1, "tokenAmount": 3e6, "trader": ""}]}
+    other = {"action": "buy", "protocol": "PUMPSWAP", "mint": "M"}
+    assert to_events(other) == []
+    evs = to_events(create) + to_events(create) + to_events(buy)
+    assert [e["type"] for e in evs] == ["create", "create", "trade"]      # the trader-less fill is dropped
+    live = Live()
+    for e in evs:
+        live.on_event(e, t=e["ts"])
+    assert len(live.launches) == 1 and live.mints["M"].block_buyers == {"w1"}
+    assert abs(live.mints["M"].price - 3e-8) < 1e-20
+    con = connect(settings.db_path)
+    live.flush(con)
+    assert rows(con, "SELECT COUNT(*) n FROM tokens")[0]["n"] == 1

@@ -238,7 +238,7 @@ const DRIVERS = [["launchpad_volume_trend", "Launchpad volume trend"], ["new_tok
   ["graduation_rate", "Graduation rate"], ["fresh_rotation", "Rotation into new launches"], ["sol_trend", "SOL trend"]];
 function renderOverview() {
   const el = $(".screen[data-screen=overview]"), ov = S.ov, m = ov.market, x = m.metrics, ch = S.charts[S.range];
-  setHead("Overview", `Analysis as of ${esc(hhmm(ov.as_of))}. Scores are hand-weighted priors${ov.backtest?.validated ? ", validated by the latest backtest" : " and have not been validated against outcomes yet"}.`);
+  setHead("Overview", `Analysis as of ${esc(hhmm(ov.as_of))}. Scores are hand-weighted priors${ov.backtest?.validated ? ", validated by the latest backtest" : ov.backtest ? `. The latest backtest${ov.backtest.dataset ? ` (${esc(ov.backtest.dataset)})` : ""} found no edge: treat them as a structured read, not a prediction` : " and have not been validated against outcomes yet"}.`);
   const ins = insight();
   const regimeWord = m.regime ? cap(m.regime) : "Unknown";
   const tone = { hot: "pos", neutral: "warn", cold: "neg" }[m.regime] || "mute";
@@ -807,9 +807,9 @@ async function renderSystem() {
         <div class="li"><span class="k">Outcomes labelled</span><span class="v">${compact(db.token_outcomes)}</span></div><div class="li"><span class="k">Social posts</span><span class="v">${compact(db.social_posts)}</span></div>
         <div class="li"><span class="k">Baseline coverage, the 6h before the last hour</span><span class="v">${pct(h.launch_coverage_baseline)}</span></div></div></div>
       <div><div class="sec-h"><h2>Backtest</h2>${bt ? st(bt.validated ? "pos" : "warn", bt.validated ? "●" : "▲", bt.validated ? "Validated" : "Not validated") : ""}</div>
-        ${bt ? `<p class="notes" style="margin:0 0 10px">${esc(cap(bt.verdict))}. ${bt.signals} signals over ${bt.steps} steps, run ${esc(ago(nowS() - bt.created_at))}.</p>
-          <table class="tbl bt"><thead><tr><th>Verdict</th><th class="r">Signals</th><th class="r">Graduation lift</th><th class="r">False positives</th></tr></thead><tbody>
-          ${Object.entries(bt.by_verdict).map(([v, r]) => `<tr><td>${esc(vinfo(v).label)}</td><td class="r">${r.signals}</td><td class="r">${isNum(r.mean_grad_lift) ? signed(r.mean_grad_lift * 100, 2, " pts") : "—"}</td><td class="r">${isNum(r.false_positive_rate) ? pct(r.false_positive_rate) : "—"}</td></tr>`).join("")}</tbody></table>
+        ${bt ? `<p class="notes" style="margin:0 0 10px">${esc(cap(bt.verdict))}. ${bt.signals} signals over ${bt.steps} steps${bt.steps_excluded ? ` (${bt.steps_excluded} skipped for collection gaps)` : ""}${bt.dataset ? `, on ${esc(bt.dataset)} ${isNum(bt.range?.[0]) ? `${esc(new Date(bt.range[0] * 1000).toLocaleDateString([], { month: "short", day: "numeric" }))}–${esc(new Date(bt.range[1] * 1000).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }))}` : ""}` : ""}, run ${esc(ago(nowS() - bt.created_at))}.</p>
+          <table class="tbl bt"><thead><tr><th>Verdict</th><th class="r">Signals</th><th class="r">Graduation lift</th><th class="r hide-s">Net-positive lift</th><th class="r">False positives</th></tr></thead><tbody>
+          ${Object.entries(bt.by_verdict).map(([v, r]) => `<tr><td>${esc(vinfo(v).label)}</td><td class="r">${r.signals}</td><td class="r">${isNum(r.mean_grad_lift) ? signed(r.mean_grad_lift * 100, 2, " pts") : "—"}</td><td class="r hide-s">${isNum(r.mean_net_positive_lift) ? signed(r.mean_net_positive_lift * 100, 1, " pts") : "—"}</td><td class="r">${isNum(r.false_positive_rate) ? pct(r.false_positive_rate) : "—"}</td></tr>`).join("")}</tbody></table>
           <p class="notes">Lift compares later launches in a narrative with all launches in the same window. Validation needs at least 30 favorable signals.</p>`
           : `<p class="notes" style="margin:0">No backtest yet. It needs labelled outcomes, which start about 13 hours after collection begins (7h of baseline, then 6h for the first outcomes to mature).</p>`}
         <button class="btn" id="runbt" style="margin-top:12px">Run a 3-day backtest</button></div>

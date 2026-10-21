@@ -3,6 +3,11 @@
   init                      create the database
   collect [job ...]         run polling jobs once (default: all free sources)
   stream [--seconds N]      run the live chain stream for N seconds (default 180), then snapshot
+  backfill [--hours N]      replay the last N hours from Shrine's free archive (~230 MB/hour)
+  check-coverage [--hours N]  compare the live stream's launches with Shrine's archive, per hour
+  corpus-download DIR       fetch the Pump.fun Memecoin Corpus (~5.9 GB; needs pyarrow later)
+  corpus-build DIR --db F   build a research database from it (needs pyarrow)
+  corpus-backtest --db F    walk-forward backtest over the research database
   analyze [--json]          score metas now and print the ranking
   report [--send]           write a pre-launch report (Telegram with --send)
   backtest [--days N]       walk-forward backtest over stored history
@@ -30,6 +35,9 @@ from .scheduler import jobs, run_forever
 from .sources.base import Http
 
 FREE_JOBS = ["solprice", "macro", "attention", "social"]
+# Pump.fun Memecoin Corpus periods to keep out of backtests (KNOWN_ISSUES.md §5): the Jul 3
+# collection outage with its partial neighbouring days. Stored as UTC unix seconds.
+CORPUS_GAPS = [(1782950400, 1783209600)]   # 2026-07-02 00:00 .. 2026-07-05 00:00
 
 
 def _ts(t):
@@ -71,6 +79,10 @@ def main(argv=None) -> int:
     ap.add_argument("--send", action="store_true")
     ap.add_argument("--days", type=float, default=3.0)
     ap.add_argument("--seconds", type=int, default=180)
+    ap.add_argument("--hours", type=int, default=7)
+    ap.add_argument("--db")
+    ap.add_argument("--step-hours", type=float, default=3.0)
+    ap.add_argument("--force", action="store_true")
     ap.add_argument("--step-h", type=float, default=1.0)
     ap.add_argument("--no-scheduler", action="store_true")
     ap.add_argument("-v", "--verbose", action="store_true")
@@ -118,6 +130,48 @@ def main(argv=None) -> int:
                 print(f"  {h['symbol'] or h['mint'][:6]:<12} buyers5m {h['buyers_5m']:>3} net {h['net_sol_5m']:>8} SOL "
                       f"smart {h['smart_5m']} progress {h['progress'] or 0:.0%}")
         asyncio.run(_with_ctx(listen))
+    elif a.cmd == "backfill":
+        from . import shrine
+        con = connect(s.db_path)
+        sol = rows(con, "SELECT value FROM market_obs WHERE metric='sol_price_usd' ORDER BY id DESC LIMIT 1")
+        print(json.dumps(shrine.backfill(con, a.hours, sol_usd=sol[0]["value"] if sol else None)))
+    elif a.cmd == "check-coverage":
+        from . import shrine
+        con = connect(s.db_path)
+        t = now() // 3600 * 3600 - 3600
+        for h in range(a.hours, 0, -1):
+            try:
+                print(json.dumps(shrine.coverage_check(con, t - (h - 1) * 3600)))
+            except Exception as exc:  # hour not archived yet, network
+                print(json.dumps({"hour": shrine.hour_key(t - (h - 1) * 3600), "error": str(exc)[:200]}))
+    elif a.cmd == "corpus-download":
+        from pathlib import Path
+
+        from . import corpus
+        print("revision", corpus.download(Path(a.args[0])))
+    elif a.cmd == "corpus-build":
+        from pathlib import Path
+
+        from . import corpus
+        print(json.dumps(corpus.build(Path(a.args[0]), Path(a.db), force=a.force)))
+        print(json.dumps(corpus.provenance_checks(connect(a.db))))
+    elif a.cmd == "corpus-backtest":
+        from . import corpus
+        con = connect(a.db)
+        info = json.loads(rows(con, "SELECT value FROM meta_info WHERE key='corpus'")[0]["value"])
+        lo, hi = info["launch_range"]
+        found = corpus.gaps(con)
+        res = run_backtest(con, lo + 8 * 3600, hi, step_s=int(a.step_hours * 3600), exclude=CORPUS_GAPS + found)
+        res.pop("sample", None)
+        res["provenance"] = {**corpus.provenance_checks(con), "corpus_revision": info["revision"],
+                             "collection_gaps_excluded": [[datetime.fromtimestamp(x, timezone.utc).isoformat()
+                                                           for x in g] for g in CORPUS_GAPS + found]}
+        # also file it in the live database so the dashboard's backtest panel shows it
+        live = connect(s.db_path)
+        live.execute("INSERT INTO backtests (created_at, params, results) VALUES (?,?,?)", (now(), json.dumps({
+            "dataset": "Pump.fun Memecoin Corpus", "revision": info["revision"], "start": lo, "end": hi,
+            "step_s": int(a.step_hours * 3600), "follow_h": 6, "horizon_h": 24}), json.dumps(res, default=str)))
+        print(json.dumps(res, indent=1, default=str))
     elif a.cmd == "analyze":
         res = run_analysis(connect(s.db_path), persist=True)
         print(json.dumps(res, indent=1, default=str) if a.json else "", end="")

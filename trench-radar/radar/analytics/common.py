@@ -15,7 +15,7 @@ from ..db import rows
 # Expected cadence per (source, job); used for freshness. Matches config defaults.
 EXPECTED_EVERY_S = {
     ("chain", "pump_stream"): 60, ("chain", "snapshot"): 120, ("defillama", "sol_price"): 300,
-    ("chain", "pumpswap_pools"): 600,
+    ("chain", "pumpswap_pools"): 600, ("corpus", "collection"): 3600,
     ("dexscreener", "boosts_profiles"): 600,
     ("defillama", "launchpad_volume"): 3600, ("x_api", "recent_search"): 900,
     ("reddit", "new_posts"): 900, ("bitquery", "net_flow"): 300, ("outcomes", "label"): 1800,
@@ -24,9 +24,9 @@ EXPECTED_EVERY_S = {
 RETIRED = {("geckoterminal", "new_pools"), ("geckoterminal", "active_pools"), ("geckoterminal", "refresh"),
            ("solana_rpc", "bonding_curves"), ("solana_rpc", "deployers"), ("pumpfun", "latest_coins")}
 # tokens.source values that mean "seen at launch" (chain stream; GeckoTerminal before 2026-10-21)
-LAUNCH_SOURCES = ("chain", "gt_new_pools")
+LAUNCH_SOURCES = ("chain", "shrine_replay", "corpus", "gt_new_pools")
 # token_obs.source values with full per-token trading stats
-OBS_SOURCES = ("chain", "gt_new_pools", "gt_active", "gt_refresh")
+OBS_SOURCES = ("chain", "shrine_replay", "corpus", "gt_new_pools", "gt_active", "gt_refresh")
 
 
 def in_list(values: tuple) -> str:
