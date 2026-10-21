@@ -27,7 +27,7 @@ LOOKBACK_S = max(WINDOW_S, RECENT_S + BASE_S)
 #   "creators"   count distinct creators per term instead of launches
 #   "exclude"    drop creators with SERIAL_MIN+ launches inside the lookback, then count launches
 # Chosen by scripts/tune_metas.py on September data and checked once on October data.
-SPAM_MODE = "none"
+SPAM_MODE = "exclude"      # chosen on 2026-09-16, confirmed on 2026-10-15: docs/RESEARCH_TUNING.md
 SERIAL_MIN = 10
 
 

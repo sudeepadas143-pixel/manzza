@@ -42,11 +42,12 @@ def _rates(toks: list[dict], cost: float) -> dict:
             "median_ret": statistics.median(rets) if rets else None}
 
 
-def _bootstrap_lower(signals: list[dict], key: str, iters: int = 1000, q: float = 0.05) -> float | None:
+def _bootstrap_lower(signals: list[dict], key: str, iters: int = 1000, q: float = 0.05,
+                     block_s: int = 86400) -> float | None:
     days: dict[int, list[float]] = {}
     for s in signals:
         if s.get(key) is not None:
-            days.setdefault(s["t"] // 86400, []).append(s[key])
+            days.setdefault(s["t"] // block_s, []).append(s[key])
     if len(days) < 3:
         return None
     rng = random.Random(7)
@@ -61,7 +62,7 @@ def _bootstrap_lower(signals: list[dict], key: str, iters: int = 1000, q: float 
 
 def run_backtest(con, start: int, end: int, *, step_s: int = 3600, follow_h: int = 6, horizon_h: int = 24,
                  cost: float = 0.03, min_signals: int = 30, min_future: int = 3, persist: bool = True,
-                 exclude: list[tuple[int, int]] | None = None) -> dict:
+                 exclude: list[tuple[int, int]] | None = None, block_s: int = 86400) -> dict:
     """`end` is capped so every follow window plus horizon has already happened. `exclude`
     lists (start, end) periods whose steps are skipped (collection outages, regime breaks):
     a step is skipped when its lookback or follow window overlaps one."""
@@ -101,7 +102,7 @@ def run_backtest(con, start: int, end: int, *, step_s: int = 3600, follow_h: int
         by[v] = {
             "signals": len(ss),
             "mean_grad_lift": round(sum(lifts) / len(lifts), 4) if lifts else None,
-            "grad_lift_lower90": _bootstrap_lower(ss, "grad_lift"),
+            "grad_lift_lower90": _bootstrap_lower(ss, "grad_lift", block_s=block_s),
             "beat_base_graduation": round(sum(x > 0 for x in lifts) / len(lifts), 3) if lifts else None,
             "mean_net_positive_lift": round(sum(rlifts) / len(rlifts), 4) if rlifts else None,
             # false positive: called favorable, but the meta's later launches did no better than the market
@@ -118,8 +119,8 @@ def run_backtest(con, start: int, end: int, *, step_s: int = 3600, follow_h: int
                           "mean_grad_rate": round(sum(s["grad_rate"] for s in ss) / len(ss), 4) if ss else None,
                           "mean_base_grad_rate": round(sum(s["base_grad_rate"] for s in ss) / len(ss), 4) if ss else None,
                           "mean_grad_lift": round(sum(lifts) / len(lifts), 4) if lifts else None,
-                          "grad_lift_lower90": _bootstrap_lower(ss, "grad_lift"),
-                          "grad_lift_upper90": _bootstrap_lower(ss, "grad_lift", q=0.95)}
+                          "grad_lift_lower90": _bootstrap_lower(ss, "grad_lift", block_s=block_s),
+                          "grad_lift_upper90": _bootstrap_lower(ss, "grad_lift", q=0.95, block_s=block_s)}
     scored = [s for s in signals if s["score"] is not None and s["grad_lift"] is not None]
     corr = None
     if len(scored) >= 10:

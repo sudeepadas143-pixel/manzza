@@ -67,7 +67,7 @@ def run(path: Path, start: int, hours: int) -> dict:
     for v in VARIANTS:
         metas.SPAM_MODE = v
         res = backtest.run_backtest(con, start, start + hours * H, step_s=H, follow_h=FOLLOW_H,
-                                    horizon_h=HORIZON_H, persist=False, min_signals=30)
+                                    horizon_h=HORIZON_H, persist=False, min_signals=30, block_s=3 * H)
         acc = res["by_acceleration"]["accelerating (z >= 2)"]
         out[v] = {"steps": res["steps"], "signals": res["signals"], "accelerating": acc,
                   "favorable": res["by_verdict"]["favorable"], "spearman": res["spearman_score_vs_grad_lift"]}
@@ -79,6 +79,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--workdir", default="research")
     ap.add_argument("--hours", type=int, default=18)
+    ap.add_argument("--skip-build", action="store_true")
     a = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -87,7 +88,8 @@ def main() -> None:
     results = {}
     for name, day in PERIODS.items():
         path, start = wd / f"shrine_{name}.db", int(day.timestamp())
-        build(path, start, a.hours)          # resumes: hours already replayed are skipped
+        if not a.skip_build:
+            build(path, start, a.hours)      # resumes: hours already replayed are skipped
         results[name] = run(path, start, a.hours)
     tune = results["tune"]
     # pick on the tuning period only: the variant whose accelerating metas beat the base rate most
