@@ -1,7 +1,8 @@
 """CLI: python -m radar <command>
 
   init                      create the database
-  collect [job ...]         run collection jobs once (default: all free sources)
+  collect [job ...]         run polling jobs once (default: all free sources)
+  stream [--seconds N]      run the live chain stream for N seconds (default 180), then snapshot
   analyze [--json]          score metas now and print the ranking
   report [--send]           write a pre-launch report (Telegram with --send)
   backtest [--days N]       walk-forward backtest over stored history
@@ -28,7 +29,7 @@ from .reports import make_report
 from .scheduler import jobs, run_forever
 from .sources.base import Http
 
-FREE_JOBS = ["launches", "active", "macro", "attention", "refresh", "curves", "social", "pumpfun", "deployers"]
+FREE_JOBS = ["solprice", "macro", "attention", "social"]
 
 
 def _ts(t):
@@ -69,6 +70,7 @@ def main(argv=None) -> int:
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--send", action="store_true")
     ap.add_argument("--days", type=float, default=3.0)
+    ap.add_argument("--seconds", type=int, default=180)
     ap.add_argument("--step-h", type=float, default=1.0)
     ap.add_argument("--no-scheduler", action="store_true")
     ap.add_argument("-v", "--verbose", action="store_true")
@@ -96,6 +98,26 @@ def main(argv=None) -> int:
                 print(f"   {r['source']}/{r['job']}: {r['status']} items={r['items']} {r['latency_ms']}ms "
                       f"{r['error'] or ''}")
         asyncio.run(_with_ctx(go))
+    elif a.cmd == "stream":
+        from . import stream
+
+        async def listen(ctx):
+            await c.collect_sol_price(ctx)
+            task = asyncio.create_task(stream.run_stream(ctx))
+            await asyncio.sleep(a.seconds)
+            task.cancel()
+            live = stream.LIVE
+            live.flush(ctx.con)
+            live.refresh_smart(ctx.con)
+            sol = rows(ctx.con, "SELECT value FROM market_obs WHERE metric='sol_price_usd' ORDER BY id DESC LIMIT 1")
+            n = live.snapshot(ctx.con, sol[0]["value"] if sol else None)
+            v = live.view()
+            print(f"events {live.total_events}, launches {len(live.launches)}, graduations {len(live.grads)}, "
+                  f"tokens snapshotted {n}, lag {v['stream']['lag_s']}s")
+            for h in v["hot"][:10]:
+                print(f"  {h['symbol'] or h['mint'][:6]:<12} buyers5m {h['buyers_5m']:>3} net {h['net_sol_5m']:>8} SOL "
+                      f"smart {h['smart_5m']} progress {h['progress'] or 0:.0%}")
+        asyncio.run(_with_ctx(listen))
     elif a.cmd == "analyze":
         res = run_analysis(connect(s.db_path), persist=True)
         print(json.dumps(res, indent=1, default=str) if a.json else "", end="")
@@ -116,7 +138,8 @@ def main(argv=None) -> int:
         con = connect(s.db_path)
         for k, v in source_freshness(con, now()).items():
             print(f"{k:<34} {v['state']:<10} last ok {_ts(v['last_ok'])}  {v['last_error'] or ''}"[:160])
-        for t in ("tokens", "token_obs", "curve_obs", "graduations", "social_posts", "scores", "token_outcomes"):
+        for t in ("tokens", "token_obs", "curve_obs", "graduations", "early_buyers", "social_posts", "scores",
+                  "token_outcomes"):
             print(f"{t:<16}{rows(con, f'SELECT COUNT(*) n FROM {t}')[0]['n']:>10}")
         print("configured:", json.dumps(s.public_view()))
     elif a.cmd == "run":

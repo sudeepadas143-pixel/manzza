@@ -100,6 +100,11 @@ def explain(meta: dict, comps: dict, sat: dict, mkt: dict, social_measured: bool
         reasons.append(f"Buyers outnumber sellers: {D['buyer_share_h1']:.0%} of wallets trading in the last hour were buying.")
     if D["curve_net_sol_1h"] is not None and D["curve_net_sol_1h"] > 5:
         reasons.append(f"+{D['curve_net_sol_1h']:.1f} SOL net into bonding curves over the last hour.")
+    if D.get("smart_buyers_h1_sum"):
+        reasons.append(f"{D['smart_buyers_h1_sum']} buy(s) in the last hour from wallets with a proven early-entry "
+                       f"record, across {D['tokens_with_smart_buyers']} token(s). Evidence only; not weighted in the score.")
+    if D.get("net_flow_source") == "chain" and D["net_flow_usd_h1"] and D["net_flow_usd_h1"] > 2000:
+        reasons.append(f"${D['net_flow_usd_h1']:,.0f} more bought than sold in the last hour (on-chain).")
     if D["graduations_24h"]:
         reasons.append(f"{D['graduations_24h']} token(s) in this meta graduated in the last 24h.")
     if mkt.get("regime") == "hot":
@@ -111,6 +116,12 @@ def explain(meta: dict, comps: dict, sat: dict, mkt: dict, social_measured: bool
         risks.append(f"Sellers dominate: only {D['buyer_share_h1']:.0%} of active wallets were buying in the last hour.")
     if D["curve_net_sol_1h"] is not None and D["curve_net_sol_1h"] < -2:
         risks.append(f"{D['curve_net_sol_1h']:.1f} SOL net out of bonding curves over the last hour.")
+    if D.get("unique_buyers_h1_sum") and D.get("organic_buyers_h1_sum") is not None \
+            and D["organic_buyers_h1_sum"] < 0.5 * D["unique_buyers_h1_sum"]:
+        risks.append(f"Bot-heavy: only {D['organic_buyers_h1_sum']} of {D['unique_buyers_h1_sum']} buyers in the last hour "
+                     "are not high-frequency bot wallets.")
+    if D.get("tokens_dev_sold"):
+        risks.append(f"Creator sold 0.5+ SOL back into {D['tokens_dev_sold']} of this meta's active token(s).")
     for sig in sat["signals"].values():
         if sig["s"] >= 0.6:
             risks.append("Saturation: " + sig["why"] + ".")
@@ -151,7 +162,7 @@ def score_meta(meta: dict, mkt: dict, fresh: dict, social_measured: bool, valida
     coverage = sum(have.values()) / sum(WEIGHTS.values())
     D, L, S = meta["demand"], meta["launch"], meta["social"]
     sample = 0.6 * clip01(D["tokens_tracked"] / 8) + 0.4 * clip01((L["launches_6h"] + S["mentions_6h"]) / 20)
-    used = ["geckoterminal/new_pools", "geckoterminal/refresh", "solana_rpc/bonding_curves", "defillama/launchpad_volume"]
+    used = ["chain/pump_stream", "chain/snapshot", "defillama/launchpad_volume"]
     if social_measured:
         used += [k for k in fresh if k.startswith(("x_api/", "reddit/")) and fresh[k]["freshness"] > 0]
     fvals = [fresh[k]["freshness"] for k in used if k in fresh]

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -53,11 +52,9 @@ class Pacer:
 
 
 PACERS: dict[str, Pacer] = {
-    # Documented free limit is 30/min, but it is shared per egress IP and 429s appear earlier
-    # in practice; 4s spacing (15/min) held in testing. Override with GT_MIN_INTERVAL_S.
-    "api.geckoterminal.com": Pacer(float(os.environ.get("GT_MIN_INTERVAL_S", "4.0"))),
     "api.dexscreener.com": Pacer(1.1),
     "api.llama.fi": Pacer(1.0),
+    "coins.llama.fi": Pacer(1.0),
     "api.x.com": Pacer(1.1),
     "oauth.reddit.com": Pacer(1.1),
     "www.reddit.com": Pacer(2.0),

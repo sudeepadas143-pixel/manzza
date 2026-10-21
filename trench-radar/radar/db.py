@@ -11,7 +11,7 @@ import sqlite3
 import time
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta_info (key TEXT PRIMARY KEY, value TEXT);
@@ -46,7 +46,11 @@ CREATE TABLE IF NOT EXISTS token_obs (
   buys_h1 INTEGER, sells_h1 INTEGER, buyers_h1 INTEGER, sellers_h1 INTEGER,
   buys_h24 INTEGER, sells_h24 INTEGER, buyers_h24 INTEGER, sellers_h24 INTEGER,
   chg_h1 REAL, chg_h24 REAL,
-  buy_vol_h1 REAL, sell_vol_h1 REAL          -- only when a source reports them (Bitquery)
+  buy_vol_h1 REAL, sell_vol_h1 REAL,         -- USD bought / sold in the last hour
+  net_sol_h1 REAL,                            -- SOL bought minus SOL sold (chain stream)
+  organic_buyers_h1 INTEGER,                  -- unique buyers excluding bot wallets
+  smart_buyers_h1 INTEGER,                    -- buyers with a proven early-entry record
+  dev_sold_sol REAL                           -- SOL the creator has sold back so far
 );
 CREATE INDEX IF NOT EXISTS ix_tobs_mint ON token_obs(mint, observed_at);
 CREATE INDEX IF NOT EXISTS ix_tobs_time ON token_obs(observed_at);
@@ -63,6 +67,12 @@ CREATE TABLE IF NOT EXISTS graduations (
   mint TEXT PRIMARY KEY, detected_at INTEGER NOT NULL, graduated_at INTEGER,
   source TEXT NOT NULL, pool TEXT
 );
+
+CREATE TABLE IF NOT EXISTS early_buyers (       -- first 20 distinct buyers of each token
+  mint TEXT NOT NULL, wallet TEXT NOT NULL, ts INTEGER NOT NULL, sol REAL, rank INTEGER,
+  PRIMARY KEY (mint, wallet)
+);
+CREATE INDEX IF NOT EXISTS ix_early_ts ON early_buyers(ts);
 
 CREATE TABLE IF NOT EXISTS creator_obs (
   id INTEGER PRIMARY KEY,
@@ -153,6 +163,12 @@ def connect(path: Path | str) -> sqlite3.Connection:
     con.execute("PRAGMA synchronous=NORMAL")
     con.execute("PRAGMA foreign_keys=ON")
     con.executescript(SCHEMA)
+    # columns added after v1: add them to databases created earlier
+    have_cols = {r[1] for r in con.execute("PRAGMA table_info(token_obs)")}
+    for col, typ in (("net_sol_h1", "REAL"), ("organic_buyers_h1", "INTEGER"),
+                     ("smart_buyers_h1", "INTEGER"), ("dev_sold_sol", "REAL")):
+        if col not in have_cols:
+            con.execute(f"ALTER TABLE token_obs ADD COLUMN {col} {typ}")
     have = con.execute("SELECT value FROM meta_info WHERE key='schema_version'").fetchone()
     if not have or have[0] != str(SCHEMA_VERSION):
         con.execute("INSERT OR REPLACE INTO meta_info VALUES ('schema_version', ?)", (str(SCHEMA_VERSION),))

@@ -388,7 +388,7 @@ input[type="search"] { min-width: 260px; }
   .mtop .iconbtn { width: 44px; height: 44px; margin-right: -12px; display: grid; place-items: center; border: 0; background: none; color: var(--ink-2); }
   .mtop .iconbtn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; }
   .head { padding: 18px var(--gutter) 12px; } .head h1 { font-size: 28px; } .head .tools { display: none; }
-  .tabbar { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; z-index: 30; left: 0; right: 0; bottom: 0;
+  .tabbar { display: grid; grid-template-columns: repeat(6, 1fr); position: fixed; z-index: 30; left: 0; right: 0; bottom: 0;
     height: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom);
     background: rgba(14, 15, 17, .96); border-top: 1px solid var(--rule); }
   [data-perf="premium"] .tabbar { background: rgba(14, 15, 17, .8); backdrop-filter: blur(20px) saturate(140%); -webkit-backdrop-filter: blur(20px) saturate(140%); }

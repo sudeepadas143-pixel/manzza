@@ -9,7 +9,7 @@ from .sources.base import Http, SourceUnavailable
 
 log = logging.getLogger("radar.alerts")
 
-CRITICAL_SOURCES = ("geckoterminal/new_pools", "geckoterminal/refresh", "solana_rpc/bonding_curves")
+CRITICAL_SOURCES = ("chain/pump_stream", "chain/snapshot")
 
 
 def _previous_scores(con, before: int) -> dict[str, dict]:

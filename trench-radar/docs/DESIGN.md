@@ -60,6 +60,9 @@ Strong colour appears only where it carries meaning: buying, selling, risk, caut
   an asymmetric 7:5 split of narratives to watch against market conditions.
 - Metas: a 7:5 master/detail. Map and ranked ledger on the left, a persistent dossier on the right.
   No overlay on desktop.
+- Live: the chain stream as it happens. Launches per minute, tokens being bought in the last five
+  minutes (sorted by proven wallets, then buyers), the launch tape with clone and serial-creator
+  flags, and fresh graduations.
 - Tokens: a sortable research table with risk flags in their own column.
 - Analyst: report at a reading measure (~68ch) beside an evidence comparison of chosen narratives.
 - System: a diagnostic table of sources with 24-hour run timelines.
@@ -72,9 +75,9 @@ curve), and press feedback. No entrance choreography and no hover animation on r
 
 ## Performance modes (Settings, in System)
 
-- **Premium**: everything above, live crosshairs, 2-minute refresh.
+- **Premium**: everything above, live crosshairs, 30-second refresh, Live screen every 3 seconds.
 - **Low visual**: no transitions or blur. Chart buckets capped at about 100 bars; tooltips on
-  tap/click instead of pointer tracking; 5-minute refresh; re-render skipped when the data hasn't
+  tap/click instead of pointer tracking; 60-second refresh (Live screen every 6 seconds); re-render skipped when the data hasn't
   changed. Every number and chart is still shown.
 - **Auto** (default): Low visual if `prefers-reduced-motion`, Save-Data, ≤4 GB device memory,
   ≤4 CPU threads or a 2G/3G connection is reported; otherwise Premium. It can be overridden.

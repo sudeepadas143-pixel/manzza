@@ -2,17 +2,15 @@
 
 Two separate questions, kept separate on purpose (solana-launch-study's main lesson):
   graduated   — did the bonding curve complete?  (RPC curve state / PumpSwap pool)
-  ret_end     — what happened to the price from its first observed candle to the horizon?
+  ret_end     — what happened to the price from its first observation to the horizon?
+                (bonding-curve price from the live stream's snapshots; after graduation the
+                price is unknown and left empty rather than guessed)
 A token can graduate and still lose money for anyone who bought after the first minutes.
 """
 from __future__ import annotations
 
-import random
-
 from ..db import insert, now, rows
-from ..sources import geckoterminal as gt
 from ..sources import solana_rpc
-from ..sources.base import SourceUnavailable
 
 H = 3600
 
@@ -47,8 +45,7 @@ def price_path(candles: list[tuple], created_at: int, horizon_h: int) -> dict | 
             "ret_end": (end / first - 1) if end else None, "ret_max": hi / first - 1}
 
 
-async def label_batch(ctx, horizons=(6, 24), max_price_lookups: int = 25, rng: random.Random | None = None) -> int:
-    rng = rng or random.Random()
+async def label_batch(ctx, horizons=(6, 24)) -> int:
     t = now()
     labelled = 0
     for hz in horizons:
@@ -60,8 +57,6 @@ async def label_batch(ctx, horizons=(6, 24), max_price_lookups: int = 25, rng: r
             continue
         curves = await solana_rpc.bonding_curves(ctx.http, ctx.s.solana_rpc_url, {r["mint"]: r["pool"] for r in due})
         grads = {g["mint"]: g for g in rows(ctx.con, "SELECT mint, pool, COALESCE(graduated_at, detected_at) AS at FROM graduations")}
-        # price paths for a random sample (bounded API budget); unbiased across the cohort
-        sample = set(r["mint"] for r in rng.sample(due, min(max_price_lookups, len(due))))
         for r in due:
             c = curves.get(r["mint"]) or {}
             g = grads.get(r["mint"])
@@ -72,18 +67,14 @@ async def label_batch(ctx, horizons=(6, 24), max_price_lookups: int = 25, rng: r
                    "graduated": int(graduated_by_h or (bool(c.get("complete")) and not late_read)),
                    "bucket": bucket(c.get("real_sol"), bool(c.get("complete"))) if not late_read else "unknown",
                    "source": "rpc+graduations"}
-            if r["mint"] in sample:
-                try:
-                    before = r["created_at"] + hz * H + 900
-                    candles = await gt.ohlcv(ctx.http, r["pool"], "minute", 15, 1000, before_ts=before)
-                    if g and g.get("pool"):   # after graduation trading moves to the PumpSwap pool
-                        candles += await gt.ohlcv(ctx.http, g["pool"], "minute", 15, 1000, before_ts=before)
-                    pp = price_path(candles, r["created_at"], hz)
-                    if pp:
-                        row.update(pp)
-                        row["source"] += "+ohlcv"
-                except SourceUnavailable:
-                    pass
+            snaps = rows(ctx.con, """SELECT observed_at, price_sol FROM curve_obs WHERE mint=? AND price_sol > 0
+                                     AND observed_at <= ?""", (r["mint"], r["created_at"] + hz * H))
+            pp = price_path([(s["observed_at"],) + (s["price_sol"],) * 4 for s in snaps], r["created_at"], hz)
+            if pp:
+                if graduated_by_h:
+                    pp.update(end_price=None, ret_end=None)   # traded on PumpSwap after graduation: not observed
+                row.update(pp)
+                row["source"] += "+curve"
             insert(ctx.con, "token_outcomes", row, or_replace=True)
             labelled += 1
         ctx.con.commit()

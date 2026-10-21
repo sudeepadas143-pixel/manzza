@@ -14,7 +14,7 @@ T0 = 1_790_000_000          # fixed "now" for deterministic tests
 
 def make_settings(tmp_path, **kw) -> Settings:
     base = dict(
-        db_path=tmp_path / "t.db", solana_rpc_url="https://api.mainnet-beta.solana.com",
+        db_path=tmp_path / "t.db", solana_rpc_url="https://api.mainnet-beta.solana.com", solana_ws_url=None,
         x_bearer_token=None, x_queries=["q"], bitquery_token=None, anthropic_api_key=None,
         analyst_model="claude-opus-5-5", telegram_bot_token=None, telegram_chat_id=None,
         reddit_client_id=None, reddit_client_secret=None, reddit_subreddits=["solana"],
@@ -32,20 +32,19 @@ def settings(tmp_path):
 
 def build_history(con, now_ts: int = T0, hours: int = 40, seed: int = 1, surge: str = "frog") -> None:
     """40h of launches at a steady background rate, with `surge` launches ramping in the last 3h,
-    collector runs every 180s, token stats and curve snapshots for recent tokens, and posts."""
+    a live stream connected the whole time, token stats and curve snapshots for recent tokens, and posts."""
     rng = random.Random(seed)
     filler = ["moon", "doge", "pepe", "king", "rocket", "chad", "panda", "wolf", "tiger", "owl"]
     start = now_ts - hours * H
-    # collector runs (coverage)
+    # stream heartbeats (coverage): connected 55s of every minute
     t = start
     while t <= now_ts:
-        insert(con, "source_runs", {"source": "geckoterminal", "job": "new_pools", "started_at": t - 20,
-                                    "finished_at": t, "status": "ok", "items": 100, "latency_ms": 900})
-        insert(con, "market_obs", {"observed_at": t, "metric": "new_pools_span_s", "value": 240,
-                                   "source": "geckoterminal", "detail": None})
-        t += 180
-    for job, src in (("refresh", "geckoterminal"), ("bonding_curves", "solana_rpc"),
-                     ("launchpad_volume", "defillama"), ("new_posts", "reddit")):
+        insert(con, "source_runs", {"source": "chain", "job": "pump_stream", "started_at": t - 60,
+                                    "finished_at": t, "status": "ok", "items": 3000, "latency_ms": 1})
+        insert(con, "market_obs", {"observed_at": t, "metric": "stream_connected_s", "value": 55,
+                                   "source": "chain", "detail": None})
+        t += 60
+    for job, src in (("snapshot", "chain"), ("launchpad_volume", "defillama"), ("new_posts", "reddit")):
         for k in range(0, hours * H, 300):
             ts = start + k
             insert(con, "source_runs", {"source": src, "job": job, "started_at": ts - 5, "finished_at": ts,
@@ -61,12 +60,12 @@ def build_history(con, now_ts: int = T0, hours: int = 40, seed: int = 1, surge: 
         insert(con, "tokens", {"mint": mint, "name": f"{word.title()} {rng.choice(['Coin', 'Lord', 'Club'])}",
                                "symbol": word.upper()[:5] + str(rng.randint(0, 3)), "creator": f"C{rng.randint(0, 300)}",
                                "pool": f"P{mint}", "launchpad": "pump-fun", "created_at": t,
-                               "first_seen_at": t + 60, "source": "gt_new_pools"})
+                               "first_seen_at": t + 1, "source": "chain"})
         if t > now_ts - 4 * H:   # stats for recent tokens, observed after launch
             for obs_t in range(t + 120, now_ts + 1, 900):
                 hot = word == surge
                 insert(con, "token_obs", {
-                    "mint": mint, "observed_at": obs_t, "source": "gt_refresh", "dex": "pump-fun",
+                    "mint": mint, "observed_at": obs_t, "source": "chain", "dex": "pump-fun",
                     "pool": f"P{mint}", "price_usd": 1e-5, "mcap_usd": 8000 if not hot else 30000,
                     "vol_h1": 3000 if hot else 200, "vol_h6": 9000 if hot else 900,
                     "vol_h24": 9000 if hot else 900, "buyers_h1": 40 if hot else 3, "sellers_h1": 15 if hot else 4,

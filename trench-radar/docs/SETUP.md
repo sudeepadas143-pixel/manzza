@@ -76,7 +76,7 @@ by the API, and they are redacted from logs and error messages
 
 | Key | Without it | With it |
 |---|---|---|
-| `SOLANA_RPC_URL` | public mainnet RPC (rate-limited; deployer lookups often 429) | reliable curve reads and deployer lookups |
+| `SOLANA_RPC_URL` / `SOLANA_WS_URL` | public mainnet RPC: the live stream works but the server closes it every 10–30s (a second or two lost each time) | a steadier live stream |
 | `X_BEARER_TOKEN` | no social layer; attention is inferred from launch names | mentions, independent accounts, influential posts, sentiment |
 | `REDDIT_CLIENT_ID/SECRET` | unauthenticated JSON, blocked from many datacenter IPs | OAuth app-only access |
 | `BITQUERY_TOKEN` | net flow is a count proxy plus real SOL on curves | buy vs sell USD volume |
@@ -87,9 +87,8 @@ by the API, and they are redacted from logs and error messages
 
 | Source | Cost | This app's default usage |
 |---|---|---|
-| GeckoTerminal public API | free; documented 30 req/min, shared per IP | ~8 req/min at 4s spacing |
 | DexScreener, DefiLlama | free | a few calls per 10 and 60 min |
-| Solana public RPC | free, aggressively rate-limited | 1 batched call per 5 min plus deployer lookups |
+| Solana public RPC | free | 1 websocket (the live stream, **~0.3 MB/s ≈ 25 GB/day download**) + 1 batched call per 2 min for curves near graduation |
 | Helius RPC (recommended) | free tier 1M credits/month at 10 rps; Developer $49/mo for 10M (per helius.dev) | ~2–4k credits/day at defaults, well inside the free tier |
 | X API v2 | pay-per-use, ~$0.005 per post returned; legacy Basic/Pro closed to new signups | capped by `X_DAILY_READ_BUDGET` (default 1,000 posts/day ≈ $5/day ≈ $150/mo). Lower it to cut cost. |
 | Reddit | free with OAuth app (personal use) | 4 subreddits per 30 min |
@@ -97,17 +96,31 @@ by the API, and they are redacted from logs and error messages
 | Anthropic (Claude Opus 5.5) | $4 / $20 per million input/output tokens | evidence pack ~6–10k tokens in, 1–4k out → roughly $0.05–0.12 per report; 2 scheduled reports/day ≈ $3–7/mo |
 | Telegram Bot API | free | — |
 
-The minimum useful setup costs nothing: GeckoTerminal + public RPC + DexScreener +
-DefiLlama, with the rules analyst. The social layer is the most expensive addition.
+The minimum useful setup costs nothing: the live chain stream on the public RPC + DexScreener +
+DefiLlama, with the rules analyst. Mind the stream's bandwidth on a metered connection:
+the public RPC cannot filter out failed bot transactions, so about three quarters of what it
+sends is discarded. `LIVE_STREAM=0` turns it off (and with it most of the app). The social layer is the most expensive addition.
 
 ## What each source is used for
 
-- **GeckoTerminal**: launches (`new_pools`, 9 pages ≈ the last 4 minutes), the most-traded
-  bonding-curve tokens, PumpSwap pools (graduations), and per-token buys/sells/**unique
-  buyers/sellers** for 1h/24h. Responses are Cloudflare-cached for about 60s.
-- **Solana RPC**: BondingCurve accounts → progress, real SOL committed, `complete`. The pool
-  address GeckoTerminal reports for the `pump-fun` dex *is* the curve PDA (verified).
-  Deployer = fee payer of the create transaction (2 calls, so top tokens only).
+- **Live chain stream** (`radar/stream.py`): one `logsSubscribe` websocket on the pump.fun
+  program. Every launch (name, symbol, creator), every bonding-curve trade (wallet, SOL,
+  buy/sell, curve reserves) and curve completions arrive about 1–3s after they happen. From
+  these the app keeps, per token: buyers and sellers (1h, 5m), buy and sell SOL, net flow,
+  curve progress, price, and these wallet-level signals:
+  - *organic buyers*: unique buyers minus wallets that traded 15+ tokens in the past hour
+    (sniper and volume bots);
+  - *proven wallets*: wallets that were among the first 20 buyers of 2+ tokens that went on
+    to graduate, with a 10%+ hit rate over 7 days (the base rate is about 1%). Built only from
+    graduations already seen, so there is no look-ahead. Evidence only; not in the score
+    weights until a backtest says it helps;
+  - *creator sold*: SOL the token's creator sold back into its own curve;
+  - *clones*: the same name launched by several wallets within 15 minutes.
+  Every 2 minutes a row per active token (5+ buyers in the hour) goes into `token_obs` and
+  `curve_obs`, which the analytics and backtest read.
+- **Solana RPC**: every 2 minutes, the `complete` flag of curves above 90% (the completing
+  transaction's logs are sometimes truncated by the RPC, so the stream alone can miss one).
+- **DefiLlama**: SOL/USD every 5 minutes, and launchpad volume.
 - **DexScreener**: paid boosts and profiles — attention someone is buying.
 - **DefiLlama**: 30-day daily volume for the pump.fun launchpad and PumpSwap.
 
@@ -120,10 +133,11 @@ DefiLlama, with the rules analyst. The social layer is the most expensive additi
 2. **Graduation is not profit.** The published study this builds on found that
    graduation could be predicted from creation-time features, and that none of 48
    tested trading rules was profitable. Outcomes record both measures separately.
-3. **Launch coverage is sampled.** GeckoTerminal's free tier exposes only the last few
-   minutes of new pools, so gaps in collection mean missed launches. Launch counts are
-   reported with their coverage, rates are coverage-adjusted, and the graduation rate
-   is a lower bound.
+3. **Launch coverage.** The stream sees every launch while it is connected. The free public
+   RPC closes the connection every 10–30s and the second or two until it reconnects is lost.
+   Each minute the app records how long it was connected; counts are reported with that
+   coverage and the graduation rate is a lower bound. Before 2026-10-21 launches came from
+   GeckoTerminal's sampled `new_pools`; that history is kept and still counted.
 4. **Unique buyers are per-token.** Meta totals sum per-token unique buyers, so a wallet
    that buys three tokens in a meta counts three times. Wash trading and bundled buys
    also inflate these counts.
@@ -137,16 +151,17 @@ DefiLlama, with the rules analyst. The social layer is the most expensive additi
    change in real SOL on bonding curves (fees ignored). Curve flow does not cover
    graduated tokens.
 8. **Not verified live in the build environment:** X API, Reddit OAuth, Bitquery,
-   Telegram delivery and live Claude calls. No credentials were available, and
-   pump.fun's own API is behind a Cloudflare challenge from datacenter IPs. Their
+   Telegram delivery and live Claude calls. No credentials were available. Their
    parsers and request shapes are tested against recorded or stub responses (the
    Claude call goes through the real SDK against a local stub). The Bitquery query is
    written against the schema documented in `bitquery/Pump-Fun-API` and has not been
    executed.
-9. **Deployer field.** Newer 166-byte BondingCurve accounts carry a pubkey at offset 49.
-   On three sampled tokens it did *not* match the create transaction's signer, so it is
-   not used as the deployer.
-10. **Out of scope by design:** launching tokens, signing transactions, trading, and
+9. **Deployer.** The creator comes from the launch event itself. Tokens launched before the
+   app started have no creator until their next snapshot names one from trade events.
+10. **Event layouts.** The pump.fun event layouts were verified against live mainnet traffic
+   on 2026-10-21. A program upgrade that reorders fields would break decoding; one that only
+   appends fields would not.
+11. **Out of scope by design:** launching tokens, signing transactions, trading, and
     browser-scraping X with a personal session.
 
 ## Free 24/7 server (Oracle Cloud) with phone access

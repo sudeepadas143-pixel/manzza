@@ -14,13 +14,22 @@ from ..db import rows
 
 # Expected cadence per (source, job); used for freshness. Matches config defaults.
 EXPECTED_EVERY_S = {
-    ("geckoterminal", "new_pools"): 180, ("geckoterminal", "active_pools"): 300,
-    ("geckoterminal", "refresh"): 300, ("solana_rpc", "bonding_curves"): 300,
-    ("solana_rpc", "deployers"): 300, ("dexscreener", "boosts_profiles"): 600,
+    ("chain", "pump_stream"): 60, ("chain", "snapshot"): 120, ("defillama", "sol_price"): 300,
+    ("dexscreener", "boosts_profiles"): 600,
     ("defillama", "launchpad_volume"): 3600, ("x_api", "recent_search"): 900,
-    ("reddit", "new_posts"): 900, ("bitquery", "net_flow"): 300,
-    ("pumpfun", "latest_coins"): 300, ("outcomes", "label"): 1800,
+    ("reddit", "new_posts"): 900, ("bitquery", "net_flow"): 300, ("outcomes", "label"): 1800,
 }
+# Jobs that no longer run. Their old rows stay for history but are not reported as stale.
+RETIRED = {("geckoterminal", "new_pools"), ("geckoterminal", "active_pools"), ("geckoterminal", "refresh"),
+           ("solana_rpc", "bonding_curves"), ("solana_rpc", "deployers"), ("pumpfun", "latest_coins")}
+# tokens.source values that mean "seen at launch" (chain stream; GeckoTerminal before 2026-10-21)
+LAUNCH_SOURCES = ("chain", "gt_new_pools")
+# token_obs.source values with full per-token trading stats
+OBS_SOURCES = ("chain", "gt_new_pools", "gt_active", "gt_refresh")
+
+
+def in_list(values: tuple) -> str:
+    return "(" + ",".join(f"'{v}'" for v in values) + ")"
 
 
 @dataclass
@@ -51,6 +60,8 @@ def source_freshness(con, as_of: int) -> dict[str, dict]:
                MAX(finished_at) AS last_run
         FROM source_runs WHERE finished_at <= ? GROUP BY source, job
     """, (as_of,)):
+        if (r["source"], r["job"]) in RETIRED:
+            continue
         latest = rows(con, "SELECT status, error FROM source_runs WHERE source=? AND job=? AND finished_at=? "
                            "ORDER BY id DESC LIMIT 1", (r["source"], r["job"], r["last_run"]))[0]
         every = EXPECTED_EVERY_S.get((r["source"], r["job"]), 900)
@@ -76,17 +87,24 @@ def source_freshness(con, as_of: int) -> dict[str, dict]:
 def launch_coverage(con, as_of: int, window_s: int) -> float:
     """Share of the window during which new launches were actually being observed.
 
-    Each ok `new_pools` run sees back ~span seconds (9 pages ≈ 4 min). Coverage is
-    the union of [run_time - span, run_time] intervals inside the window."""
-    runs = rows(con, """SELECT finished_at FROM source_runs WHERE source='geckoterminal' AND job='new_pools'
-                        AND status='ok' AND finished_at > ? AND finished_at <= ? ORDER BY finished_at""",
+    The live stream records each minute how many seconds it was connected (the free RPC
+    drops connections every 10-30s and the reconnect gap is lost), covering
+    [t - connected_s, t]. Older data came from GeckoTerminal `new_pools` runs, each seeing
+    back ~span seconds. Coverage is the union of those intervals in the window."""
+    runs = rows(con, """SELECT observed_at AS finished_at, value AS span FROM market_obs
+                        WHERE metric='stream_connected_s' AND observed_at > ? AND observed_at <= ?""",
                 (as_of - window_s, as_of))
-    spans = rows(con, """SELECT value FROM market_obs WHERE metric='new_pools_span_s' AND observed_at <= ?
-                         AND observed_at > ? ORDER BY value""", (as_of, as_of - window_s - 86400))
-    span = spans[len(spans) // 2]["value"] if spans else 240
+    gt = rows(con, """SELECT finished_at FROM source_runs WHERE source='geckoterminal' AND job='new_pools'
+                      AND status='ok' AND finished_at > ? AND finished_at <= ?""", (as_of - window_s, as_of))
+    if gt:
+        spans = rows(con, """SELECT value FROM market_obs WHERE metric='new_pools_span_s' AND observed_at <= ?
+                             AND observed_at > ? ORDER BY value""", (as_of, as_of - window_s - 86400))
+        span = spans[len(spans) // 2]["value"] if spans else 240
+        runs += [{"finished_at": r["finished_at"], "span": span} for r in gt]
+    runs.sort(key=lambda r: r["finished_at"])
     covered, last_end = 0.0, as_of - window_s
     for r in runs:
-        start = max(r["finished_at"] - span, last_end)
+        start = max(r["finished_at"] - r["span"], last_end)
         if r["finished_at"] > start:
             covered += r["finished_at"] - start
             last_end = r["finished_at"]

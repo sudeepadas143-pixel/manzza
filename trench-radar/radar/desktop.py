@@ -61,9 +61,9 @@ def main() -> None:
     print(f" Data + settings: {d}", flush=True)
     print(f"   edit {env.name} there to add API keys, then restart", flush=True)
     print(" Keep this window open to keep collecting. Close it to stop.", flush=True)
-    print(" Core sources: geckoterminal, solana_rpc, dexscreener, defillama.", flush=True)
-    print(" reddit / pumpfun / x_api are optional extras; 'unavailable' there is", flush=True)
-    print(" normal without API keys. Full status: System page in the dashboard.", flush=True)
+    print(" Live data: every pump.fun launch and trade, read from the Solana chain", flush=True)
+    print(" (uses about 0.3 MB/s of download). 'chain/pump_stream ok' each minute", flush=True)
+    print(" means it is listening. reddit / x_api are optional extras.", flush=True)
     print("=" * 64, flush=True)
     threading.Thread(target=lambda: (time.sleep(2.5), webbrowser.open(url)), daemon=True).start()
     uvicorn.run(create_app(settings, with_scheduler=True), host="127.0.0.1", port=port,

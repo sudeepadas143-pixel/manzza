@@ -19,7 +19,8 @@ Design, data sources and what was reused from the reference repos:
 | Capability | How |
 |---|---|
 | Meta detection | Terms from launch names/symbols and posts (concatenated names are split, e.g. `CatWifHat` → cat, wif, hat). Co-occurring terms are clustered, and acceleration is a Poisson z-score against a 24h baseline. Social adds independent accounts (copy-paste waves removed), influential posts and lexicon sentiment. |
-| Real buying demand | Per-token unique buyers and sellers, buys vs sells, volume, net SOL into bonding curves (from account state), curve progress, graduations, paid DexScreener boosts, and serial-deployer share (computed causally). |
+| Live chain feed | Every pump.fun launch and bonding-curve trade read straight from Solana, about 1–3s behind the chain, with no aggregator in between. The Live screen shows the launch tape, tokens being bought in the last 5 minutes and fresh graduations, refreshed every 3 seconds. |
+| Real buying demand | Per-token unique buyers and sellers, buy vs sell SOL and net flow, curve progress and graduations, from every trade. Wallet-level signals: buyers that aren't bots, buys from wallets with a proven early-entry record, creators selling their own token, and clone launches. Also paid DexScreener boosts and serial-deployer share (computed causally). |
 | Market readiness | 7d vs 30d launchpad volume, graduation rate of a 24–48h launch cohort, how the most-traded new tokens are doing, rotation into fresh launches, SOL trend. Every metric carries its coverage. |
 | Saturation | Copycat tickers, buyers per new launch, launches outpacing buyers, winner concentration, fading mentions and volume, meta age. |
 | Readiness score | 0–100 from attention (0.25), demand (0.35), market (0.15) and freshness (0.25). Components without data are dropped and the weights renormalised. Each score comes with confidence, a verdict, reasons, risks and the raw evidence. |
@@ -35,7 +36,8 @@ Design, data sources and what was reused from the reference repos:
 radar/
   config.py            env/.env settings, secret redaction
   db.py                SQLite schema (append-only, timestamped observations)
-  sources/             geckoterminal, solana_rpc, misc (dexscreener, defillama, pumpfun, bitquery), social (x, reddit)
+  stream.py            live chain stream: every launch and trade, wallet signals, snapshots
+  sources/             pump_events (decoder), solana_rpc, misc (dexscreener, defillama, bitquery), social (x, reddit)
   collectors.py        jobs: call a source, record the run, append observations
   text.py              terms, sentiment, spam fingerprints
   analytics/           metas, demand, market, saturation, scoring, outcomes, backtest

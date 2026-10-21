@@ -1,4 +1,4 @@
-"""Smaller adapters: DexScreener, DefiLlama, pump.fun (optional), Bitquery (optional)."""
+"""Smaller adapters: DexScreener, DefiLlama, Bitquery (optional)."""
 from __future__ import annotations
 
 from .base import Http, SourceUnavailable
@@ -26,6 +26,18 @@ async def dexscreener_attention(http: Http) -> list[dict]:
     return out
 
 
+async def dexscreener_names(http: Http, mints: list[str]) -> dict[str, tuple[str, str]]:
+    """Name and symbol for tokens launched before the live stream started (display only)."""
+    out: dict[str, tuple[str, str]] = {}
+    for i in range(0, len(mints), 30):
+        data = await http.get_json("https://api.dexscreener.com/tokens/v1/solana/" + ",".join(mints[i:i + 30]))
+        for pair in data if isinstance(data, list) else []:
+            b = pair.get("baseToken") or {}
+            if b.get("address") in mints and b.get("name"):
+                out[b["address"]] = (b["name"][:80], (b.get("symbol") or "")[:20])
+    return out
+
+
 # ---------------------------------------------------------------- DefiLlama (no key)
 
 LLAMA_PROTOCOLS = {"pumpfun_launchpad": "pump.fun", "pumpswap": "pumpswap"}
@@ -42,26 +54,14 @@ async def defillama_volume(http: Http) -> dict[str, list[tuple[int, float]]]:
     return out
 
 
-# ---------------------------------------------------------------- pump.fun (optional)
+# ---------------------------------------------------------------- SOL/USD
 
-PUMP_API = "https://frontend-api-v3.pump.fun"
-
-
-async def pumpfun_latest(http: Http, limit: int = 50) -> list[dict]:
-    """Often Cloudflare-blocked from datacenter IPs; caller treats that as unavailable."""
-    data = await http.get_json(
-        f"{PUMP_API}/coins?offset=0&limit={limit}&sort=created_timestamp&order=DESC&includeNsfw=false",
-        retries=0)
-    out = []
-    for c in data if isinstance(data, list) else []:
-        out.append({
-            "mint": c.get("mint"), "name": c.get("name"), "symbol": c.get("symbol"),
-            "creator": c.get("creator"), "uri": c.get("metadata_uri") or c.get("uri"),
-            "created_at": int((c.get("created_timestamp") or 0) / 1000) or None,
-            "description": (c.get("description") or "")[:500],
-            "reply_count": c.get("reply_count"),
-        })
-    return out
+async def sol_price(http: Http) -> float:
+    data = await http.get_json("https://coins.llama.fi/prices/current/coingecko:solana")
+    try:
+        return float(data["coins"]["coingecko:solana"]["price"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise SourceUnavailable("coins.llama.fi: no SOL price in response") from exc
 
 
 # ---------------------------------------------------------------- Bitquery (optional, key)

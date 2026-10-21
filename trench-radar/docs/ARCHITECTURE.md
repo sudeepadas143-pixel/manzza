@@ -20,11 +20,12 @@ tokens, signs transactions or trades.
 
 | Source | Key? | Status | Used for |
 |---|---|---|---|
-| GeckoTerminal public API | no | ✅ 200 (429s above ~15 req/min in practice) | New pools across Solana (`new_pools`, 9 pages ≈ last 4 min), pump.fun bonding-curve pools (`dexes/pump-fun`), PumpSwap pools (graduations), per-pool buys/sells/**unique buyers/sellers** in m5…h24 windows, volume, FDV, price change, OHLCV. |
-| Solana JSON-RPC (public or your provider) | optional | ✅ 200 | Bonding-curve account → curve progress, real SOL committed, `complete` flag. Verified: GeckoTerminal's pump-fun pool address *is* the BondingCurve PDA (owner = pump program, discriminator matches). Creator wallet SOL balance / recent tx count. |
+| **Solana RPC websocket** (`logsSubscribe`, pump program) | no (public works) | ✅ verified 2026-10-21: ~53 trades/s, 1–3s lag, public server closes the socket every 10–30s | The live stream (`radar/stream.py`): every launch, trade (wallet, SOL, buy/sell, reserves) and curve completion. Replaced GeckoTerminal on 2026-10-21. |
+| GeckoTerminal public API | no | retired 2026-10-21 | Was the launch and per-token stats source; sampled, rate-limited, and the same data anyone sees. Old rows are kept and still counted. |
+| Solana JSON-RPC (public or your provider) | optional | ✅ 200 | `complete` flag of curves above 90% every 2 min (backs up the stream), outcome labels. |
 | DexScreener | no | ✅ 200 | Paid "boosts" and token profiles (attention being bought), search. 60 req/min. |
 | DefiLlama | no | ✅ 200 | 30-day daily volume for pump.fun launchpad and PumpSwap — macro regime. |
-| pump.fun frontend API | no | ⚠️ 403 Cloudflare from datacenter IPs | Optional: replies, KOTH. Adapter degrades to "unavailable". |
+| pump.fun frontend API | no | retired (403 Cloudflare) | The stream supplies creators directly. |
 | X API v2 (recent search) | **yes**, paid | ⛔ no key here | Posts, authors, follower counts, engagement → meta detection, independent accounts, influential posts, sentiment. |
 | Reddit | optional OAuth | ⚠️ 403 unauthenticated from this IP | Secondary social source. |
 | Bitquery | **yes** | ⛔ no key here | Optional: buy *volume* vs sell *volume* (true net flow in USD). |
@@ -36,7 +37,8 @@ tokens, signs transactions or trades.
 ```
             ┌───────────── scheduler (asyncio, per-job intervals) ─────────────┐
             │                                                                   │
-  sources/  geckoterminal  solana_rpc  dexscreener  defillama  x_api  reddit  bitquery  pumpfun
+  stream.py  live chain websocket ─► in-memory 1h trade window ─► token_obs/curve_obs every 2 min
+  sources/  pump_events  solana_rpc  dexscreener  defillama  x_api  reddit  bitquery
             │   each returns rows or raises SourceUnavailable; every call is
             │   recorded in source_runs (status, latency, items, error)
             ▼
@@ -94,7 +96,7 @@ resolved outcomes (default ≥ 30 metas-windows per bucket) the dashboard says
 
 1. Shared core: config (env, redaction), SQLite schema + migrations, HTTP client
    with timeouts/retries/rate-limit, source-run bookkeeping.
-2. Source adapters + collectors (GeckoTerminal, RPC, DexScreener, DefiLlama,
+2. Source adapters + collectors (live chain stream, RPC, DexScreener, DefiLlama,
    X, Reddit, Bitquery, pump.fun) with fixtures for offline tests.
 3. Analytics: text → metas → demand → market → saturation → score.
 4. Outcomes labeller + point-in-time backtest with look-ahead assertions.

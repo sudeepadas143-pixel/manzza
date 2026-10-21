@@ -35,10 +35,10 @@ def conditions(con, as_of: int, lineage: Lineage | None = None) -> dict:
     # 1. Launch flow we observed (coverage-adjusted)
     cov_1h = launch_coverage(con, as_of, H)
     cov_24h = launch_coverage(con, as_of, 24 * H)
-    n_1h = rows(con, """SELECT COUNT(*) n FROM tokens WHERE launchpad='pump-fun' AND source='gt_new_pools'
+    n_1h = rows(con, """SELECT COUNT(*) n FROM tokens WHERE launchpad='pump-fun' AND source IN ('chain','gt_new_pools')
                         AND created_at > ? AND created_at <= ? AND first_seen_at <= ?""",
                 (as_of - H, as_of, as_of))[0]["n"]
-    n_24h = rows(con, """SELECT COUNT(*) n FROM tokens WHERE launchpad='pump-fun' AND source='gt_new_pools'
+    n_24h = rows(con, """SELECT COUNT(*) n FROM tokens WHERE launchpad='pump-fun' AND source IN ('chain','gt_new_pools')
                          AND created_at > ? AND created_at <= ? AND first_seen_at <= ?""",
                  (as_of - 24 * H, as_of, as_of))[0]["n"]
     lineage.saw("tokens", None, 2)
@@ -54,7 +54,7 @@ def conditions(con, as_of: int, lineage: Lineage | None = None) -> dict:
         cohort = rows(con, """SELECT COUNT(*) n,
                 SUM(CASE WHEN g.mint IS NOT NULL THEN 1 ELSE 0 END) AS grads
                 FROM tokens k LEFT JOIN graduations g ON g.mint=k.mint AND g.detected_at <= ?
-                WHERE k.source='gt_new_pools' AND k.created_at > ? AND k.created_at <= ?""",
+                WHERE k.source IN ('chain','gt_new_pools') AND k.created_at > ? AND k.created_at <= ?""",
                       (as_of, as_of - 48 * H, as_of - 24 * H))[0]
         if cohort["n"] >= 200:
             rate = (cohort["grads"] or 0) / cohort["n"]

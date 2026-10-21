@@ -34,8 +34,8 @@ def test_no_lookahead_future_rows_do_not_change_past_analysis(history_db):
     # add rows that happened before t but were only OBSERVED after t, plus future rows
     insert(history_db, "tokens", {"mint": "LATEpump", "name": "Frog Late", "symbol": "FROG", "pool": "PL",
                                   "launchpad": "pump-fun", "created_at": t - 600, "first_seen_at": t + 60,
-                                  "source": "gt_new_pools"})
-    insert(history_db, "token_obs", {"mint": "LATEpump", "observed_at": t + 30, "source": "gt_refresh",
+                                  "source": "chain"})
+    insert(history_db, "token_obs", {"mint": "LATEpump", "observed_at": t + 30, "source": "chain",
                                      "buyers_h1": 999, "vol_h1": 1e6})
     insert(history_db, "social_posts", {"id": "x:late", "source": "x", "author_id": "z", "text": "frog frog",
                                         "created_at": t - 100, "collected_at": t + 5, "fingerprint": "zz"})

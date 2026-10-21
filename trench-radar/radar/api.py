@@ -19,12 +19,13 @@ from fastapi.staticfiles import StaticFiles
 
 from . import collectors as c
 from .analytics.backtest import run_backtest
-from .analytics.common import source_freshness
+from .analytics.common import LAUNCH_SOURCES, OBS_SOURCES, RETIRED, in_list, source_freshness
 from .analytics.scoring import run_analysis
 from .config import ROOT, Settings, load_settings
 from .db import connect, now, rows
 from .reports import make_report
 from .scheduler import State, run_forever
+from .stream import LIVE
 from .sources.base import Http
 
 # inside a PyInstaller bundle, data files are unpacked under sys._MEIPASS
@@ -76,7 +77,8 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
             "backtest": ({"created_at": bt[0]["created_at"], **{k: v for k, v in json.loads(bt[0]["results"]).items()
                                                                   if k != "sample"}} if bt else None),
             "db": {t: rows(con, f"SELECT COUNT(*) n FROM {t}")[0]["n"]
-                   for t in ("tokens", "token_obs", "curve_obs", "social_posts", "graduations", "token_outcomes")},
+                   for t in ("tokens", "token_obs", "curve_obs", "social_posts", "graduations", "token_outcomes",
+                             "early_buyers")},
         }
 
     @app.get("/api/metas/{key}/history")
@@ -98,8 +100,8 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
         t = now()
         step = {6: 300, 24: 900, 72: 3600}[hours]
         start = t - hours * 3600
-        launches = rows(con, """SELECT (created_at / ?) * ? AS b, COUNT(*) AS n FROM tokens
-                                WHERE source='gt_new_pools' AND created_at > ? AND created_at <= ?
+        launches = rows(con, f"""SELECT (created_at / ?) * ? AS b, COUNT(*) AS n FROM tokens
+                                WHERE source IN {in_list(LAUNCH_SOURCES)} AND created_at > ? AND created_at <= ?
                                 GROUP BY b ORDER BY b""", (step, step, start, t))
         gstep = max(step, 3600)
         grads = rows(con, """SELECT (COALESCE(graduated_at, detected_at) / ?) * ? AS b, COUNT(*) AS n
@@ -107,13 +109,15 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
                      (gstep, gstep, start))
         # when were launches actually being observed? (bars are only meaningful where coverage exists)
         runs = rows(con, """SELECT (finished_at / ?) * ? AS b, COUNT(*) AS n FROM source_runs
-                            WHERE source='geckoterminal' AND job='new_pools' AND status='ok' AND finished_at > ?
-                            GROUP BY b""", (step, step, start))
+                            WHERE ((source='chain' AND job='pump_stream') OR (source='geckoterminal' AND job='new_pools'))
+                            AND status='ok' AND finished_at > ? GROUP BY b""", (step, step, start))
         uptime = {}
         for r in rows(con, """SELECT source || '/' || job AS k, (finished_at / 3600) * 3600 AS b,
                                      SUM(status='ok') AS ok, SUM(status IN ('error','unavailable')) AS bad,
                                      SUM(status='skipped') AS skipped
                               FROM source_runs WHERE finished_at > ? GROUP BY k, b""", (t - 24 * 3600,)):
+            if tuple(r["k"].split("/", 1)) in RETIRED:
+                continue
             uptime.setdefault(r["k"], []).append([r["b"], r["ok"], r["bad"], r["skipped"]])
         market = rows(con, """SELECT observed_at AS t, value FROM market_obs WHERE metric='market_score'
                               AND value IS NOT NULL AND observed_at > ? ORDER BY observed_at""", (start,))
@@ -130,8 +134,9 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
     async def tokens(limit: int = 60):
         """Most active tokens right now, from the latest observation per token (last 2h)."""
         t = now()
-        out = rows(con, """SELECT o.mint, k.name, k.symbol, k.created_at, k.creator, o.observed_at,
+        out = rows(con, f"""SELECT o.mint, k.name, k.symbol, k.created_at, k.creator, o.observed_at,
                                   o.vol_h1, o.vol_h24, o.buyers_h1, o.sellers_h1, o.buys_h1, o.sells_h1,
+                                  o.organic_buyers_h1, o.smart_buyers_h1, o.net_sol_h1, o.dev_sold_sol,
                                   COALESCE(o.mcap_usd, o.fdv_usd) AS mcap_usd, o.liquidity_usd, o.chg_h1, o.dex,
                                   (SELECT progress FROM curve_obs c WHERE c.mint=o.mint ORDER BY id DESC LIMIT 1) AS progress,
                                   (SELECT 1 FROM graduations g WHERE g.mint=o.mint) AS graduated,
@@ -139,8 +144,8 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
                                     (SELECT COUNT(*) FROM tokens d WHERE d.creator=k.creator AND d.created_at > ?) END
                                     AS deployer_launches_24h
                            FROM token_obs o JOIN tokens k ON k.mint=o.mint
-                           WHERE o.id IN (SELECT MAX(id) FROM token_obs WHERE observed_at > ? AND source LIKE 'gt_%'
-                                          GROUP BY mint)
+                           WHERE o.id IN (SELECT MAX(id) FROM token_obs WHERE observed_at > ?
+                                          AND source IN {in_list(OBS_SOURCES)} GROUP BY mint)
                            ORDER BY COALESCE(o.vol_h1, 0) DESC LIMIT ?""", (t - 86400, t - 7200, min(limit, 200)))
         return {"now": t, "tokens": out}
 
@@ -152,9 +157,10 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
         if not tok:
             raise HTTPException(404, "unknown token")
         since = t - min(max(hours, 1), 72) * 3600
-        obs = rows(con, """SELECT observed_at, price_usd, COALESCE(mcap_usd, fdv_usd) AS mcap_usd, liquidity_usd,
-                                  vol_h1, vol_h24, buyers_h1, sellers_h1, buys_h1, sells_h1, chg_h1, dex, source
-                           FROM token_obs WHERE mint=? AND observed_at > ? AND source LIKE 'gt_%'
+        obs = rows(con, f"""SELECT observed_at, price_usd, COALESCE(mcap_usd, fdv_usd) AS mcap_usd, liquidity_usd,
+                                  vol_h1, vol_h24, buyers_h1, sellers_h1, buys_h1, sells_h1, chg_h1, dex, source,
+                                  organic_buyers_h1, smart_buyers_h1, net_sol_h1, dev_sold_sol
+                           FROM token_obs WHERE mint=? AND observed_at > ? AND source IN {in_list(OBS_SOURCES)}
                            ORDER BY observed_at""", (mint, since))
         curve = rows(con, """SELECT observed_at, real_sol, progress, complete FROM curve_obs
                              WHERE mint=? AND observed_at > ? ORDER BY observed_at""", (mint, since))
@@ -174,6 +180,13 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
         return {"now": t, "token": tok[0], "observations": obs, "curve": curve,
                 "graduation": grad[0] if grad else None, "deployer": dep, "outcomes": outcome,
                 "attention": boosts}
+
+    @app.get("/api/live")
+    async def live():
+        """What the chain stream is seeing right now (in memory, updated per event)."""
+        v = LIVE.view()
+        v["stream"]["enabled"] = bool(settings.intervals.get("stream", 1)) and with_scheduler
+        return v
 
     @app.get("/api/sources")
     async def sources():
