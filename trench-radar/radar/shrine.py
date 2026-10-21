@@ -91,9 +91,14 @@ def available_hours(client: httpx.Client) -> list[str]:
     return r.json().get("hours") or []
 
 
-def backfill(con, hours: int, live=None, client: httpx.Client | None = None, sol_usd: float | None = None) -> dict:
-    """Replay the last `hours` complete archive hours into the database via the stream's own
-    aggregation, then snapshot each hour at its end. Skips hours already replayed."""
+def backfill(con, hours: int = 0, live=None, client: httpx.Client | None = None, sol_usd: float | None = None,
+             *, start_hour: int | None = None, end_hour: int | None = None, simulate_live: bool = False) -> dict:
+    """Replay complete archive hours into the database via the stream's own aggregation, then
+    snapshot each hour at its end. Skips hours already replayed.
+
+    Default: the last `hours` hours, stamped first-seen when each archive hour became public.
+    Research (`start_hour`..`end_hour`, `simulate_live=True`): an arbitrary past range, stamped
+    as a live run would have seen it (each event at its own time), for backtests."""
     from .stream import Live
     live = live or Live()
     live.source = "shrine_replay"
@@ -105,7 +110,9 @@ def backfill(con, hours: int, live=None, client: httpx.Client | None = None, sol
         done = {r["detail"] for r in rows(con, "SELECT detail FROM market_obs WHERE metric='shrine_hour_replayed'")}
         t_now = now()
         last_full = (t_now - PUBLISH_DELAY_S) // 3600 * 3600 - 3600
-        for start in range(last_full - (hours - 1) * 3600, last_full + 1, 3600):
+        first = start_hour if start_hour is not None else last_full - (hours - 1) * 3600
+        last = end_hour if end_hour is not None else last_full
+        for start in range(first, last + 1, 3600):
             key = hour_key(start)
             if key not in have or key in done:
                 stats["skipped"] += 1
@@ -130,7 +137,9 @@ def backfill(con, hours: int, live=None, client: httpx.Client | None = None, sol
                 n += 1
                 launches += ev["type"] == "create"
             for r_ in live.pending["tokens"]:
-                r_["first_seen_at"], r_["source"] = seen, "shrine_replay"
+                r_["source"] = "shrine_replay"
+                if not simulate_live:
+                    r_["first_seen_at"] = seen
             live.flush(con)
             live.snapshot(con, sol_usd, t=start + 3600, source="shrine_replay")
             con.execute("BEGIN")
@@ -139,6 +148,9 @@ def backfill(con, hours: int, live=None, client: httpx.Client | None = None, sol
                                            "source": "shrine_replay", "detail": key})
             insert(con, "market_obs", {"observed_at": seen, "metric": "shrine_hour_replayed", "value": n,
                                        "source": "shrine_replay", "detail": key})
+            insert(con, "source_runs", {"source": "shrine_replay", "job": "replay", "started_at": start,
+                                        "finished_at": start + 3600 if simulate_live else seen, "status": "ok",
+                                        "items": n, "latency_ms": 0})
             con.execute("COMMIT")
             stats["hours"] += 1
             stats["events"] += n

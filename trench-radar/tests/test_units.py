@@ -359,3 +359,53 @@ def test_shrine_archive_lines_map_to_stream_events_and_duplicates_are_ignored(se
     con = connect(settings.db_path)
     live.flush(con)
     assert rows(con, "SELECT COUNT(*) n FROM tokens")[0]["n"] == 1
+
+
+def test_x_post_fetch_merges_embed_and_fxtwitter_and_survives_failures():
+    import asyncio
+    import httpx
+    from radar import xposts
+    synd = {"__typename": "Tweet", "id_str": "123456", "text": "PVP the nasdaq? soldaq", "favorite_count": 5,
+            "conversation_count": 2, "created_at": "2026-10-21T14:53:13.000Z",
+            "user": {"screen_name": "TerryTheDevv", "is_blue_verified": True}}
+    fx = {"tweet": {"text": "PVP the nasdaq? soldaq", "likes": 5, "replies": 2, "retweets": 1, "views": 92,
+                    "created_timestamp": 1792594393, "author": {"screen_name": "terrythedevv", "followers": 1234}}}
+
+    def handler(req):
+        if "syndication" in req.url.host:
+            return httpx.Response(200, json=synd)
+        if "fxtwitter" in req.url.host:
+            return httpx.Response(200, json=fx) if "123456" in req.url.path else httpx.Response(404)
+        return httpx.Response(500)
+
+    async def go(post, h=handler):
+        async with httpx.AsyncClient(transport=httpx.MockTransport(h)) as c:
+            return await xposts.fetch_post(c, post)
+    p = asyncio.run(go("terrythedevv/status/123456"))
+    assert p["text"] == "PVP the nasdaq? soldaq" and p["followers"] == 1234 and p["views"] == 92
+    assert p["author"] == "terrythedevv" and p["created_at"] == 1792594393 and p["verified"]
+    assert asyncio.run(go("not a post")) is None
+    assert asyncio.run(go("a/status/99999", h=lambda r: httpx.Response(503))) is None
+
+
+def test_image_hash_tolerates_reencoding_and_groups_different_names():
+    import io
+    from PIL import Image, ImageDraw
+    from radar import images
+
+    def img(size=256, shift=0, fmt="PNG"):
+        s = size / 256
+        im = Image.new("RGB", (size, size), (20, 120, 40))
+        d = ImageDraw.Draw(im)
+        d.ellipse(((60 + shift) * s, 60 * s, (190 + shift) * s, 190 * s), fill=(200, 50, 50))
+        d.rectangle((20 * s, 200 * s, 230 * s, 240 * s), fill=(240, 240, 0))
+        b = io.BytesIO()
+        im.save(b, fmt)
+        return b.getvalue()
+    a, b_, c = images.dhash(img()), images.dhash(img(size=512, fmt="JPEG")), images.dhash(img(shift=60))
+    assert images.distance(a, b_) <= images.NEAR < images.distance(a, c)
+    assert images.to_signed(1 << 63) < 0 and images.to_signed(5) == 5
+    g = images.groups([{"hash": a, "name": "Frog King"}, {"hash": b_, "name": "Toad Lord"},
+                       {"hash": a, "name": "frog king "}, {"hash": c, "name": "Other"}])
+    assert len(g) == 1 and len(g[0]) == 3
+    assert images.groups([{"hash": a, "name": "Same"}, {"hash": a, "name": "same"}]) == []

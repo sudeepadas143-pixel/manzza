@@ -387,8 +387,12 @@ function renderLive() {
           || `<tr><td colspan="3" class="i3">Waiting for the first launch.</td></tr>`}</tbody></table></div>
       <div><div class="sec-h"><h2>Posts spawning coins</h2><span class="note">X posts linked by 2+ launches in 3 hours</span></div>
         <div class="ledger">${(d.source_posts || []).map((p) => `<div class="li"><span class="k"><a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer nofollow">@${esc(p.account)}</a> <span class="i3">post</span></span>
-          <span class="v">${p.launches} launches</span><span class="c">${p.creators} creator${p.creators === 1 ? "" : "s"}, ${p.buyers_1h} buyers in the last hour, ${signed(p.net_sol_1h, 1)} SOL net</span></div>`).join("")
+          <span class="v">${p.launches} launches</span><span class="c">${p.text ? `“${esc(p.text.length > 160 ? p.text.slice(0, 157) + "…" : p.text)}” ` : ""}${p.creators} creator${p.creators === 1 ? "" : "s"}, ${p.buyers_1h} buyers in the last hour, ${signed(p.net_sol_1h, 1)} SOL net${isNum(p.likes) ? ` · ${compact(p.likes)} likes` : ""}${isNum(p.views) ? `, ${compact(p.views)} views` : ""}${isNum(p.followers) ? ` · author ${compact(p.followers)} followers` : ""}</span></div>`).join("")
           || `<div class="li"><span class="k i3">No post has been linked by two launches yet.</span></div>`}</div>
+        <div class="sec-h" style="margin-top:28px"><h2>Same picture, different names</h2><span class="note">tokens being bought, last 24h</span></div>
+        <div class="ledger">${(d.image_groups || []).map((g) => `<div class="li"><span class="k">${esc(g.names.slice(0, 4).join(", "))}${g.names.length > 4 ? "…" : ""}</span>
+          <span class="v">${g.tokens} tokens</span><span class="c">first ${esc(secs(d.now - g.first_at))} ago, latest ${esc(secs(d.now - g.last_at))} ago</span></div>`).join("")
+          || `<div class="li"><span class="k i3">No shared picture among traded tokens yet.</span></div>`}</div>
         <div class="sec-h" style="margin-top:28px"><h2>Just graduated</h2><span class="note">bonding curve completed</span></div>
         <div class="ledger">${d.graduations.map((g) => `<div class="li"><span class="k">${esc(g.symbol ? "$" + g.symbol : short(g.mint))} <span class="i3">${esc(g.name || "")}</span></span><span class="v">${secs(now - g.ts)} ago</span></div>`).join("")
           || `<div class="li"><span class="k i3">No graduation since the app started.</span></div>`}</div></div>

@@ -46,6 +46,16 @@ since 2026-09-14); limits of 3 REST requests per second per IP and one open stre
 IP. Only the replay archive is used, opt-in (`SHRINE_BACKFILL_HOURS`, `python -m radar backfill`,
 `python -m radar check-coverage`). No terms of service beyond the API documentation were found.
 
+## X post text (no key, no account)
+
+For X posts that 2+ launches link to, the app reads the post through two public embed
+endpoints (checked 2026-10-21): X's own `cdn.syndication.twimg.com/tweet-result` (the service
+behind tweets embedded on websites) and FxTwitter's `api.fxtwitter.com` (an open-source embed
+proxy, github.com/FxEmbed/FxEmbed), which adds follower and view counts. Neither is a
+supported API; failures are recorded and skipped. `X_POST_TEXT=0` turns this off.
+(`publish.twitter.com/oembed` redirected and `api.vxtwitter.com` was behind a Cloudflare
+challenge, so they are not used.)
+
 ## Downloaded on first start
 
 **all-MiniLM-L6-v2** (ONNX export, quantized), https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2,
@@ -54,7 +64,11 @@ Apache-2.0. Stored in the data folder under `models/`.
 ## Libraries (installed from PyPI)
 
 FastAPI (MIT), Uvicorn (BSD-3-Clause), httpx (BSD-3-Clause), websockets (BSD-3-Clause),
-onnxruntime (MIT), tokenizers (Apache-2.0), NumPy (BSD-3-Clause), anthropic (MIT, optional).
+onnxruntime (MIT), tokenizers (Apache-2.0), NumPy (BSD-3-Clause), Pillow (MIT-CMU),
+anthropic (MIT, optional). Research only: pyarrow (Apache-2.0), zstandard (BSD-3-Clause).
+
+The image hash (`radar/images.py`) is a difference hash written for this app on Pillow; the
+imagehash library (BSD-2-Clause) was considered but adds SciPy and PyWavelets for one function.
 
 ## Used as reference only (nothing copied)
 

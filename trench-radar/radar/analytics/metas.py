@@ -22,6 +22,20 @@ H = 3600
 RECENT_S, WINDOW_S, BASE_S = 1 * H, 6 * H, 6 * H
 LOOKBACK_S = max(WINDOW_S, RECENT_S + BASE_S)
 
+# How launch factories are handled (a couple of wallets can launch hundreds of coins an hour):
+#   "none"       count every launch (the original behaviour)
+#   "creators"   count distinct creators per term instead of launches
+#   "exclude"    drop creators with SERIAL_MIN+ launches inside the lookback, then count launches
+# Chosen by scripts/tune_metas.py on September data and checked once on October data.
+SPAM_MODE = "none"
+SERIAL_MIN = 10
+
+
+def _n(rs: list[dict]) -> int:
+    if SPAM_MODE == "creators":
+        return len({r["creator"] or r["mint"] for r in rs})
+    return len(rs)
+
 
 def load_launches(con, as_of: int, lineage: Lineage) -> list[dict]:
     out = rows(con, """SELECT mint, name, symbol, creator, created_at, first_seen_at FROM tokens
@@ -30,6 +44,9 @@ def load_launches(con, as_of: int, lineage: Lineage) -> list[dict]:
     for r in out:
         r["terms"] = token_terms(r["name"], r["symbol"])
         lineage.saw("tokens", r["first_seen_at"])
+    if SPAM_MODE == "exclude":
+        per = Counter(r["creator"] for r in out if r["creator"])
+        out = [r for r in out if not r["creator"] or per[r["creator"]] < SERIAL_MIN]
     return out
 
 
@@ -51,9 +68,15 @@ def _poisson_z(recent: float, base_rate_per_window: float) -> float:
 def candidate_terms(launches: list[dict], posts: list[dict], as_of: int,
                     min_launches: int = 4, min_mentions: int = 5, top: int = 40) -> list[str]:
     lc, pc = Counter(), Counter()
+    seen = set()
     for r in launches:
         if r["created_at"] > as_of - WINDOW_S:
-            lc.update(r["terms"])
+            if SPAM_MODE == "creators":
+                ts = [t for t in r["terms"] if (r["creator"] or r["mint"], t) not in seen]
+                seen.update((r["creator"] or r["mint"], t) for t in ts)
+                lc.update(ts)
+            else:
+                lc.update(r["terms"])
     for p in posts:
         if p["created_at"] > as_of - WINDOW_S:
             pc.update(p["terms"])
@@ -121,7 +144,7 @@ def meta_launches(launches: list[dict], term_set: set[str], as_of: int, all_wind
     recent = [r for r in mine if r["created_at"] > as_of - RECENT_S]
     window = [r for r in mine if r["created_at"] > as_of - WINDOW_S]
     base = [r for r in mine if as_of - RECENT_S - BASE_S < r["created_at"] <= as_of - RECENT_S]
-    base_rate_h = len(base) / (BASE_S / H)
+    base_rate_h = _n(base) / (BASE_S / H)
     sym = Counter((r["symbol"] or "").upper() for r in window)
     first = min((r["created_at"] for r in mine), default=None)
     hourly = [0] * 12                       # launches per hour, oldest first, for sparklines
@@ -134,7 +157,8 @@ def meta_launches(launches: list[dict], term_set: set[str], as_of: int, all_wind
         "mints_all": [r["mint"] for r in mine],
         "launches_1h": len(recent), "launches_6h": len(window), "launches_base": len(base),
         "launch_rate_h": round(len(window) / 6, 3), "launch_base_rate_h": round(base_rate_h, 3),
-        "launch_accel_z": round(_poisson_z(len(recent), base_rate_h), 2),
+        "launch_accel_z": round(_poisson_z(_n(recent), base_rate_h), 2),
+        "creators_1h": len({r["creator"] for r in recent if r["creator"]}),
         "launch_share_6h": round(len(window) / all_window, 4) if all_window else None,
         "duplicate_symbol_share_6h": round(sum(n for n in sym.values() if n > 1) / len(window), 3) if window else None,
         "first_seen_in_window_h": round((as_of - first) / H, 1) if first else None,

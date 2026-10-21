@@ -176,6 +176,14 @@ sends is discarded. `LIVE_STREAM=0` turns it off (and with it most of the app). 
   links), fetched once per launch. IPFS files go through filebase and 4everland because
   ipfs.io now refuses scripted requests. Many launches link the X post they are about; posts
   linked by several launches are shown on the Live screen as "posts spawning coins".
+- **What the posts say**: for X posts linked by 2+ launches, the post's text, likes, views and
+  the author's follower count, read from X's public embed service and FxTwitter (no key). Shown
+  on the Live screen and added to narrative evidence as `x_linked` posts. This is a biased
+  slice of X (only posts someone launched coins about), so it does not count as "social
+  measured" in the score.
+- **Same picture, different names**: a perceptual hash of the image of every token people are
+  buying (5+ buyers in an hour); tokens within 6 of 64 bits share a picture. Images are fetched
+  once, capped at 2 MB, hashed and discarded.
 - **Narratives by meaning**: all-MiniLM-L6-v2 (23 MB, downloaded from Hugging Face on first
   start, run with onnxruntime) merges narrative clusters whose head words mean the same
   (cat/kitty, frog/toad). Every merge is listed in the dossier. `SEMANTIC_METAS=0` turns it off.

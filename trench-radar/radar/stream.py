@@ -29,6 +29,8 @@ import logging
 import time
 from collections import defaultdict, deque
 
+import httpx
+
 from .db import insert, now, one, rows
 from .wallet_labels import WalletLabels
 from .sources.base import SourceUnavailable, record_run
@@ -241,8 +243,10 @@ class Live:
             return
         ms.graduated = True
         self.grads.append({"mint": ms.mint, "name": ms.name, "symbol": ms.symbol, "ts": ts})
-        self.pending["grads"].append({"mint": ms.mint, "detected_at": now(), "graduated_at": ts,
-                                      "source": "chain", "pool": None})
+        # replayed history: the graduation was knowable when it happened, not when replayed
+        self.pending["grads"].append({"mint": ms.mint, "detected_at": now() if self.source == "chain" else ts,
+                                      "graduated_at": ts,
+                                      "source": self.source, "pool": None})
 
     # ------------------------------------------------------------------ persistence
     def flush(self, con) -> int:
@@ -427,11 +431,13 @@ class Live:
 
     def source_posts(self, con, t: int, window_s: int = 3 * H, top: int = 10) -> list[dict]:
         """X posts that launches link to, ranked by launches; with live buying in those coins."""
-        found = rows(con, """SELECT x_post, COUNT(*) AS launches, COUNT(DISTINCT creator) AS creators,
-                                    MIN(created_at) AS first_at, MAX(created_at) AS last_at,
-                                    GROUP_CONCAT(mint) AS mints
-                             FROM tokens WHERE x_post IS NOT NULL AND created_at > ?
-                             GROUP BY x_post HAVING launches >= 2
+        found = rows(con, """SELECT k.x_post, COUNT(*) AS launches, COUNT(DISTINCT k.creator) AS creators,
+                                    MIN(k.created_at) AS first_at, MAX(k.created_at) AS last_at,
+                                    GROUP_CONCAT(k.mint) AS mints, MAX(x.text) AS text, MAX(x.likes) AS likes,
+                                    MAX(x.views) AS views, MAX(x.followers) AS followers, MAX(x.created_at) AS posted_at
+                             FROM tokens k LEFT JOIN x_posts x ON x.post = k.x_post AND x.status = 'ok'
+                             WHERE k.x_post IS NOT NULL AND k.created_at > ?
+                             GROUP BY k.x_post HAVING launches >= 2
                              ORDER BY launches DESC, last_at DESC LIMIT ?""", (t - window_s, top))
         for p in found:
             mints = p.pop("mints").split(",")
@@ -718,6 +724,105 @@ async def run_metadata(ctx, live: Live = LIVE) -> None:
                     ctx.con.execute("ROLLBACK")
                 log.exception("metadata batch failed; continuing")
             await asyncio.sleep(1)
+
+
+async def run_xposts(ctx, every_s: int = 120, refresh_s: int = 1800, batch: int = 15) -> None:
+    """Fetch the text of X posts linked by 2+ launches in the last 3h; refresh engagement
+    every 30 min while launches keep linking them."""
+    from . import xposts
+    from .text import fingerprint
+    async with httpx.AsyncClient(headers={"User-Agent": "Mozilla/5.0 (trench-radar research)"},
+                                 follow_redirects=True) as client:
+        while True:
+            try:
+                t = now()
+                due = rows(ctx.con, """SELECT k.x_post AS post, COUNT(*) AS n FROM tokens k
+                        LEFT JOIN x_posts x ON x.post = k.x_post
+                        WHERE k.x_post IS NOT NULL AND k.created_at > ?
+                          AND (x.post IS NULL OR (x.status='ok' AND x.fetched_at < ?)
+                               OR (x.status='failed' AND x.fetched_at < ?))
+                        GROUP BY k.x_post HAVING n >= 2 ORDER BY n DESC LIMIT ?""",
+                           (t - 3 * H, t - refresh_s, t - 6 * H, batch))
+                for d in due:
+                    p = await xposts.fetch_post(client, d["post"])
+                    row = {"post": d["post"], "fetched_at": now(), "status": "ok" if p else "failed"}
+                    if p:
+                        row.update({k: p.get(k) for k in ("author", "text", "quoted_text", "followers", "likes",
+                                                          "replies", "reposts", "views", "created_at")},
+                                   verified=int(bool(p.get("verified"))), has_photo=int(bool(p.get("has_photo"))))
+                    insert(ctx.con, "x_posts", row, or_replace=True)
+                    if p and p.get("text") and p.get("created_at"):
+                        pid = d["post"].rsplit("/", 1)[-1]
+                        insert(ctx.con, "social_posts", {
+                            "id": f"x_linked:{pid}", "source": "x_linked", "author_id": p.get("author"),
+                            "author_handle": p.get("author"), "author_followers": p.get("followers"),
+                            "text": " ".join(filter(None, [p["text"], p.get("quoted_text")]))[:1500],
+                            "created_at": p["created_at"], "collected_at": now(), "likes": p.get("likes") or 0,
+                            "reposts": p.get("reposts") or 0, "replies": p.get("replies") or 0,
+                            "views": p.get("views") or 0, "url": "https://x.com/" + d["post"],
+                            "query": "linked by launches", "fingerprint": fingerprint(p["text"]), "is_spam": 0},
+                            or_ignore=True)
+                    await asyncio.sleep(1.5)                      # stay gentle with unofficial endpoints
+                if due:
+                    log.info("x posts: fetched %d", len(due))
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                log.exception("x post fetch failed; continuing")
+            await asyncio.sleep(every_s)
+
+
+async def run_images(ctx, every_s: int = 120, batch: int = 20) -> None:
+    """Hash the images of tokens people are buying (see images.py)."""
+    from . import images, metadata
+    async with httpx.AsyncClient(headers={"User-Agent": "trench-radar/0.2 (+research)"},
+                                 follow_redirects=True) as client:
+        while True:
+            try:
+                due = rows(ctx.con, """SELECT k.mint, k.image FROM tokens k
+                        WHERE k.image IS NOT NULL AND k.created_at > ?
+                          AND NOT EXISTS (SELECT 1 FROM token_images i WHERE i.mint = k.mint)
+                          AND EXISTS (SELECT 1 FROM token_obs o WHERE o.mint = k.mint AND o.observed_at > ?)
+                        ORDER BY k.created_at DESC LIMIT ?""", (now() - 24 * H, now() - 2 * H, batch))
+                for d in due:
+                    h = None
+                    for url in metadata.candidate_urls(d["image"]):
+                        try:
+                            async with client.stream("GET", url, timeout=8) as r:
+                                if r.status_code != 200:
+                                    continue
+                                buf = bytearray()
+                                async for chunk in r.aiter_bytes():
+                                    buf += chunk
+                                    if len(buf) > images.MAX_BYTES:
+                                        raise ValueError("image too large")
+                            h = await asyncio.to_thread(images.dhash, bytes(buf))
+                            break
+                        except Exception:                       # unreachable host, not an image, too big
+                            continue
+                    insert(ctx.con, "token_images", {"mint": d["mint"], "fetched_at": now(),
+                                                     "hash": images.to_signed(h) if h is not None else None,
+                                                     "status": "ok" if h is not None else "failed"}, or_replace=True)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                log.exception("image hashing failed; continuing")
+            await asyncio.sleep(every_s)
+
+
+def image_groups(con, t: int, window_s: int = 24 * H, top: int = 6) -> list[dict]:
+    """Tokens from the last day that share a picture under different names."""
+    from . import images
+    items = [{**r, "hash": r["hash"] & ((1 << 64) - 1)} for r in rows(con, """
+        SELECT i.mint, i.hash, k.name, k.symbol, k.created_at FROM token_images i JOIN tokens k ON k.mint = i.mint
+        WHERE i.status = 'ok' AND k.created_at > ?""", (t - window_s,))]
+    out = []
+    for g in images.groups(items)[:top]:
+        g.sort(key=lambda x: x["created_at"] or 0)
+        out.append({"tokens": len(g), "names": list(dict.fromkeys(x["name"] or x["symbol"] or "?" for x in g))[:8],
+                    "first_at": g[0]["created_at"], "last_at": g[-1]["created_at"],
+                    "mints": [x["mint"] for x in g][:12]})
+    return out
 
 
 def prune(con, keep_obs_days: int = 21, keep_early_days: int = 30) -> None:

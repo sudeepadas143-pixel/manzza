@@ -93,6 +93,10 @@ async def run_forever(ctx: c.Ctx) -> None:
         tasks.append(asyncio.create_task(stream.run_stream(ctx)))
         tasks.append(asyncio.create_task(stream.run_maintenance(ctx, snapshot_every_s=intervals.get("snapshot", 120))))
         tasks.append(asyncio.create_task(stream.run_metadata(ctx)))
+        if intervals.get("images", 1):
+            tasks.append(asyncio.create_task(stream.run_images(ctx)))
+        if intervals.get("xposts", 1):
+            tasks.append(asyncio.create_task(stream.run_xposts(ctx)))
     # stagger start so jobs that feed analysis run first
     order = ["solprice", "macro", "attention", "social", "bitquery", "analyze", "outcomes"]
     fns = jobs(ctx)

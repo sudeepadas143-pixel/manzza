@@ -75,6 +75,17 @@ CREATE TABLE IF NOT EXISTS curve_obs (
 );
 CREATE INDEX IF NOT EXISTS ix_curve_mint ON curve_obs(mint, observed_at);
 
+CREATE TABLE IF NOT EXISTS token_images (       -- perceptual hash of a token's image (images.py)
+  mint TEXT PRIMARY KEY, hash INTEGER, fetched_at INTEGER NOT NULL, status TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS x_posts (            -- X posts that launches link to (public embeds)
+  post TEXT PRIMARY KEY,           -- 'user/status/id'
+  author TEXT, text TEXT, quoted_text TEXT, followers INTEGER, verified INTEGER, has_photo INTEGER,
+  likes INTEGER, replies INTEGER, reposts INTEGER, views INTEGER,
+  created_at INTEGER, fetched_at INTEGER NOT NULL, status TEXT NOT NULL   -- ok | failed
+);
+
 CREATE TABLE IF NOT EXISTS pool_obs (           -- PumpSwap pool after graduation (RPC)
   id INTEGER PRIMARY KEY,
   mint TEXT NOT NULL, observed_at INTEGER NOT NULL,

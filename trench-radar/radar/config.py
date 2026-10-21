@@ -145,6 +145,8 @@ def load_settings(env_file: Path | None = None) -> Settings:
         intervals={
             "stream": _int("LIVE_STREAM", 1),              # 0 disables the live chain stream
             "semantic": _int("SEMANTIC_METAS", 1),         # 0: lexical narratives only (no model download)
+            "images": _int("IMAGE_HASHES", 1),            # 0: don't fetch images of traded tokens
+            "xposts": _int("X_POST_TEXT", 1),             # 0: don't fetch text of posts launches link to
             "shrine_backfill_h": _int("SHRINE_BACKFILL_HOURS", 0),  # opt-in: replay N past hours at start (~230 MB/hour)
             "snapshot": _int("EVERY_SNAPSHOT_S", 120),     # live stream -> token_obs/curve_obs
             "solprice": _int("EVERY_SOLPRICE_S", 300),     # SOL/USD (DefiLlama coins API)

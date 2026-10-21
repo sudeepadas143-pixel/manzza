@@ -26,6 +26,7 @@ from .db import connect, now, rows
 from .reports import make_report
 from .scheduler import State, run_forever
 from .stream import LIVE
+from .stream import image_groups as stream_image_groups
 from .sources.base import Http
 
 # inside a PyInstaller bundle, data files are unpacked under sys._MEIPASS
@@ -197,6 +198,7 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
         """What the chain stream is seeing right now (in memory, updated per event)."""
         v = LIVE.view()
         v["source_posts"] = LIVE.source_posts(con, v["now"])
+        v["image_groups"] = stream_image_groups(con, v["now"])
         v["stream"]["enabled"] = bool(settings.intervals.get("stream", 1)) and with_scheduler
         return v
 
