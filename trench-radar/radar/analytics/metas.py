@@ -14,13 +14,18 @@ from ..text import classify, terms, token_terms
 from .common import Lineage
 
 H = 3600
-RECENT_S, WINDOW_S, BASE_S = 1 * H, 6 * H, 24 * H   # baseline = the 24h before the 6h window
+# Acceleration compares the last hour with the 6 hours before it, so ~7h of collection is
+# enough. (Until 2026-10-21 the baseline was the 24h before a 6h window: fewer time-of-day
+# false alarms, but 30h before the first verdict. The chain stream sees every launch, so 6h
+# of baseline already holds thousands of launches.)
+RECENT_S, WINDOW_S, BASE_S = 1 * H, 6 * H, 6 * H
+LOOKBACK_S = max(WINDOW_S, RECENT_S + BASE_S)
 
 
 def load_launches(con, as_of: int, lineage: Lineage) -> list[dict]:
     out = rows(con, """SELECT mint, name, symbol, creator, created_at, first_seen_at FROM tokens
                        WHERE launchpad='pump-fun' AND created_at > ? AND created_at <= ?
-                       AND first_seen_at <= ?""", (as_of - WINDOW_S - BASE_S, as_of, as_of))
+                       AND first_seen_at <= ?""", (as_of - LOOKBACK_S, as_of, as_of))
     for r in out:
         r["terms"] = token_terms(r["name"], r["symbol"])
         lineage.saw("tokens", r["first_seen_at"])
@@ -31,7 +36,7 @@ def load_posts(con, as_of: int, lineage: Lineage) -> list[dict]:
     out = rows(con, """SELECT id, source, author_id, author_handle, author_followers, text, created_at,
                               collected_at, likes, reposts, replies, views, url, fingerprint
                        FROM social_posts WHERE is_spam=0 AND created_at > ? AND created_at <= ?
-                       AND collected_at <= ?""", (as_of - WINDOW_S - BASE_S, as_of, as_of))
+                       AND collected_at <= ?""", (as_of - LOOKBACK_S, as_of, as_of))
     for r in out:
         r["terms"] = terms(r["text"], max_terms=20)
         lineage.saw("social_posts", r["collected_at"])
@@ -83,7 +88,7 @@ def meta_social(posts: list[dict], term_set: set[str], as_of: int) -> dict:
     mine = [p for p in posts if term_set & set(p["terms"])]
     recent = [p for p in mine if p["created_at"] > as_of - RECENT_S]
     window = [p for p in mine if p["created_at"] > as_of - WINDOW_S]
-    base = [p for p in mine if p["created_at"] <= as_of - WINDOW_S]
+    base = [p for p in mine if as_of - RECENT_S - BASE_S < p["created_at"] <= as_of - RECENT_S]
     base_rate_h = len(base) / (BASE_S / H)
     window_rate_h = len(window) / (WINDOW_S / H)
     # independent accounts: distinct authors, ignoring copy-paste waves (fingerprint used >= 3 times)
@@ -95,7 +100,7 @@ def meta_social(posts: list[dict], term_set: set[str], as_of: int) -> dict:
     sent = [classify(p["text"]) for p in window]
     labels = Counter(s["label"] for s in sent)
     return {
-        "mentions_1h": len(recent), "mentions_6h": len(window), "mentions_base_24h": len(base),
+        "mentions_1h": len(recent), "mentions_6h": len(window), "mentions_base": len(base),
         "mention_rate_h": round(window_rate_h, 3), "mention_base_rate_h": round(base_rate_h, 3),
         "mention_accel_z": round(_poisson_z(len(recent), base_rate_h), 2) if mine else None,
         "authors_6h": len({p["author_id"] for p in window if p["author_id"]}),
@@ -114,7 +119,7 @@ def meta_launches(launches: list[dict], term_set: set[str], as_of: int, all_wind
     mine = [r for r in launches if term_set & set(r["terms"])]
     recent = [r for r in mine if r["created_at"] > as_of - RECENT_S]
     window = [r for r in mine if r["created_at"] > as_of - WINDOW_S]
-    base = [r for r in mine if r["created_at"] <= as_of - WINDOW_S]
+    base = [r for r in mine if as_of - RECENT_S - BASE_S < r["created_at"] <= as_of - RECENT_S]
     base_rate_h = len(base) / (BASE_S / H)
     sym = Counter((r["symbol"] or "").upper() for r in window)
     first = min((r["created_at"] for r in mine), default=None)
@@ -126,7 +131,7 @@ def meta_launches(launches: list[dict], term_set: set[str], as_of: int, all_wind
     return {
         "mints_6h": [r["mint"] for r in window],
         "mints_all": [r["mint"] for r in mine],
-        "launches_1h": len(recent), "launches_6h": len(window), "launches_base_24h": len(base),
+        "launches_1h": len(recent), "launches_6h": len(window), "launches_base": len(base),
         "launch_rate_h": round(len(window) / 6, 3), "launch_base_rate_h": round(base_rate_h, 3),
         "launch_accel_z": round(_poisson_z(len(recent), base_rate_h), 2),
         "launch_share_6h": round(len(window) / all_window, 4) if all_window else None,

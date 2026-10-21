@@ -54,9 +54,10 @@ def saturation(launch: dict, social: dict, demand_now: dict, demand_prev: dict) 
 
     # Age: a theme visible for most of the lookback is not early.
     age = launch.get("first_seen_in_window_h")
-    if age is not None and launch["launches_base_24h"] >= 5:
-        sig["meta_age"] = {"value": age, "s": clip01((age - 6) / 24),
-                           "why": f"launches in this meta go back {age:.0f}h in the 30h lookback"}
+    if age is not None and launch["launches_base"] >= 5:
+        # 0 for a theme under 3h old, 1 once it spans the whole 7h lookback
+        sig["meta_age"] = {"value": age, "s": clip01((age - 3) / 4),
+                           "why": f"launches in this meta go back {age:.0f}h in the 7h lookback"}
 
     vals = [v["s"] for v in sig.values()]
     return {"index": round(sum(vals) / len(vals), 3) if vals else None, "signals": sig, "n_signals": len(vals)}

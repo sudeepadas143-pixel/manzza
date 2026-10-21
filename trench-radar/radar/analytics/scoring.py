@@ -133,7 +133,7 @@ def explain(meta: dict, comps: dict, sat: dict, mkt: dict, social_measured: bool
     if not social_measured:
         risks.append("Social sources not connected: attention is inferred from launch names only.")
     if L["launch_accel_z"] is None:
-        risks.append("Baseline not established yet (needs ~30h of continuous collection): "
+        risks.append("Baseline not established yet (needs ~7h of continuous collection): "
                      "launch acceleration is not scored.")
     if D["tokens_tracked"] < 3:
         risks.append(f"Only {D['tokens_tracked']} token(s) with fresh trading data: demand estimate is thin.")
@@ -173,7 +173,7 @@ def score_meta(meta: dict, mkt: dict, fresh: dict, social_measured: bool, valida
     hist = hist or {"launch_coverage_6h": 1.0, "launch_coverage_baseline": 1.0}
     confidence *= history_factor(hist)
     reasons, risks = explain(meta, comps, sat, mkt, social_measured)
-    if confidence < 0.35 or score is None:
+    if confidence < 0.35 or score is None or hist["launch_coverage_baseline"] < 0.5:
         verdict = "insufficient data"
     elif score >= 65:
         verdict = "favorable"
@@ -226,7 +226,9 @@ def run_analysis(con, as_of: int | None = None, *, persist: bool = True, max_met
     mkt = mk.conditions(con, as_of, lineage)
     social_measured = social_is_measured(fresh, ctx["posts_6h_total"])
     hist = {"launch_coverage_6h": round(launch_coverage(con, as_of, 6 * H), 2),
-            "launch_coverage_baseline": round(launch_coverage(con, as_of - 6 * H, 24 * H), 2),
+            "launch_coverage_baseline": round(launch_coverage(con, as_of - mt.RECENT_S, mt.BASE_S), 2),
+            "collected_h": round(launch_coverage(con, as_of, mt.RECENT_S + mt.BASE_S) * (mt.RECENT_S + mt.BASE_S) / H, 1),
+            "needed_h": (mt.RECENT_S + mt.BASE_S) // H,
             "social_history_h": social_history_h(con, as_of)}
     ctx["history"] = hist
     validated = latest_validation(con) if persist else False
@@ -234,7 +236,7 @@ def run_analysis(con, as_of: int | None = None, *, persist: bool = True, max_met
     for meta in metas:
         if hist["launch_coverage_baseline"] < 0.5:
             meta["launch"]["launch_accel_z"] = None
-        if hist["social_history_h"] < 30:
+        if hist["social_history_h"] < (mt.RECENT_S + mt.BASE_S) / H:
             meta["social"]["mention_accel_z"] = None
         mints = meta["launch"]["mints_all"]
         meta["demand"] = dm.meta_demand(con, mints, as_of, lineage)

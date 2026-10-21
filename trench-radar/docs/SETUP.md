@@ -58,9 +58,13 @@ Other commands:
 | `python -m radar run` | scheduler without the web UI |
 | `python -m pytest -q` | test suite (offline; uses fabricated fixtures and stub servers) |
 
-Leave it running. The first useful verdicts appear after about 30 hours: acceleration
-needs a 24h baseline, and every verdict stays **insufficient data** until then. The first
-backtest needs at least a day of matured outcomes on top of that.
+Leave it running. The Live screen is useful at once. Narrative verdicts appear after about
+7 hours: acceleration compares the last hour with the 6 hours before it, and every verdict
+stays **insufficient data** until at least half of that baseline is collected. A 6-hour
+baseline is more sensitive to time-of-day swings than a full day would be (an ordinary busy
+evening can look like acceleration); that trade was made to get calls the same day. The
+graduation rate still needs a 24–48h launch cohort, and the first backtest needs matured
+outcomes on top of the baseline.
 
 The SQLite file (`data/radar.db`, WAL mode) is the shared database. Dashboard, CLI and
 scheduler can all use it at the same time.

@@ -253,3 +253,12 @@ def test_dashboard_endpoints_serve_real_rows(tmp_path):
         assert "deployer_launches_24h" in toks[0]
         assert client.get("/api/reports").json() == [] and client.get("/api/reports/1").status_code == 404
         assert client.get("/manifest.webmanifest").status_code == 200
+
+
+def test_seven_hours_of_history_is_enough_for_calls(tmp_path):
+    con = connect(tmp_path / "s.db")
+    build_history(con, hours=8)
+    res = run_analysis(con, T0, persist=False)
+    assert res["context"]["history"]["launch_coverage_baseline"] >= 0.5
+    frog = next(m for m in res["metas"] if "frog" in m["terms"])
+    assert frog["evidence"]["launch"]["launch_accel_z"] is not None

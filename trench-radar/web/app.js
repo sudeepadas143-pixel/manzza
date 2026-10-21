@@ -74,8 +74,8 @@ function toast(msg) {
 // ---------------------------------------------------------------- collection status (rail, phone bar, banner)
 function baseline() {
   const h = S.ov?.context?.history || {};
-  const hrs = Math.max((h.launch_coverage_baseline || 0) * 24, (h.launch_coverage_6h || 0) * 6);
-  return { hrs, ready: (h.launch_coverage_baseline || 0) >= 0.5, label: hrs < 1 ? `${Math.max(1, Math.round(hrs * 60))} min` : `${nf(hrs, 1)}h` };
+  const need = h.needed_h || 7, hrs = isNum(h.collected_h) ? h.collected_h : (h.launch_coverage_6h || 0) * 6;
+  return { hrs, need, ready: (h.launch_coverage_baseline || 0) >= 0.5, label: hrs < 1 ? `${Math.max(1, Math.round(hrs * 60))} min` : `${nf(hrs, 1)}h` };
 }
 function liveState() {
   if (!S.ov) return { cls: S.error ? "err" : "", text: S.error ? "Offline" : "Loading" };
@@ -90,10 +90,10 @@ function renderStatus() {
   const fr = S.ov ? Object.values(S.ov.freshness) : [];
   $("#railstat").innerHTML = S.ov ? `<div><div class="row1"><span class="dot ${L.cls}"></span>${esc(L.text)}</div>
       <small>Analysis ${esc(ago(L.lag))}. ${fr.filter((x) => x.state === "fresh").length} of ${fr.length} sources fresh.</small></div>
-    ${b.ready ? "" : `<div><div>Baseline ${esc(b.label)} of ~30h</div><div class="bar" style="margin-top:6px"><i style="width:${Math.min(100, (b.hrs / 30) * 100)}%"></i></div>
-      <small>Calls stay "insufficient evidence" until a full day has been collected.</small></div>`}`
+    ${b.ready ? "" : `<div><div>Baseline ${esc(b.label)} of ~${b.need}h</div><div class="bar" style="margin-top:6px"><i style="width:${Math.min(100, (b.hrs / b.need) * 100)}%"></i></div>
+      <small>Calls stay "insufficient evidence" until about ${b.need} hours have been collected.</small></div>`}`
     : `<div class="row1"><span class="dot ${L.cls}"></span>${esc(L.text)}</div>`;
-  $("#mstat").innerHTML = `<span class="dot ${L.cls}"></span>${S.ov && !b.ready && L.cls === "ok" ? `Baseline ${esc(b.label.replace(" min", "m"))} of 30h` : esc(L.text)}`;
+  $("#mstat").innerHTML = `<span class="dot ${L.cls}"></span>${S.ov && !b.ready && L.cls === "ok" ? `Baseline ${esc(b.label.replace(" min", "m"))} of ${b.need}h` : esc(L.text)}`;
   let html = "";
   if (S.ov && S.error) html = `<div class="alert neg" role="status"><div><b>Couldn’t refresh.</b> Showing the analysis from ${esc(hhmm(S.ov.as_of))}. ${esc(cap(S.error))}.</div></div>`;
   else if (L.cls === "stale") html = `<div class="alert" role="status"><div><b>Data is stale.</b> ${L.bad.length ? esc(L.bad.map((x) => `${x.source}/${x.job} is ${x.state}`).join("; ")) + "." : `The last analysis ran ${esc(ago(L.lag))}.`} Scores may lag the market.</div></div>`;
@@ -194,7 +194,7 @@ function insight() {
   const bits = [];
   if (byBuyers) bits.push(`Most buying is in <b>${esc(byBuyers.meta_key)}</b>: ${compact(byBuyers.evidence.demand.unique_buyers_h1_sum)} buyers an hour across ${byBuyers.evidence.demand.tokens_tracked} tokens.`);
   if (isNum(x.pumpfun_launchpad_vol_7d_vs_30d)) bits.push(`Launchpad volume is ${x.pumpfun_launchpad_vol_7d_vs_30d >= 1 ? "up" : "down"} ${nf(Math.abs(x.pumpfun_launchpad_vol_7d_vs_30d - 1) * 100, 0)}% on its 30-day average.`);
-  if (!b.ready) bits.push(`Calls need a full day of history; ${esc(b.label)} of about 30 hours is collected.`);
+  if (!b.ready) bits.push(`Calls need about ${b.need} hours of history; ${esc(b.label)} is collected.`);
   return { head: head + tail, sub: bits.join(" ") };
 }
 function narrativeRow(m, i) {
@@ -445,7 +445,7 @@ function renderMetas({ keepMap = false } = {}) {
 function coverage(m) {
   const e = m.evidence, d = e.demand, l = e.launch, cf = m.confidence_factors, b = baseline();
   return [
-    ["24-hour launch baseline", isNum(l.launch_accel_z), "ready", `${b.label} of ~30h collected`],
+    ["6-hour launch baseline", isNum(l.launch_accel_z), "ready", `${b.label} of ~${b.need}h collected`],
     ["Social attention", cf.social_measured, "connected", "no X or Reddit source"],
     ["Fresh trading stats", d.tokens_tracked >= 3, `${d.tokens_tracked} tokens`, `${d.tokens_tracked} token${d.tokens_tracked === 1 ? "" : "s"} only`],
     ["Bonding-curve flow", isNum(d.curve_net_sol_1h), `${d.curve_tokens_compared} curves`, "no curve history yet"],
@@ -766,7 +766,7 @@ async function renderSystem() {
     <div class="sys-sum">
       <div><div class="k">Collection</div><div class="v">${st(L.cls === "ok" ? "pos" : L.cls === "stale" ? "warn" : "neg", L.cls === "ok" ? "●" : "▲", L.text)}</div><div class="c">last analysis ${esc(ago(L.lag))}</div></div>
       <div><div class="k">Sources fresh</div><div class="v">${freshN} <span class="i3" style="font-size:16px">of ${f.length}</span></div><div class="c">${f.filter((x) => x.state === "skipped").length} not configured</div></div>
-      <div><div class="k">Baseline history</div><div class="v">${esc(b.label)} <span class="i3" style="font-size:16px">of ~30h</span></div><div class="c">${b.ready ? "acceleration is being scored" : "calls are held until this completes"}</div></div>
+      <div><div class="k">Baseline history</div><div class="v">${esc(b.label)} <span class="i3" style="font-size:16px">of ~${b.need}h</span></div><div class="c">${b.ready ? "acceleration is being scored" : "calls are held until this completes"}</div></div>
       <div><div class="k">Launch coverage, 6h</div><div class="v">${pct(h.launch_coverage_6h)}</div><div class="c">share of launches the collector saw</div></div>
     </div>
     <div class="sec"><div class="sec-h"><h2>Data sources</h2><span class="note">runs per hour over the last 24 hours</span></div>
@@ -777,13 +777,13 @@ async function renderSystem() {
         <div class="li"><span class="k">Tokens tracked</span><span class="v">${compact(db.tokens)}</span></div><div class="li"><span class="k">Trading observations</span><span class="v">${compact(db.token_obs)}</span></div>
         <div class="li"><span class="k">Bonding-curve reads</span><span class="v">${compact(db.curve_obs)}</span></div><div class="li"><span class="k">Graduations seen</span><span class="v">${compact(db.graduations)}</span></div>
         <div class="li"><span class="k">Outcomes labelled</span><span class="v">${compact(db.token_outcomes)}</span></div><div class="li"><span class="k">Social posts</span><span class="v">${compact(db.social_posts)}</span></div>
-        <div class="li"><span class="k">Baseline coverage, prior 24h</span><span class="v">${pct(h.launch_coverage_baseline)}</span></div></div></div>
+        <div class="li"><span class="k">Baseline coverage, the 6h before the last hour</span><span class="v">${pct(h.launch_coverage_baseline)}</span></div></div></div>
       <div><div class="sec-h"><h2>Backtest</h2>${bt ? st(bt.validated ? "pos" : "warn", bt.validated ? "●" : "▲", bt.validated ? "Validated" : "Not validated") : ""}</div>
         ${bt ? `<p class="notes" style="margin:0 0 10px">${esc(cap(bt.verdict))}. ${bt.signals} signals over ${bt.steps} steps, run ${esc(ago(nowS() - bt.created_at))}.</p>
           <table class="tbl bt"><thead><tr><th>Verdict</th><th class="r">Signals</th><th class="r">Graduation lift</th><th class="r">False positives</th></tr></thead><tbody>
           ${Object.entries(bt.by_verdict).map(([v, r]) => `<tr><td>${esc(vinfo(v).label)}</td><td class="r">${r.signals}</td><td class="r">${isNum(r.mean_grad_lift) ? signed(r.mean_grad_lift * 100, 2, " pts") : "—"}</td><td class="r">${isNum(r.false_positive_rate) ? pct(r.false_positive_rate) : "—"}</td></tr>`).join("")}</tbody></table>
           <p class="notes">Lift compares later launches in a narrative with all launches in the same window. Validation needs at least 30 favorable signals.</p>`
-          : `<p class="notes" style="margin:0">No backtest yet. It needs labelled outcomes, which start about 30 hours after collection begins.</p>`}
+          : `<p class="notes" style="margin:0">No backtest yet. It needs labelled outcomes, which start about 13 hours after collection begins (7h of baseline, then 6h for the first outcomes to mature).</p>`}
         <button class="btn" id="runbt" style="margin-top:12px">Run a 3-day backtest</button></div>
       <div><div class="sec-h"><h2>Display</h2></div><div class="modes">
         ${seg("Display mode", [["auto", "Auto"], ["premium", "Premium"], ["low", "Low visual"]], pref, "data-perf")}
