@@ -409,3 +409,13 @@ def test_image_hash_tolerates_reencoding_and_groups_different_names():
                        {"hash": a, "name": "frog king "}, {"hash": c, "name": "Other"}])
     assert len(g) == 1 and len(g[0]) == 3
     assert images.groups([{"hash": a, "name": "Same"}, {"hash": a, "name": "same"}]) == []
+
+
+def test_inferred_graduations_only_for_launches_the_replay_saw():
+    from radar.shrine import to_events
+    swap = {"protocol": "PUMPSWAP", "action": "buy", "mint": "Xpump", "timestamp": 5, "block": 1}
+    assert to_events(swap) == []
+    ev = to_events(swap, infer_graduations=True)[0]
+    assert ev["type"] == "complete" and ev["inferred"]
+    assert to_events({**swap, "mint": "So11111111111111111111111111111111111111112"}, True) == []
+    assert to_events({"protocol": "PUMPFUN", "action": "migrate", "mint": "Y", "timestamp": 3})[0]["type"] == "complete"

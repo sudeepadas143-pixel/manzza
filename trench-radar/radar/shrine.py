@@ -42,10 +42,22 @@ def hour_key(ts: int) -> str:
     return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y/%m/%d/%H")
 
 
-def to_events(d: dict) -> list[dict]:
-    """One archive line -> the stream's event dicts (pump.fun only)."""
+def to_events(d: dict, infer_graduations: bool = False) -> list[dict]:
+    """One archive line -> the stream's event dicts (pump.fun only).
+
+    Archive hours before about October 2026 carry few graduation events (2026-09-16 05:00 has
+    3 'migrate' lines against 55 'curveComplete' an hour in October). With infer_graduations,
+    a pump.fun mint's first trade on PumpSwap stands in for its graduation; the caller must
+    only accept that for tokens whose launch it saw, or old graduates would count again."""
+    if infer_graduations and d.get("protocol") == "PUMPSWAP" and d.get("action") in ("buy", "sell") \
+            and str(d.get("mint", "")).endswith("pump"):
+        return [{"type": "complete", "mint": d["mint"], "user": None, "bonding_curve": None,
+                 "ts": d.get("timestamp"), "slot": d.get("block"), "inferred": True}]
     if d.get("protocol") not in PROTOCOLS:
         return []
+    if d.get("action") == "migrate":
+        return [{"type": "complete", "mint": d["mint"], "user": d.get("txSigner"), "bonding_curve": None,
+                 "ts": d.get("timestamp"), "slot": d.get("block")}]
     act, ts, slot = d.get("action"), d.get("timestamp"), d.get("block")
     paired = d.get("quoteMint") in (None, WSOL)
     if act == "create":
@@ -72,17 +84,23 @@ def to_events(d: dict) -> list[dict]:
     return []
 
 
-def iter_hour(stream) -> "iter[dict]":
+def iter_hour(stream, infer_graduations: bool = False) -> "iter[dict]":
     """Events from an open binary zstd stream, pump.fun only, in archive order."""
     import zstandard
+    seen_swap: set = set()
     for line in io.TextIOWrapper(zstandard.ZstdDecompressor().stream_reader(stream), encoding="utf-8"):
         if '"PUMPFUN' not in line:          # cheap pre-filter: most lines are other DEXes
-            continue
+            if not (infer_graduations and '"PUMPSWAP"' in line and 'pump"' in line):
+                continue
         try:
             d = json.loads(line)
         except ValueError:
             continue
-        yield from to_events(d)
+        if d.get("protocol") == "PUMPSWAP":
+            if d.get("mint") in seen_swap:
+                continue
+            seen_swap.add(d.get("mint"))
+        yield from to_events(d, infer_graduations)
 
 
 def available_hours(client: httpx.Client) -> list[str]:
@@ -92,7 +110,8 @@ def available_hours(client: httpx.Client) -> list[str]:
 
 
 def backfill(con, hours: int = 0, live=None, client: httpx.Client | None = None, sol_usd: float | None = None,
-             *, start_hour: int | None = None, end_hour: int | None = None, simulate_live: bool = False) -> dict:
+             *, start_hour: int | None = None, end_hour: int | None = None, simulate_live: bool = False,
+             infer_graduations: bool = False) -> dict:
     """Replay complete archive hours into the database via the stream's own aggregation, then
     snapshot each hour at its end. Skips hours already replayed.
 
@@ -135,7 +154,11 @@ def backfill(con, hours: int = 0, live=None, client: httpx.Client | None = None,
             seen = start + 3600 + PUBLISH_DELAY_S     # when this hour became public
             n = launches = 0
             seen_trades: set = set()
-            for ev in iter_hour(raw):
+            for ev in iter_hour(raw, infer_graduations):
+                if ev.get("inferred"):
+                    ms_ = live.mints.get(ev["mint"])
+                    if not ms_ or ms_.created_at is None or ms_.graduated:
+                        continue                     # only tokens whose launch this replay saw
                 if ev["type"] == "trade":
                     key_ = (ev.get("slot"), ev["mint"], ev["user"], ev["tokens"], ev["is_buy"])
                     if key_ in seen_trades:

@@ -42,7 +42,8 @@ def build(path: Path, start: int, hours: int) -> None:
     con.executemany("INSERT INTO market_obs (observed_at, metric, value, source, detail) "
                     "VALUES (?, 'sol_price_usd', ?, 'defillama', 'historical')", sorted(prices.items()))
     con.execute("COMMIT")
-    stats = shrine.backfill(con, start_hour=first, end_hour=last, simulate_live=True, sol_usd=sol)
+    stats = shrine.backfill(con, start_hour=first, end_hour=last, simulate_live=True, sol_usd=sol,
+                            infer_graduations=True)
     logging.info("built %s: %s", path.name, stats)
     label(con)
 
