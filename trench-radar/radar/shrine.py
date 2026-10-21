@@ -118,9 +118,19 @@ def backfill(con, hours: int = 0, live=None, client: httpx.Client | None = None,
                 stats["skipped"] += 1
                 continue
             t0 = time.time()
-            with client.stream("GET", f"{BASE}/{key}.jsonl.zst", timeout=300) as r:
-                r.raise_for_status()
-                raw = io.BytesIO(r.read())
+            raw = None
+            for attempt in range(4):                 # large files: retry dropped transfers
+                try:
+                    with client.stream("GET", f"{BASE}/{key}.jsonl.zst", timeout=300) as r:
+                        r.raise_for_status()
+                        raw = io.BytesIO(r.read())
+                    break
+                except httpx.TransportError as exc:
+                    log.warning("shrine %s: %s; retrying", key, exc)
+                    time.sleep(5 * (attempt + 1))
+            if raw is None:
+                stats["skipped"] += 1
+                continue
             stats["bytes"] += raw.getbuffer().nbytes
             seen = start + 3600 + PUBLISH_DELAY_S     # when this hour became public
             n = launches = 0

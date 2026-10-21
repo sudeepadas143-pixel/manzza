@@ -38,6 +38,7 @@ def build(path: Path, start: int, hours: int) -> None:
     prices = corpus.sol_prices(first, last + H)
     sol = sum(prices.values()) / len(prices) if prices else None
     con.execute("BEGIN")
+    con.execute("DELETE FROM market_obs WHERE metric='sol_price_usd'")
     con.executemany("INSERT INTO market_obs (observed_at, metric, value, source, detail) "
                     "VALUES (?, 'sol_price_usd', ?, 'defillama', 'historical')", sorted(prices.items()))
     con.execute("COMMIT")
@@ -85,8 +86,7 @@ def main() -> None:
     results = {}
     for name, day in PERIODS.items():
         path, start = wd / f"shrine_{name}.db", int(day.timestamp())
-        if not path.exists():
-            build(path, start, a.hours)
+        build(path, start, a.hours)          # resumes: hours already replayed are skipped
         results[name] = run(path, start, a.hours)
     tune = results["tune"]
     # pick on the tuning period only: the variant whose accelerating metas beat the base rate most
