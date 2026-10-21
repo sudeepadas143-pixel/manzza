@@ -379,7 +379,7 @@ function renderLive() {
     </div>
     <div class="sec split">
       <div><div class="sec-h"><h2>Launch tape</h2><span class="note">newest 15; flags clone waves, serial creators and bundled launches</span></div>
-        <table class="tbl" id="tape"><thead><tr><th>Token</th><th class="r">When</th><th>Signals</th></tr></thead><tbody>
+        <table class="tbl tapetbl" id="tape"><thead><tr><th>Token</th><th class="r">When</th><th>Signals</th></tr></thead><tbody>
         ${d.launches.slice(0, 15).map((l, i) => `<tr data-l="${i}"><td><span class="tk"><b>${esc(l.symbol || short(l.mint))}</b><span>${esc(l.name || "")}</span></span></td>
           <td class="r">${secs(now - l.ts)} ago</td>
           <td><span class="flags">${[l.clones >= 2 ? flag("", `${l.clones} wallets, same name, 15 min`) : "", l.creator_launches_24h >= 3 ? flag("neg", `Creator's ${ordinal(l.creator_launches_24h)} launch today`) : "",

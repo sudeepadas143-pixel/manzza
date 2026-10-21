@@ -437,3 +437,5 @@ input[type="search"] { min-width: 260px; }
 .mtop .stat { white-space: nowrap; }
 .show-s { display: none; }
 @media (max-width: 819px) { .tk .show-s { display: block; font-size: 11.5px; white-space: normal; } }
+/* launch tape: signal flags wrap instead of widening the table on phones */
+.tapetbl td:last-child, .tapetbl .flag { white-space: normal; }
