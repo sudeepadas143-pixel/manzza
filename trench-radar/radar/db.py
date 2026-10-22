@@ -127,6 +127,20 @@ CREATE TABLE IF NOT EXISTS wallet_credits (      -- first-minute buyers of token
 CREATE INDEX IF NOT EXISTS ix_wallet_credits_at ON wallet_credits(at);
 CREATE INDEX IF NOT EXISTS ix_tokens_creator ON tokens(creator);
 
+CREATE TABLE IF NOT EXISTS token_narrative (    -- the first narrative (and its category) each coin joined
+  mint TEXT PRIMARY KEY, narrative_id INTEGER, label TEXT, category TEXT, at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_tn_cat ON token_narrative(category, at);
+CREATE TABLE IF NOT EXISTS token_summary (      -- each coin's first 24 hours, kept after snapshots are pruned
+  mint TEXT PRIMARY KEY, created_at INTEGER NOT NULL, creator TEXT, factory INTEGER,
+  narrative_id INTEGER, label TEXT, category TEXT,
+  peak_buyers_h1 INTEGER, peak_holders INTEGER, holders_end INTEGER,
+  peak_mcap_usd REAL, peak_liq_usd REAL, peak_net_sol_h1 REAL, max_progress REAL,
+  graduated INTEGER, graduated_at INTEGER, ret_max REAL, obs INTEGER, summarized_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_ts_created ON token_summary(created_at);
+CREATE INDEX IF NOT EXISTS ix_ts_cat ON token_summary(category, created_at);
+
 CREATE TABLE IF NOT EXISTS early_buyers (       -- first 20 distinct buyers of each token
   mint TEXT NOT NULL, wallet TEXT NOT NULL, ts INTEGER NOT NULL, sol REAL, rank INTEGER,
   PRIMARY KEY (mint, wallet)
@@ -233,7 +247,8 @@ def connect(path: Path | str) -> sqlite3.Connection:
                      ("smart_buyers_h1", "INTEGER"), ("dev_sold_sol", "REAL"),
                      ("labelled_buyers_h1", "INTEGER"), ("insider_buyers_h1", "INTEGER"),
                      ("launch_block_buyers", "INTEGER"), ("launch_block_pct", "REAL"),
-                     ("top10_pct", "REAL"), ("dev_holds_pct", "REAL"), ("sol_paired", "INTEGER")):
+                     ("top10_pct", "REAL"), ("dev_holds_pct", "REAL"), ("sol_paired", "INTEGER"),
+                     ("holders", "INTEGER")):
         if col not in have_cols:
             con.execute(f"ALTER TABLE token_obs ADD COLUMN {col} {typ}")
     have = con.execute("SELECT value FROM meta_info WHERE key='schema_version'").fetchone()

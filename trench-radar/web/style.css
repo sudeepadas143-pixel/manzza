@@ -707,3 +707,16 @@ details.more > .dsec:first-of-type { margin-top: var(--s3); }
 .recbox { margin-top: var(--s4); padding: 12px 14px; border: 1px solid var(--rule-2); }
 .ev small.rel { display: block; margin-top: 3px; font: 400 12px/1.4 var(--sans, inherit); color: var(--ink-3); }
 .ev small.rel.weak { color: var(--caution); }
+/* macro + intraday map */
+.cov-strip { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 0 0 18px; font: 400 12px/1.4 var(--mono); color: var(--ink-2); }
+.cov-strip b { color: var(--ink); font-weight: 500; margin-right: 6px; }
+.map-tbl td small { font-size: var(--t-cap); line-height: 1.35; }
+.map-tbl tr[data-cat] { cursor: pointer; }
+@media (hover: hover) and (pointer: fine) { .map-tbl tr[data-cat]:hover td { background: var(--paper-2, rgba(0,0,0,.03)); } }
+.link-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 14px; }
+.link-card { border-top: 2px solid var(--ink); padding: 10px 0 4px; }
+.link-card .label { display: flex; align-items: center; gap: 8px; }
+.link-card h4 { margin: 8px 0 6px; font: 400 20px/1.15 var(--display); text-transform: uppercase; letter-spacing: .02em; }
+.link-card .prose { margin: 0 0 6px; font-size: 15px; }
+.nar-row { padding: 8px 0; border-bottom: 1px dotted var(--rule-2); }
+.nar-row .coins { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }

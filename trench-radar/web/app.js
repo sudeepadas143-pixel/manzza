@@ -67,7 +67,7 @@ const Edition = {
 };
 
 // ---------------------------------------------------------------- api + state
-const S = { nar: null, narAsOf: null, metaView: "narratives", narSel: null, narState: "all", narCat: "all", ov: null, charts: {}, tokens: null, reports: null, report: null, range: 24, tab: "overview", sel: null,
+const S = { nar: null, map: null, narAsOf: null, metaView: "map", narSel: null, narState: "all", narCat: "all", ov: null, charts: {}, tokens: null, reports: null, report: null, range: 24, tab: "overview", sel: null,
   metaFilter: "all", metaSort: "edge", tok: { key: "vol_h1", dir: -1, filter: "all", q: "" }, cmp: null, error: null, lastOk: 0, sig: null };
 let token = null;
 try { token = localStorage.getItem("radar-token"); } catch (_) { /* ignore */ }
@@ -118,10 +118,10 @@ function schedule() { clearInterval(refreshTimer); refreshTimer = setInterval(()
 async function load({ quiet = false } = {}) {
   setBusy(true);
   try {
-    const [ov, ch, tk, nar] = await Promise.all([api("/api/overview"), api(`/api/charts?hours=${S.range}`), api("/api/tokens?limit=120"),
-      api("/api/narratives").catch(() => null)]);
-    S.nar = nar;
-    const sig = JSON.stringify([nar?.as_of, ov.as_of, ov.db, ov.metas.length, ch.launches.at(-1), ch.launches.length, tk.tokens.map((t) => t.observed_at).join()]);
+    const [ov, ch, tk, nar, map] = await Promise.all([api("/api/overview"), api(`/api/charts?hours=${S.range}`), api("/api/tokens?limit=120"),
+      api("/api/narratives").catch(() => null), api("/api/meta/map").catch(() => null)]);
+    S.nar = nar; S.map = map;
+    const sig = JSON.stringify([nar?.as_of, map?.as_of, ov.as_of, ov.db, ov.metas.length, ch.launches.at(-1), ch.launches.length, tk.tokens.map((t) => t.observed_at).join()]);
     const same = sig === S.sig;
     S.ov = ov; S.charts = { [S.range]: ch }; S.tokens = tk; S.error = null; S.lastOk = Date.now(); S.sig = sig;
     renderStatus();
@@ -445,11 +445,116 @@ function renderLive() {
 }
 
 // ================================================================ METAS: the atlas
-const VIEW_SEG = () => seg("View", [["narratives", "Atlas"], ["keywords", "Keyword scores"]], S.metaView, "data-view");
+const VIEW_SEG = () => seg("View", [["map", "Macro · Today"], ["narratives", "Atlas"], ["keywords", "Keyword scores"]], S.metaView, "data-view");
 function bindView() { $$("[data-view]", $("#tools")).forEach((b) => b.addEventListener("click", () => { S.metaView = b.dataset.view; renderMetas(); })); }
 function renderMetas() {
+  if (S.metaView === "map") return renderMap();
   if (S.metaView === "narratives") return renderNarratives();
   return renderKeywords();
+}
+// ---------------------------------------------------------------- macro + intraday map (analytics/macro.py)
+const MSTAT = { working: ["Working", "accelerating"], average: ["Average", "steady"], lagging: ["Lagging", "fading"],
+  "one coin": ["One coin", "heating"], insufficient: ["Too few coins", "steady"] };
+const ISTAT = { heating: ["Heating", "accelerating"], normal: ["Normal", "steady"], cooling: ["Cooling", "fading"], new: ["New", "new"] };
+const LKIND = { confirmed: ["Week and day agree", "accelerating"], "lagging new launches": ["New launches lagging", "heating"],
+  "new, no record": ["New, no record", "new"], "hot without a record": ["Busy, no record", "heating"], saturating: ["Saturating", "saturating"],
+  fading: ["Fading", "fading"], "quiet today": ["Quiet today", "steady"] };
+const xf = (v, d = 1) => (isNum(v) ? `${nf(v, d)}×` : "—");
+const chance = (p) => (isNum(p) ? `${pct(p)} chance` : "—");
+const TREND = { gaining: "▲ gaining", losing: "▼ losing", steady: "● steady", new: "○ new" };
+function coinBtn(c) { return `<button class="linkbtn" data-coin="${esc(c.mint)}">${esc(c.symbol ? "$" + c.symbol : c.name || short(c.mint))}</button>`; }
+function bindCoins(root) { $$("[data-coin]", root).forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); openToken(b.dataset.coin); })); }
+function renderMap() {
+  const el = $(".screen[data-screen=metas]"), M = S.map;
+  if (!M || M.pending) {
+    setHead("The weekly read is printing", esc(M?.note || "The macro and intraday views are computed every ten minutes."), VIEW_SEG(), "Macro · Today");
+    bindView();
+    el.innerHTML = `<div class="empty"><h3>Reading the week</h3><p>${esc(M?.note || "It appears a few minutes after start.")}</p></div>`;
+    return;
+  }
+  const W = M.macro.windows, w7 = W["7"] || {}, I = M.intraday, cats7 = w7.available ? w7.categories : [];
+  const working = cats7.filter((r) => r.status === "working"), heating = I.categories.filter((r) => r.status === "heating");
+  setHead(w7.available ? `${working.length ? `<em>${esc(working.slice(0, 2).map((r) => r.category).join(" and "))}</em> ${working.length > 2 ? `and ${working.length - 2} more ` : ""}worked this week.` : "No category clearly worked this week."} ${heating.length ? `${esc(heating[0].category)} is heating today.` : ""}`
+    : "Not a full week of history yet.",
+    `The week judges categories by how their coins ended up, best coin left out, against every coin launched in the same days. Today compares each category with its own usual day. ${M.check?.text_week ? esc(M.check.text_week) : ""}`,
+    VIEW_SEG(), "Macro · Today");
+  bindView();
+  const cov = ["7", "14", "30"].map((k) => { const w = W[k] || {}; return `<span class="cov-w ${w.available ? "" : "i3"}"><b>${k} days</b> ${w.available ? `${compact(w.coins)} coins · ${pct(w.coverage)} of hours collected` : `not enough history (${pct(w.coverage || 0)} of hours)`}</span>`; }).join("");
+  const r14 = Object.fromEntries(((W["14"] || {}).categories || []).map((r) => [r.category, r])), r30 = Object.fromEntries(((W["30"] || {}).categories || []).map((r) => [r.category, r]));
+  const macroRows = cats7.filter((r) => r.status !== "insufficient").slice(0, 14).map((r) => `<tr data-cat="${esc(r.category)}">
+      <td class="nmc"><span class="nm"><span>${esc(r.category)}</span></span><small>${esc(r.sentence || "")}</small></td>
+      <td><span class="stamp ${MSTAT[r.status][1]}">${esc(MSTAT[r.status][0])}</span></td>
+      <td class="r mono">${r.graduated}<span class="i4">/${compact(r.coins)}</span></td>
+      <td class="r mono">${xf(r.grad.ratio_ex_best)}<small class="i4" style="display:block">${xf(r.grad.low_ex_best)}–${xf(r.grad.high)}</small></td>
+      <td class="r hide-s">${r.independent_successes}</td>
+      <td class="hide-s i2" style="white-space:nowrap">${esc(TREND[r.trend] || "—")}</td>
+      <td class="hide-m i2">${esc(r.crowding || "—")}</td>
+      <td class="r hide-m mono i3">${xf(r14[r.category]?.grad.ratio_ex_best)} / ${xf(r30[r.category]?.grad.ratio_ex_best)}</td></tr>`).join("");
+  const thin = cats7.filter((r) => r.status === "insufficient").map((r) => r.category);
+  const todayRows = I.categories.slice(0, 12).map((r) => `<tr data-cat="${esc(r.category)}">
+      <td class="nmc"><span class="nm"><span>${esc(r.category)}</span></span><small>${r.new_narratives.length ? `new: ${esc(r.new_narratives.slice(0, 2).join(", "))}` : r.crowding_narratives.length ? `crowding: ${esc(r.crowding_narratives.slice(0, 2).join(", "))}` : `${r.narratives_live} narratives live`}</small></td>
+      <td><span class="stamp ${ISTAT[r.status][1]}">${esc(ISTAT[r.status][0])}</span></td>
+      <td class="r mono">${compact(r.buyers_now)}<small class="i4" style="display:block">${isNum(r.demand_vs_usual) ? `${xf(r.demand_vs_usual)} usual` : "no usual yet"}</small></td>
+      <td class="r mono">${r.graduations_24h}<small class="i4" style="display:block">${isNum(r.graduations_usual_per_day) ? `usual ${nf(r.graduations_usual_per_day, 1)}` : "—"}</small></td>
+      <td class="r hide-s">${r.coins_with_buyers}<small class="i4" style="display:block">${isNum(r.top_coin_share) ? `top ${pct(r.top_coin_share)}` : ""}</small></td></tr>`).join("");
+  const links = (M.links || []).slice(0, 10).map((l) => `<article class="link-card">
+      <div class="label"><span class="stamp ${LKIND[l.kind][1]}">${esc(LKIND[l.kind][0])}</span>${l.category ? `<button class="linkbtn" data-cat="${esc(l.category)}" style="margin-left:auto">${esc(l.category)} →</button>` : ""}</div>
+      <h4>${esc(l.title)}</h4>${l.detail.map((t) => `<p class="prose">${esc(t)}</p>`).join("")}
+      ${l.against?.length ? `<p class="notes"><b>Against it:</b> ${esc(l.against.join(" "))}</p>` : ""}</article>`).join("");
+  const C = M.comovement || {};
+  const pairs = (C.pairs || []).map((p) => `<li><span class="g">↔</span><span><b>${esc(p.a)}</b> and <b>${esc(p.b)}</b> moved together beyond the market (correlation ${nf(p.r, 2)} over ${p.hours} hours)${isNum(p.shared_early_buyers) ? `; ${p.shared_early_buyers} early-buyer wallets in common (${pct(p.early_buyer_overlap, 1)} overlap)` : ""}${p.shared_x_posts ? `; ${p.shared_x_posts} X posts cited by coins in both` : ""}.</span></li>`).join("");
+  const stand = (I.standouts || []).slice(0, 8).map((c) => `<li><span class="g">★</span><span>${coinBtn(c)} has ${compact(c.buyers_h1)} buyers in the last hour, ${xf(c.times_narrative_median, 0)} the typical coin in “${esc(c.narrative)}” (${esc(c.category || "uncategorised")}).</span></li>`).join("");
+  const ck = M.check;
+  el.innerHTML = `
+    <div class="cov-strip">${cov}</div>
+    <div class="g12 map-split">
+      <section class="span-7"><div class="slug"><h3 class="h3">This week · Macro</h3><span class="note">coins launched in the last 7 days, judged after their first day</span></div>
+        ${w7.available ? `<table class="tbl static wrap map-tbl"><thead><tr><th>Category</th><th>Status</th><th class="r">Graduated</th><th class="r">Vs market<small style="display:block;text-transform:none">best coin left out</small></th><th class="r hide-s">Creators</th><th class="hide-s">Trend</th><th class="hide-m">Crowding</th><th class="r hide-m">14d / 30d</th></tr></thead><tbody>${macroRows}</tbody></table>
+          <p class="notes">Graduated counts coins that filled their bonding curve within a day, not in their first minute (a creator buying out the curve). “Vs market” is how often its coins graduate against all coins in the same days, with the single best coin left out; the small figures are the 80% range. ${thin.length ? `Too few coins to judge: ${esc(thin.slice(0, 6).join(", "))}${thin.length > 6 ? "…" : ""}.` : ""} ${M.popularity_vs_success ? esc(M.popularity_vs_success.text) : ""}</p>`
+          : `<div class="empty"><h3>Not a week yet</h3><p>${esc((M.macro.notes || []).join(" ") || "The weekly view needs seven days of collection.")}</p></div>`}</section>
+      <section class="span-5 colrule"><div class="slug"><h3 class="h3">Today · Intraday</h3><span class="note">now against each category's usual day</span></div>
+        ${I.categories.length ? `<table class="tbl static wrap map-tbl"><thead><tr><th>Category</th><th>Now</th><th class="r">Buyers 1h</th><th class="r">Grads 24h</th><th class="r hide-s">Coins 20+</th></tr></thead><tbody>${todayRows}</tbody></table>`
+          : `<div class="empty"><p>${esc((I.notes || []).join(" ") || "No narrative read yet.")}</p></div>`}
+        ${stand ? `<div class="slug thin" style="margin-top:18px"><h3 class="h3">Coins outrunning their narrative</h3></div><ul class="ev">${stand}</ul>` : ""}
+        ${(I.notes || []).length ? `<p class="notes">${esc(I.notes.join(" "))}</p>` : ""}</section>
+    </div>
+    <section class="sect"><div class="slug"><h3 class="h3">How today connects to the week</h3><span class="note">where they agree, and where today breaks from the trend</span></div>
+      ${links ? `<div class="link-grid">${links}</div>` : `<p class="dek2">No category shows a clear link or break between its week and today yet.</p>`}</section>
+    <section class="sect g12">
+      <div class="span-7"><div class="slug thin"><h3 class="h3">Moving together</h3><span class="note">${C.tested ? `${C.tested} pairs tested over ${C.hours} hours` : ""}</span></div>
+        ${pairs ? `<ul class="ev">${pairs}</ul>` : `<p class="dek2">${esc(C.note && !C.tested ? C.note : "No pair of categories moved together beyond what the whole market did.")}</p>`}
+        ${C.tested ? `<p class="notes">${esc(C.note)}</p>` : ""}</div>
+      <div class="span-5 colrule"><div class="slug thin"><h3 class="h3">How much to trust this</h3></div>
+        ${ck ? [ck.text_week, ck.text_working, ck.text_heating].filter(Boolean).map((t) => `<p class="prose" style="margin:0 0 10px">${esc(t)}</p>`).join("") + `<p class="notes">${esc(ck.source)}. These describe what has been working; they are not forecasts.</p>` : `<p class="dek2">Not yet measured.</p>`}</div>
+    </section>`;
+  $$("[data-cat]", el).forEach((b) => b.addEventListener("click", () => openCategory(b.dataset.cat)));
+  bindCoins(el);
+}
+function openCategory(cat) {
+  const M = S.map, W = M.macro.windows, I = (M.intraday.categories || []).find((r) => r.category === cat);
+  const rows = ["7", "14", "30"].map((k) => [k, ((W[k] || {}).categories || []).find((r) => r.category === cat), W[k] || {}]);
+  const r7 = rows[0][1], ls = (M.links || []).filter((l) => l.category === cat);
+  const nars = (M.intraday.narratives || []).filter((n) => n.category === cat);
+  const beta = M.comovement?.market_correlation?.[cat];
+  const body = `
+    <header class="prof-head"><div class="cat label">${r7 ? `<span class="stamp ${MSTAT[r7.status][1]}">${esc(MSTAT[r7.status][0])} this week</span>` : ""}${I ? `<span class="i3" style="margin:0 10px">·</span><span class="stamp ${ISTAT[I.status][1]}">${esc(ISTAT[I.status][0])} today</span>` : ""}<span style="margin-left:auto">category</span></div>
+      <h2>${esc(cat)}</h2><p class="dek">${esc(r7?.sentence || "Not enough coins this week to judge its record.")}</p></header>
+    ${ls.map((l) => `<div class="dsec"><h3>${esc(LKIND[l.kind][0])}</h3><p class="prose" style="margin:0 0 6px"><b>${esc(l.title)}.</b></p>${l.detail.map((t) => `<p class="prose" style="margin:0 0 6px">${esc(t)}</p>`).join("")}${l.against?.length ? `<p class="notes"><b>Against it:</b> ${esc(l.against.join(" "))}</p>` : ""}</div>`).join("")}
+    <div class="dsec"><h3>Its record<span class="note">coins judged after their first day</span></h3>
+      <table class="tbl static wrap"><thead><tr><th>Window</th><th class="r">Coins</th><th class="r">Graduated</th><th class="r">Vs market</th><th class="r">Best coin left out</th><th class="r hide-s">Creators behind successes</th><th class="r hide-s">Drew 50+ buyers</th></tr></thead><tbody>
+      ${rows.map(([k, r, w]) => r ? `<tr><td>${k} days</td><td class="r mono">${compact(r.coins)}</td><td class="r mono">${r.graduated}</td><td class="r mono">${xf(r.grad.ratio)}<small class="i4" style="display:block">${xf(r.grad.low)}–${xf(r.grad.high)}</small></td><td class="r mono">${xf(r.grad.ratio_ex_best)}</td><td class="r hide-s">${r.independent_successes}</td><td class="r hide-s">${r.drew_buyers}</td></tr>`
+        : `<tr><td>${k} days</td><td colspan="6" class="i3">${w.available === false ? `not enough history (${pct(w.coverage || 0)} of hours collected)` : "no coins in this category"}</td></tr>`).join("")}</tbody></table>
+      ${r7 ? `<p class="notes">This week vs last: ${r7.trend === "new" ? "no comparable week before" : `${chance(r7.vs_last_week)} it did better than last week`}. Newest 3 days vs the 4 before: ${chance(r7.newer_vs_older)} the newer coins did better. Launches ${nf(r7.launches_prior_4d_per_day, 0)} → ${nf(r7.launches_last_3d_per_day, 0)} a day (${esc(r7.crowding)}). Successes on ${r7.days_with_success} of 7 days. Its best coin took ${isNum(r7.top_coin_buyer_share) ? pct(r7.top_coin_buyer_share) : "—"} of the category's peak buying. Successful coins peaked at a median ${usd(r7.median_peak_mcap_successes)} market cap and ${compact(r7.median_peak_buyers_successes)} buyers an hour${isNum(r7.median_holder_retention) ? `; ${pct(r7.median_holder_retention)} of peak holders were still holding at the end of the first day (${r7.holder_data_coins} coins with holder data)` : "; holder counts are not available for these coins yet"}.</p>` : ""}</div>
+    ${r7?.narratives?.length ? `<div class="dsec"><h3>Narratives that produced its successes<span class="note">this week</span></h3>
+      ${r7.narratives.map((n) => `<div class="nar-row"><div><b>${esc(n.label)}</b> <span class="i3">· ${n.graduated} graduated, ${n.drew_buyers} drew 50+ buyers, from ${n.coins} coins and ${n.independent_successes} creator(s)</span></div>
+        <div class="coins">${n.coins_succeeding.map((c) => `${coinBtn(c)}<small class="i4">${c.graduated ? "graduated" : `${compact(c.peak_buyers_h1)} buyers/h`}</small>`).join(" ")}</div></div>`).join("")}</div>` : ""}
+    ${I ? `<div class="dsec"><h3>Today<span class="note">against its usual day</span></h3>
+      <p class="prose" style="margin:0 0 8px">${compact(I.buyers_now)} buyers in the last hour across ${I.narratives_live} live narratives${isNum(I.demand_vs_usual) ? ` (${xf(I.demand_vs_usual)} its usual)` : ""}; ${I.coins_with_buyers} coins with 20+ buyers${isNum(I.top_coin_share) ? `, the top one with ${pct(I.top_coin_share)} of the buying` : ""}. ${I.graduations_24h} graduations in 24 hours${isNum(I.graduations_usual_per_day) ? ` against about ${nf(I.graduations_usual_per_day, 1)} on a usual day${I.graduation_surprise < 0.05 ? " — unusually many" : ""}` : ""}. ${I.launches_6h} coins launched in 6 hours${isNum(I.launches_usual_6h) ? ` (usual ${nf(I.launches_usual_6h, 0)})` : ""}.</p>
+      ${isNum(beta) ? `<p class="notes">Its hour-to-hour swings line up with the rest of the market at a correlation of ${nf(beta, 2)} (${beta >= 0.6 ? "it mostly rides the market" : beta >= 0.3 ? "partly its own moves" : "it mostly moves on its own"}).</p>` : ""}</div>` : ""}
+    ${nars.length ? `<div class="dsec"><h3>Its narratives now</h3><table class="tbl static wrap"><thead><tr><th>Narrative</th><th>State</th><th class="r">Buyers 1h</th><th>Leading coins</th></tr></thead><tbody>
+      ${nars.slice(0, 10).map((n) => `<tr><td>${esc(n.title)}<small class="i4" style="display:block">${n.age_h < 24 ? `new · ${nf(n.age_h, 0)} h old` : `${nf(n.age_h / 24, 1)} days old`}</small></td><td>${Viz.stamp(n.state)}</td><td class="r mono">${compact(n.buyers_h1)}</td><td>${n.coins.slice(0, 3).map((c) => `${coinBtn(c)}<small class="i4"> ${compact(c.buyers_h1)}</small>`).join(" ")}</td></tr>`).join("")}</tbody></table></div>` : ""}
+    <p class="attr">Read ${esc(dayhm(M.as_of))}. Coins by launch factories (10+ launches in 7 hours) are left out throughout.</p>`;
+  openSheet("Category", esc(cat), body, (root) => bindCoins(root));
 }
 function atlasHeadline(all) {
   const em = all.filter((n) => Viz.life(n.state) === "emerging"), nov = all.filter((n) => !n.category?.primary);

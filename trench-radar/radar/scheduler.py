@@ -18,6 +18,7 @@ log = logging.getLogger("radar.scheduler")
 class State:
     last_result: dict | None = None
     narratives: dict | None = None
+    meta_map: dict | None = None
 
 
 async def narratives_job(ctx: c.Ctx) -> None:
@@ -38,6 +39,23 @@ async def narratives_job(ctx: c.Ctx) -> None:
              len(n["narratives"]), n["launches_considered"], n["factory_launches_excluded"])
 
 
+async def metamap_job(ctx: c.Ctx) -> None:
+    """Summarise matured coins, then read the macro and intraday meta views (analytics/macro.py)
+    on a separate connection in a thread."""
+    from .analytics import macro
+    from .db import connect, now
+
+    def go():
+        con = connect(ctx.s.db_path)
+        try:
+            macro.backfill_token_narrative(con)
+            macro.summarize(con, now(), limit=20000)
+            return macro.read(con, now(), State.narratives)
+        finally:
+            con.close()
+    State.meta_map = await asyncio.to_thread(go)
+
+
 async def analyze_and_alert(ctx: c.Ctx) -> None:
     result = run_analysis(ctx.con, persist=True)
     State.last_result = result
@@ -50,7 +68,7 @@ def jobs(ctx: c.Ctx) -> dict:
     return {
         "solprice": c.collect_sol_price, "attention": c.collect_attention, "macro": c.collect_macro,
         "social": c.collect_social, "analyze": analyze_and_alert, "outcomes": c.label_outcomes,
-        "bitquery": c.collect_bitquery, "narratives": narratives_job,
+        "bitquery": c.collect_bitquery, "narratives": narratives_job, "metamap": metamap_job,
     }
 
 
@@ -117,13 +135,13 @@ async def run_forever(ctx: c.Ctx) -> None:
         if intervals.get("xposts", 1):
             tasks.append(asyncio.create_task(stream.run_xposts(ctx)))
     # stagger start so jobs that feed analysis run first
-    order = ["solprice", "macro", "attention", "social", "bitquery", "analyze", "narratives", "outcomes"]
+    order = ["solprice", "macro", "attention", "social", "bitquery", "analyze", "narratives", "metamap", "outcomes"]
     fns = jobs(ctx)
     for i, name in enumerate(order):
         every = intervals.get(name, 0)
         if every <= 0:
             continue
-        delay = {"analyze": 150, "narratives": 200, "outcomes": 300}.get(name, i * 5)
+        delay = {"analyze": 150, "narratives": 200, "metamap": 260, "outcomes": 300}.get(name, i * 5)
         tasks.append(asyncio.create_task(_loop(name, fns[name], ctx, every, delay)))
     tasks.append(asyncio.create_task(_reports(ctx)))
     log.info("scheduler started: %s", {k: v for k, v in intervals.items() if v})

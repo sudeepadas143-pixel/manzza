@@ -198,6 +198,15 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
                 "attention": boosts, "launch_window": early.latest(con, mint),
                 "launch_model": early.model_card()}
 
+    @app.get("/api/meta/map")
+    async def meta_map():
+        """Macro (7/14/30 days) and intraday meta views and how they connect (analytics/macro.py);
+        computed by the scheduler every 10 minutes."""
+        m = State.meta_map
+        if m is None:
+            return {"pending": True, "note": "The first macro and intraday read runs a few minutes after start."}
+        return m
+
     @app.get("/api/narratives")
     async def narratives_now():
         """Latest narrative read (computed by the scheduler every 5 minutes)."""

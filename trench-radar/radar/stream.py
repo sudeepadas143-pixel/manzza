@@ -429,6 +429,8 @@ class Live:
                     "launch_block_buyers": len(ms.block_buyers) if ms.create_slot is not None else None,
                     "launch_block_pct": round(ms.block_tokens / SUPPLY, 4) if ms.create_slot is not None else None,
                     "top10_pct": self.top10(ms), "dev_holds_pct": self.dev_holds(ms),
+                    # wallets holding it now (zero balances are dropped as trades arrive)
+                    "holders": len(ms.holdings) if ms.create_slot is not None else None,
                     "sol_paired": int(ms.sol_paired)})
                 if ms.real_tokens is not None:
                     insert(con, "curve_obs", {
@@ -897,3 +899,6 @@ def prune(con, keep_obs_days: int = 21, keep_early_days: int = 30) -> None:
     con.execute("DELETE FROM early_buyers WHERE ts < ?", (t - keep_early_days * 86400,))
     con.execute("DELETE FROM token_early WHERE launched_at < ?", (t - keep_early_days * 86400,))
     con.execute("DELETE FROM wallet_credits WHERE at < ?", (t - 2 * keep_early_days * 86400,))
+    # per-coin summaries feed the 30-day meta view; three times that is plenty
+    con.execute("DELETE FROM token_summary WHERE created_at < ?", (t - 90 * 86400,))
+    con.execute("DELETE FROM token_narrative WHERE at < ?", (t - 90 * 86400,))

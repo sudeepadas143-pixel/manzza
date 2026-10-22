@@ -727,6 +727,9 @@ def _persist(con, out: list[dict], as_of: int, emb, np, events: list[dict]) -> N
                 cur = con.execute("INSERT INTO narrative_categories (label, centroid, created_at, seed) VALUES (?,?,?,0)",
                                   (n["label"], blob, as_of))
                 cat.update(primary=n["label"], emergent=True, emergent_id=cur.lastrowid, novel=False, created_now=True)
+            # each coin's first narrative and category, kept for the macro view (analytics/macro.py)
+            con.executemany("INSERT OR IGNORE INTO token_narrative (mint, narrative_id, label, category, at) VALUES (?,?,?,?,?)",
+                            [(m, n["id"], n["label"], cat.get("primary"), as_of) for m in n["_members"]])
         for e in events:
             insert(con, "narrative_events", {"at": as_of, "kind": e["kind"], "detail": json.dumps(e)})
         con.execute("UPDATE narratives SET status='ended' WHERE status='active' AND last_seen < ?", (as_of - 12 * H,))
