@@ -37,6 +37,11 @@ jobs:
             Start-Sleep 2
             try { if ((Invoke-WebRequest http://127.0.0.1:8899/ -UseBasicParsing).Content -match "TRENCH//RADAR") { $ok = $true; break } } catch {}
           }
+          # the fitted models must be live in the exe, not silently off
+          if ($ok) {
+            $ov = (Invoke-WebRequest http://127.0.0.1:8899/api/overview -UseBasicParsing).Content | ConvertFrom-Json
+            if (-not $ov.edge_model) { Write-Host "launch-edge model is not loaded in the exe"; $ok = $false }
+          }
           Stop-Process $p -Force -ErrorAction SilentlyContinue
           if (-not $ok) {
             Write-Host "---- exe stdout ----"; Get-Content "$env:RUNNER_TEMP\exe-out.txt" -ErrorAction SilentlyContinue | Select-Object -Last 60

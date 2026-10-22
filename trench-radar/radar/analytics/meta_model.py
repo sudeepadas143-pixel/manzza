@@ -14,8 +14,10 @@ from pathlib import Path
 
 try:     # the app must start even if numpy cannot load (frozen builds); the edge model is then off
     import numpy as np
-except Exception:  # noqa: BLE001
+    NUMPY_ERROR = None
+except Exception as e:  # noqa: BLE001
     np = None
+    NUMPY_ERROR = f"{type(e).__name__}: {e}"
 
 MODEL_PATH = Path(__file__).resolve().parent.parent / "data" / "meta_model.json"
 

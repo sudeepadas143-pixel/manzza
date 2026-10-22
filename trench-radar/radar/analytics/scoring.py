@@ -19,6 +19,10 @@ MODEL_VERSION = "v1-priors-2026-10"
 WEIGHTS = {"attention": 0.25, "demand": 0.35, "market": 0.15, "freshness": 0.25}
 H = 3600
 EDGE_MODEL = mm.EdgeModel.load()   # launch-edge ranking (docs/RESEARCH_META.md); None = readiness order only
+if EDGE_MODEL is None:
+    import logging
+    logging.getLogger(__name__).warning("launch-edge model not loaded (%s); metas keep the readiness order",
+                                        mm.NUMPY_ERROR or f"no readable {mm.MODEL_PATH.name}")
 
 
 def _wavg(parts: dict[str, tuple[float | None, float]]) -> tuple[float | None, dict]:
