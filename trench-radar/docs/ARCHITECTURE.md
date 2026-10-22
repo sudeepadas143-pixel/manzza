@@ -42,6 +42,29 @@ unlicensed or "all rights reserved" repositories was not copied. open_clip was n
 (PyTorch and an image download per launch are too heavy for a desktop app), and PumpArchive's
 API is offline.
 
+### Narrative intelligence (2026-10-22)
+
+`radar/analytics/narratives.py`, every 5 minutes on its own connection, as of a point in time:
+
+1. **Documents.** Each launch from the last 6 hours (factory creators left out) becomes
+   "name (ticker)", plus its description when it says more than launchpad boilerplate, plus the
+   text of the X post it links to. Post text and pictures count only if fetched by `as_of`.
+2. **Grouping.** MiniLM embeddings, leader clustering (most-bought launches seed first), then
+   hard links: same X post, same picture (difference hash ≤ 6 bits), same name. A narrative
+   needs 3+ launches from 2+ creators. Each grouping reason is counted and shown.
+3. **Labels and categories.** Class-based TF-IDF picks the words that set a group apart. The
+   category is the closest of 11 written category descriptions by meaning; a narrative near
+   none of them is "novel", and once it reaches 5+ launches from 3+ creators its centre is
+   stored as a new category that later narratives can match.
+4. **Identity over time.** Each run's narratives are matched to the active ones by centre
+   similarity; two old ones joining is a merge, one old one feeding two is a split. History
+   (`narrative_obs`) gives growth, persistence and novelty against earlier narratives.
+5. **Assessment.** Popularity (launches, creators), traction (non-bot buyers, buyers per launch,
+   net SOL) and saturation (copycat share, buyers per launch falling, top-token concentration,
+   bundles, insiders, creator dumps) are computed separately. The state comes from these with
+   its reasons listed; the drivers name the post, account, picture or wallets behind it.
+   Opportunity is not scored: see `docs/RESEARCH_NARRATIVES.md`.
+
 ## 3. Architecture
 
 ```

@@ -193,6 +193,22 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
                 "deployer": dep, "outcomes": outcome,
                 "attention": boosts}
 
+    @app.get("/api/narratives")
+    async def narratives_now():
+        """Latest narrative read (computed by the scheduler every 5 minutes)."""
+        n = State.narratives
+        if n is not None:
+            return {**n, "narratives": n["narratives"][:80], "total": len(n["narratives"])}
+        if n is None:
+            return {"pending": True, "narratives": [], "parents": [], "events": [],
+                    "note": "The first narrative read runs a few minutes after start."}
+        return n
+
+    @app.get("/api/narratives/{nid}/history")
+    async def narrative_history(nid: int):
+        return rows(con, """SELECT observed_at, launches_6h, creators_6h, buyers_h1, buyers_per_launch, net_sol_h1, state
+                            FROM narrative_obs WHERE narrative_id=? ORDER BY observed_at""", (nid,))
+
     @app.get("/api/live")
     async def live():
         """What the chain stream is seeing right now (in memory, updated per event)."""

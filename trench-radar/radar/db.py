@@ -75,6 +75,23 @@ CREATE TABLE IF NOT EXISTS curve_obs (
 );
 CREATE INDEX IF NOT EXISTS ix_curve_mint ON curve_obs(mint, observed_at);
 
+CREATE TABLE IF NOT EXISTS narratives (         -- narrative identities tracked across runs
+  id INTEGER PRIMARY KEY, label TEXT, centroid BLOB, category TEXT,
+  first_seen INTEGER NOT NULL, last_seen INTEGER NOT NULL, status TEXT NOT NULL   -- active | ended
+);
+CREATE TABLE IF NOT EXISTS narrative_obs (
+  id INTEGER PRIMARY KEY, narrative_id INTEGER NOT NULL, observed_at INTEGER NOT NULL,
+  launches_6h INTEGER, creators_6h INTEGER, buyers_h1 INTEGER, buyers_per_launch REAL, net_sol_h1 REAL,
+  state TEXT, members TEXT                        -- JSON list of mints at that time (for research)
+);
+CREATE INDEX IF NOT EXISTS ix_nobs ON narrative_obs(narrative_id, observed_at);
+CREATE TABLE IF NOT EXISTS narrative_categories ( -- categories created from novel narratives
+  id INTEGER PRIMARY KEY, label TEXT NOT NULL, centroid BLOB NOT NULL, created_at INTEGER NOT NULL, seed INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS narrative_events (     -- merges and splits
+  id INTEGER PRIMARY KEY, at INTEGER NOT NULL, kind TEXT NOT NULL, detail TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS token_images (       -- perceptual hash of a token's image (images.py)
   mint TEXT PRIMARY KEY, hash INTEGER, fetched_at INTEGER NOT NULL, status TEXT NOT NULL
 );

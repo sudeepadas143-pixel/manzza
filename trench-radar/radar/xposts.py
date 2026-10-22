@@ -7,7 +7,8 @@ No API key and no X account. Two public, read-only endpoints, checked 2026-10-21
                                            author's follower count and as a fallback
 (publish.twitter.com/oembed redirects; api.vxtwitter.com is behind a Cloudflare challenge.)
 Neither is a supported API: either can change or rate-limit without notice, so failures are
-recorded and skipped. Only posts linked by 2+ launches are fetched, a handful per hour.
+recorded and skipped. Only posts linked by 2+ launches, or by a token with 5+ buyers in an hour,
+are fetched: a few dozen an hour.
 
 Post text also goes into social_posts (source 'x_linked'), so narrative detection sees the
 words of the posts coins are being launched about. That is a narrow sample of X (only posts

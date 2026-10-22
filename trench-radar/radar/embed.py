@@ -39,7 +39,7 @@ class Embedder:
         self.np = np
         self.tok = Tokenizer.from_file(str(model_dir / "tokenizer.json"))
         self.tok.enable_padding(pad_id=0, pad_token="[PAD]")
-        self.tok.enable_truncation(max_length=32)
+        self.tok.enable_truncation(max_length=96)    # names are short; linked post text needs more
         opts = ort.SessionOptions()
         opts.intra_op_num_threads = 2            # stay light next to the collector
         self.sess = ort.InferenceSession(str(model_dir / "model.onnx"), opts, providers=["CPUExecutionProvider"])
@@ -61,11 +61,18 @@ class Embedder:
             out = self.sess.run(None, {k: v for k, v in feeds.items() if k in self.inputs})[0]
             v = (out * am[..., None]).sum(1) / np.maximum(am.sum(1, keepdims=True), 1)
             v = v / np.linalg.norm(v, axis=1, keepdims=True)
-            for t, row in zip(todo, v):
-                self.cache[t] = row
-            if len(self.cache) > 20000:
+            if len(self.cache) + len(todo) > 60000:
                 self.cache.clear()
-        return np.stack([self.cache[t] for t in texts])
+            for t, row in zip(todo, v):
+                self.cache[t] = row.astype(np.float16)    # 768 bytes per text
+        return np.stack([self.cache[t] for t in texts]).astype(np.float32)
+
+    def embed_many(self, texts: list[str], batch: int = 256):
+        """Embed in batches (long lists would build one huge padded tensor)."""
+        np = self.np
+        if not texts:
+            return np.zeros((0, 384), dtype=np.float32)
+        return np.concatenate([self.embed(texts[i:i + batch]) for i in range(0, len(texts), batch)])
 
 
 def ensure_model(model_dir: Path, http_get=None) -> bool:

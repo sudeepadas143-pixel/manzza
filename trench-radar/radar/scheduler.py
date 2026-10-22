@@ -17,6 +17,25 @@ log = logging.getLogger("radar.scheduler")
 
 class State:
     last_result: dict | None = None
+    narratives: dict | None = None
+
+
+async def narratives_job(ctx: c.Ctx) -> None:
+    """Read the narratives (analytics/narratives.py) on a separate connection in a thread:
+    embedding a few thousand new launch documents takes seconds of CPU."""
+    from .analytics import narratives
+    from .db import connect, now
+
+    def go():
+        con = connect(ctx.s.db_path)
+        try:
+            return narratives.build(con, now(), persist=True)
+        finally:
+            con.close()
+    State.narratives = await asyncio.to_thread(go)
+    n = State.narratives
+    log.info("narratives: %d read from %d launches (%d factory launches left out)",
+             len(n["narratives"]), n["launches_considered"], n["factory_launches_excluded"])
 
 
 async def analyze_and_alert(ctx: c.Ctx) -> None:
@@ -31,7 +50,7 @@ def jobs(ctx: c.Ctx) -> dict:
     return {
         "solprice": c.collect_sol_price, "attention": c.collect_attention, "macro": c.collect_macro,
         "social": c.collect_social, "analyze": analyze_and_alert, "outcomes": c.label_outcomes,
-        "bitquery": c.collect_bitquery,
+        "bitquery": c.collect_bitquery, "narratives": narratives_job,
     }
 
 
@@ -98,13 +117,13 @@ async def run_forever(ctx: c.Ctx) -> None:
         if intervals.get("xposts", 1):
             tasks.append(asyncio.create_task(stream.run_xposts(ctx)))
     # stagger start so jobs that feed analysis run first
-    order = ["solprice", "macro", "attention", "social", "bitquery", "analyze", "outcomes"]
+    order = ["solprice", "macro", "attention", "social", "bitquery", "analyze", "narratives", "outcomes"]
     fns = jobs(ctx)
     for i, name in enumerate(order):
         every = intervals.get(name, 0)
         if every <= 0:
             continue
-        delay = {"analyze": 150, "outcomes": 300}.get(name, i * 5)
+        delay = {"analyze": 150, "narratives": 200, "outcomes": 300}.get(name, i * 5)
         tasks.append(asyncio.create_task(_loop(name, fns[name], ctx, every, delay)))
     tasks.append(asyncio.create_task(_reports(ctx)))
     log.info("scheduler started: %s", {k: v for k, v in intervals.items() if v})

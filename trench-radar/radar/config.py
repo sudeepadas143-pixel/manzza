@@ -154,6 +154,7 @@ def load_settings(env_file: Path | None = None) -> Settings:
             "macro": _int("EVERY_MACRO_S", 3600),          # DefiLlama launchpad volume
             "social": _int("EVERY_SOCIAL_S", 1800),        # X / Reddit (X is billed per post read)
             "analyze": _int("EVERY_ANALYZE_S", 180),       # metas + scores + alerts
+            "narratives": _int("EVERY_NARRATIVES_S", 300), # narrative intelligence (needs the model)
             "outcomes": _int("EVERY_OUTCOMES_S", 1800),    # label matured tokens
         },
         report_times_utc=split(e("REPORT_TIMES_UTC", "08:00|20:00")),

@@ -208,10 +208,13 @@ sends is discarded. `LIVE_STREAM=0` turns it off (and with it most of the app). 
 4. **Unique buyers are per-token.** Meta totals sum per-token unique buyers, so a wallet
    that buys three tokens in a meta counts three times. Wash trading and bundled buys
    also inflate these counts.
-5. **Meta detection is lexical.** It works on terms in names, symbols and posts, with
-   concatenated-name splitting and co-occurrence merging. Image-only or inside-joke
-   metas that share no words are missed. This is deliberate, because it keeps every
-   detection explainable.
+5. **Two meta reads.** The keyword scores (Metas → Keyword scores) work on terms in names,
+   symbols and posts and drive the readiness score. The narrative read (Metas → Narratives)
+   groups by meaning with a small English language model: it links "kimchi dog" to "korean
+   shiba" and tokens citing the same post, but it can merge unrelated jokes that use similar
+   words, it reads non-English names poorly, pictures only match when they are the same
+   image, and category names come from similarity to written descriptions, so a call can
+   be wrong (each shows its match score). Neither read's states are a tested profit signal.
 6. **Social signals are manipulable.** Copy-paste fingerprints and new-account filters
    catch crude shilling, not paid KOL campaigns. Sentiment is a lexicon, not a model.
 7. **Net flow.** Without Bitquery, "net flow" is the buy/sell count balance plus the

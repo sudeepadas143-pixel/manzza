@@ -54,7 +54,7 @@ const Perf = {
 Perf.apply();
 
 // ---------------------------------------------------------------- api + state
-const S = { ov: null, charts: {}, tokens: null, reports: null, report: null, range: 24, tab: "overview", sel: null,
+const S = { nar: null, metaView: "narratives", narSel: null, narState: "all", narCat: "all", ov: null, charts: {}, tokens: null, reports: null, report: null, range: 24, tab: "overview", sel: null,
   metaFilter: "all", metaSort: "score", tok: { key: "vol_h1", dir: -1, filter: "all", q: "" }, cmp: null, error: null, lastOk: 0, sig: null };
 let token = null;
 try { token = localStorage.getItem("radar-token"); } catch (_) { /* ignore */ }
@@ -107,8 +107,10 @@ function schedule() { clearInterval(refreshTimer); refreshTimer = setInterval(()
 async function load({ quiet = false } = {}) {
   setBusy(true);
   try {
-    const [ov, ch, tk] = await Promise.all([api("/api/overview"), api(`/api/charts?hours=${S.range}`), api("/api/tokens?limit=120")]);
-    const sig = JSON.stringify([ov.as_of, ov.db, ov.metas.length, ch.launches.at(-1), ch.launches.length, tk.tokens.map((t) => t.observed_at).join()]);
+    const [ov, ch, tk, nar] = await Promise.all([api("/api/overview"), api(`/api/charts?hours=${S.range}`), api("/api/tokens?limit=120"),
+      api("/api/narratives").catch(() => null)]);
+    S.nar = nar;
+    const sig = JSON.stringify([nar?.as_of, ov.as_of, ov.db, ov.metas.length, ch.launches.at(-1), ch.launches.length, tk.tokens.map((t) => t.observed_at).join()]);
     const same = sig === S.sig;
     S.ov = ov; S.charts = { [S.range]: ch }; S.tokens = tk; S.error = null; S.lastOk = Date.now(); S.sig = sig;
     renderStatus();
@@ -402,12 +404,95 @@ function renderLive() {
   $$("#tape tr[data-l]", el).forEach((r) => r.addEventListener("click", () => openToken(d.launches[+r.dataset.l].mint)));
 }
 
+// ---------------------------------------------------------------- NARRATIVES (read by meaning)
+const NSTATE = { accelerating: ["pos", "●", "Accelerating"], bought: ["pos", "●", "Being bought"], heating: ["warn", "▲", "Heating, little buying"],
+  new: ["mute", "○", "New"], steady: ["mute", "○", "Steady"], saturating: ["warn", "▲", "Saturating"], fading: ["neg", "✕", "Fading"] };
+const nst = (s) => { const x = NSTATE[s] || NSTATE.steady; return st(x[0], x[1], x[2]); };
+const catLabel = (c) => c.primary || "New kind of meta";
+function renderNarratives() {
+  const el = $(".screen[data-screen=metas]"), N = S.nar;
+  if (!N || N.pending || !N.narratives?.length) {
+    setHead("Metas", N?.note ? esc(N.note) : "Reading narratives…", VIEW_SEG() + REFRESH); bindView();
+    el.innerHTML = `<div class="empty"><h3>${N?.pending ? "First narrative read in progress" : N?.semantic === false ? "Narratives need the language model" : "No narrative yet"}</h3>${esc(N?.note || "A narrative appears once 3+ tokens from 2+ creators share an idea.")}</div>`;
+    return;
+  }
+  const all = N.narratives;
+  setHead("Metas", `${N.total ?? all.length} narratives read by meaning from ${compact(N.launches_considered)} launches in the last 6 hours`
+    + `${N.factory_launches_excluded ? ` (${compact(N.factory_launches_excluded)} launches by factory wallets left out)` : ""}. Updated ${esc(hhmm(N.as_of))}.`, VIEW_SEG() + REFRESH);
+  bindView();
+  const cats = [...new Set(all.map((n) => catLabel(n.category)))].sort();
+  const states = ["accelerating", "bought", "heating", "new", "steady", "saturating", "fading"].filter((s) => all.some((n) => n.state === s));
+  const list = all.filter((n) => (S.narState === "all" || n.state === S.narState) && (S.narCat === "all" || catLabel(n.category) === S.narCat));
+  if (!S.narSel || !all.some((n) => n.label === S.narSel)) S.narSel = (list[0] || all[0]).label;
+  const sel = all.find((n) => n.label === S.narSel);
+  el.innerHTML = `<div class="md">
+    <div class="sec" style="margin-top:0">
+      <div class="toolbar"><div class="chips" role="group" aria-label="Filter by state"><button class="chip" data-ns="all" aria-pressed="${S.narState === "all"}">All<span class="ct">${all.length}</span></button>${states.map((s) => `<button class="chip" data-ns="${s}" aria-pressed="${S.narState === s}">${esc(NSTATE[s][2])}<span class="ct">${all.filter((n) => n.state === s).length}</span></button>`).join("")}</div>
+        <span class="end"><label class="sr" for="ncat">Category</label><select id="ncat"><option value="all">All categories</option>${cats.map((c) => `<option ${S.narCat === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></span></div>
+      <table class="tbl ledgertbl"><thead><tr><th>Narrative</th><th class="hide-s">Category</th><th>State</th><th class="r">Creators<span class="hide-s"> 1h / 6h</span></th><th class="r">Buyers/h</th><th class="r wide-only">Net SOL 1h</th><th class="wide-only">Evidence</th></tr></thead>
+        <tbody id="nrows">${list.map((n) => `<tr data-n="${esc(n.label)}" class="${n.label === S.narSel ? "sel" : ""}" aria-selected="${n.label === S.narSel}">
+          <td class="nmc">${esc(n.title)}<small>${esc(n.label)}${n.parent?.siblings?.length ? ` · part of ${esc(n.parent.label)}` : ""}</small></td>
+          <td class="hide-s"><span class="i2">${esc(catLabel(n.category))}</span>${n.category.secondary?.length ? `<div class="wide-only"><small class="i3">${esc(n.category.secondary.join(", "))}</small></div>` : ""}</td>
+          <td>${nst(n.state)}</td><td class="r">${n.popularity.creators_1h}<span class="i3"> / ${n.popularity.creators_6h}</span></td>
+          <td class="r">${compact(n.traction.buyers_h1)}</td>
+          <td class="r wide-only ${n.traction.net_sol_h1 > 0 ? "up" : n.traction.net_sol_h1 < 0 ? "down" : ""}">${signed(n.traction.net_sol_h1, 1)}</td>
+          <td class="wide-only"><span class="i3">${esc(n.evidence.level)}</span></td></tr>`).join("") || `<tr><td colspan="7" class="i3" style="padding:24px 12px">No narrative matches these filters.</td></tr>`}</tbody></table>
+      <p class="notes">Grouped by what the tokens mean (name, description, the X post they link to) and by shared pictures, not by keywords. States describe launches and buying; none of them is a tested profit signal.</p>
+    </div>
+    <aside class="dossier swap" id="dossier" aria-label="Selected narrative">${sel ? narrativeDossier(sel) : ""}</aside>
+  </div>`;
+  $$("[data-ns]", el).forEach((b) => b.addEventListener("click", () => { S.narState = b.dataset.ns; renderNarratives(); }));
+  $("#ncat", el).addEventListener("change", (e) => { S.narCat = e.target.value; renderNarratives(); });
+  $$("#nrows tr[data-n]", el).forEach((r) => r.addEventListener("click", () => {
+    S.narSel = r.dataset.n;
+    if (wide()) { renderNarratives(); } else { const n = all.find((x) => x.label === S.narSel); openSheet(n.title, esc(n.label), narrativeDossier(n)); bindNarrativeDossier($("#sheet-body"), n); }
+  }));
+  if (sel) bindNarrativeDossier($("#dossier", el), sel);
+}
+function narrativeDossier(n) {
+  const P = n.popularity, T = n.traction, c = n.category, p = n.represents.post;
+  const fact = (k, v, cls = "") => `<div><div class="k">${esc(k)}</div><div class="v ${cls}">${v}</div></div>`;
+  return `
+    <div class="d-id"><div>${nst(n.state)}</div><h2 style="margin-top:8px">${esc(n.title)}</h2>
+      <div class="terms">Sub-meta: ${esc(n.label)}${n.parent?.siblings?.length ? ` · parent narrative: ${esc(n.parent.label)} (with ${esc(n.parent.siblings.slice(0, 3).join(", "))})` : ""}</div></div>
+    <div class="dsec"><h3>What it is</h3>${n.explanation.map((s) => `<p style="margin:0 0 8px">${esc(s)}</p>`).join("")}
+      ${p ? `<p class="notes"><a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer nofollow">Open the post on X</a>${isNum(p.likes) ? ` · ${compact(p.likes)} likes` : ""}</p>` : ""}
+      <div class="links" style="margin-top:8px">${n.represents.examples.map((e, i) => `<button class="btn" data-ex="${i}">${esc(e.symbol || e.name || "token")}${e.buyers ? ` · ${compact(e.buyers)}` : ""}</button>`).join("")}</div></div>
+    <div class="dsec"><h3>Classification</h3><div class="ledger">
+      <div class="li"><span class="k">Category</span><span class="v">${esc(catLabel(c))}</span><span class="c">${c.primary ? `match ${nf(c.primary_score, 2)}${c.emergent ? ", a category created from earlier narratives" : ""}` : `no known category fits (closest ${esc(c.nearest_seed || "—")}, ${nf(c.primary_score, 2)})`}</span></div>
+      ${c.secondary?.length ? `<div class="li"><span class="k">Also</span><span class="v">${esc(c.secondary.join(", "))}</span></div>` : ""}
+      <div class="li"><span class="k">Sub-meta</span><span class="v">${esc(n.label)}</span></div>
+      <div class="li"><span class="k">Novelty</span><span class="v">${isNum(n.novelty?.score) ? nf(n.novelty.score, 2) : "—"}</span><span class="c">${esc(n.novelty?.most_similar_before ? `resembles “${n.novelty.most_similar_before}” seen earlier` : n.novelty?.basis || "")}</span></div></div></div>
+    <div class="dsec"><h3>What's driving it</h3>${n.drivers.length ? `<ul class="ev">${n.drivers.map((d) => `<li><span class="g" style="color:var(--demand)">●</span><span>${esc(d)}</span></li>`).join("")}</ul>` : `<p class="notes" style="margin:0">No single driver stands out.</p>`}</div>
+    <div class="dsec"><h3>Is it working?<span class="note">${esc(n.state_reasons.join("; "))}</span></h3>
+      <div class="facts">${fact("Popularity: creators 1h", `${P.creators_1h}<small> vs ${nf(P.creator_rate_h, 1)}/h before</small>`)}${fact("Launches 6h", `${P.launches_6h}<small> · ${P.creators_6h} creators</small>`)}${fact("Launch velocity (z)", nf(P.velocity_z, 1), P.velocity_z >= 2 ? "up" : P.velocity_z <= -1 ? "down" : "")}
+        ${fact("Traction: buyers/h", `${compact(T.buyers_h1)}${isNum(T.buyers_h1_hour_ago) ? `<small> vs ${compact(T.buyers_h1_hour_ago)} an hour ago</small>` : ""}`)}${fact("Net SOL 1h", signed(T.net_sol_h1, 1), T.net_sol_h1 > 0 ? "up" : T.net_sol_h1 < 0 ? "down" : "")}${fact("Top token's share of buyers", isNum(T.top_token_share) ? pct(T.top_token_share) : "—")}</div>
+      <p class="notes">Opportunity: ${esc(n.opportunity)}</p></div>
+    <div class="dsec"><h3>Saturation and risks</h3>${n.risks.length ? `<ul class="ev cau">${n.risks.map((r) => `<li><span class="g" style="color:var(--caution)">▲</span><span>${esc(r)}</span></li>`).join("")}</ul>` : `<p class="notes" style="margin:0">No copycat, bundling, insider or creator-selling pattern found.</p>`}
+      <p class="notes">Copycat launches ${pct(P.clone_share)}; buyers per launch in the last hour ${nf(T.buyers_per_launch_1h, 1)}.</p></div>
+    <div class="dsec"><h3>Why these tokens are grouped</h3><p class="notes" style="margin:0">${n.grouping.by_meaning} by similar meaning${Object.entries(n.grouping.links).map(([k, v]) => `, ${v} by ${esc(k)}`).join("")}; coherence ${nf(n.grouping.coherence, 2)} (weakest member ${nf(n.grouping.weakest_member_similarity, 2)}).
+      ${n.closest ? ` Closest other narrative: ${esc(n.closest.title)} (${nf(n.closest.similarity, 2)})${n.closest.distinct_terms.length ? `; this one is about ${esc(n.closest.distinct_terms.join(", "))}` : ""}.` : ""}</p></div>
+    <div class="dsec"><h3>Evolution<span class="note">${n.history_hours ? `tracked for ${nf(n.history_hours, 1)}h` : "first read"}</span></h3>
+      ${n.merged_from ? `<p class="notes" style="margin:0 0 6px">Merged with ${esc(n.merged_from.join(", "))}.</p>` : ""}${n.split_from ? `<p class="notes" style="margin:0 0 6px">Split from ${esc(n.split_from)}.</p>` : ""}
+      ${n.history?.length >= 2 ? `<div class="chart" id="nhist"></div>` : `<p class="notes" style="margin:0">History builds up every 5 minutes.</p>`}</div>
+    <div class="dsec"><h3>Evidence<span class="note">${esc(n.evidence.level)}</span></h3><p class="notes" style="margin:0">${n.evidence.gaps.length ? esc(cap(n.evidence.gaps.join("; "))) + "." : "Several creators, readable descriptions or posts, and trading data."}</p></div>`;
+}
+function bindNarrativeDossier(root, n) {
+  $$("[data-ex]", root).forEach((b) => b.addEventListener("click", () => openToken(n.represents.examples[+b.dataset.ex].mint)));
+  const h = $("#nhist", root);
+  if (h && n.history?.length >= 2) Charts.timeLine(h, { data: n.history.map((x) => [x[0], x[2] || 0]), from: n.history[0][0], to: n.history[n.history.length - 1][0], fmtY: (v) => compact(v, 0), label: "Buyers per hour in this narrative" });
+}
+
 // ---------------------------------------------------------------- NARRATIVES (metas)
 const MSORT = { score: (m) => m.score ?? -1, confidence: (m) => m.confidence, buyers: (m) => m.evidence.demand.unique_buyers_h1_sum,
   launches: (m) => m.evidence.launch.launches_1h, saturation: (m) => -(m.evidence.saturation.index ?? 1) };
+const VIEW_SEG = () => seg("View", [["narratives", "Narratives"], ["keywords", "Keyword scores"]], S.metaView, "data-view");
+function bindView() { $$("[data-view]", $("#tools")).forEach((b) => b.addEventListener("click", () => { S.metaView = b.dataset.view; renderMetas(); })); }
 function renderMetas({ keepMap = false } = {}) {
+  if (S.metaView === "narratives") return renderNarratives();
   const el = $(".screen[data-screen=metas]"), all = S.ov.metas;
-  setHead("Metas", `${all.length} narratives detected in the last 6 hours, ranked by readiness. Select one to read its evidence.`);
+  setHead("Metas", `${all.length} keyword clusters in the last 6 hours, ranked by readiness. Select one to read its evidence.`, VIEW_SEG() + REFRESH);
+  bindView();
   if (!all.length) { el.innerHTML = `<div class="empty"><h3>No narratives detected yet</h3>A narrative appears once several launches or posts share a theme. The first ones usually show up within a few collection cycles.</div>`; return; }
   if (!S.sel || !all.some((m) => m.meta_key === S.sel)) S.sel = all[0].meta_key;
   const count = (v) => all.filter((m) => m.verdict === v).length;

@@ -80,8 +80,12 @@ imagehash library (BSD-2-Clause) was considered but adds SciPy and PyWavelets fo
 | nirholas/pump-fun-sdk | "All rights reserved" | Not used. |
 | metaplex-foundation/mpl-token-metadata | Metaplex NFT licence | Not needed: the launch event already carries the metadata URI. |
 | jito-foundation/jito-solana | Apache-2.0 | Validator software; not needed. Bundled launches are detected from same-block buys instead. |
-| mlfoundations/open_clip | MIT | Not integrated: needs PyTorch (~2 GB) and downloading every token image. |
+| mlfoundations/open_clip | MIT | Not integrated: needs PyTorch (~2 GB) and downloading every token image. Same-picture links use the difference hash instead, which catches reposted pictures but not two different pictures of the same subject. |
 | UKPLab/sentence-transformers | Apache-2.0 | Not installed (needs PyTorch); its MiniLM model runs through onnxruntime instead. |
+| JohannesBuchner/imagehash | BSD-2-Clause | The difference-hash idea, reimplemented in `radar/images.py` (see above). |
+| NARRA (narrative-tracking reference supplied 2026-10-22) | none found | Ideas only: track a narrative's identity across runs and describe what drives it. No code copied. |
+| mihailShumilov/narrative-detection | none stated | Ideas only: embed, cluster, then label clusters with class-based TF-IDF rather than a fixed keyword list. No code copied. |
+| marchantdev/solana-narrative-detector | none stated | Ideas only: compare narrative activity with its own recent history rather than an absolute threshold. No code copied. |
 | git-disl/MemeTrans → renamed git-disl/MELT | CC BY-NC 4.0 (non-commercial) | Research reference only. ~41k migrated tokens from early 2025 with high/low-risk labels; the raw transactions are on Google Drive. Not shipped or imported because of the non-commercial licence; its design (bundle traces, pre-migration features) informed the launch-block signal. |
 
 Removed: **PumpArchive** (github.com/PumpArchive/PumpArchive). Its API (`api.pumparchive.com`)

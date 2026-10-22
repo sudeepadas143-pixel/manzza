@@ -741,8 +741,11 @@ async def run_xposts(ctx, every_s: int = 120, refresh_s: int = 1800, batch: int 
                         WHERE k.x_post IS NOT NULL AND k.created_at > ?
                           AND (x.post IS NULL OR (x.status='ok' AND x.fetched_at < ?)
                                OR (x.status='failed' AND x.fetched_at < ?))
-                        GROUP BY k.x_post HAVING n >= 2 ORDER BY n DESC LIMIT ?""",
-                           (t - 3 * H, t - refresh_s, t - 6 * H, batch))
+                        GROUP BY k.x_post
+                        HAVING n >= 2 OR MAX((SELECT MAX(o.buyers_h1) FROM token_obs o WHERE o.mint = k.mint
+                                              AND o.observed_at > ?)) >= 5
+                        ORDER BY n DESC LIMIT ?""",
+                           (t - 3 * H, t - refresh_s, t - 6 * H, t - 2 * H, batch))
                 for d in due:
                     p = await xposts.fetch_post(client, d["post"])
                     row = {"post": d["post"], "fetched_at": now(), "status": "ok" if p else "failed"}
