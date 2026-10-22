@@ -173,18 +173,18 @@ def main():
     if heat:
         res["heating_next_6h"] = boot_ratio(heat) | {"reads": len(heat)}
     w = res.get("week_to_next_day")
-    if w:
+    if w and w["days"] >= 5:
         holds = w["ci90"][0] > 0
         res["text_week"] = (f"On {w['days']} days of replayed history, a category's week ranked its next day "
                             f"{'better than chance' if holds else 'no better than chance'} "
                             f"(average rank correlation {w['mean_rank_correlation']:+.2f}, 90% range {w['ci90'][0]:+.2f} to {w['ci90'][1]:+.2f}).")
     wn = res.get("working_next_day")
-    if wn:
+    if wn and wn["days"] >= 5:
         res["text_working"] = (f"Coins launched the next day in categories marked “working” graduated {wn['top']:.2f}× the market, "
                                f"against {wn['rest']:.2f}× for other categories (difference, 90% range {wn['difference_ci90'][0]:+.2f} "
                                f"to {wn['difference_ci90'][1]:+.2f}).")
     hn = res.get("heating_next_6h")
-    if hn:
+    if hn and len({h[0] for h in heat}) >= 5:
         res["text_heating"] = (f"Coins launched in the 6 hours after a category was “heating” graduated {hn['top']:.2f}× the market, "
                                f"against {hn['rest']:.2f}× elsewhere (difference, 90% range {hn['difference_ci90'][0]:+.2f} "
                                f"to {hn['difference_ci90'][1]:+.2f}).")
