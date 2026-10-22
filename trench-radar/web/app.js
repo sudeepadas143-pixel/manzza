@@ -581,6 +581,13 @@ function specimen(n) {
 
 // ---------------------------------------------------------------- NARRATIVE PROFILE (sheet)
 const CLUSTERS = new Map();      // "label@as_of" -> cluster, so re-opening doesn't refetch
+// the launch-edge ranking of the keyword meta that holds this narrative's coins (explain.py joins them)
+function narRecHtml(n) {
+  const ms = (S.ov?.metas || []).filter((m) => m.explain?.concept.narrative?.label === n.label);
+  if (!ms.length) return `<p class="notes"><b style="color:var(--ink-2)">Recommendation:</b> none of the ranked keyword metas holds enough of these coins to rank this narrative.</p>`;
+  return `<div class="recbox"><div class="label">Recommendation</div>${ms.map((m) => `<p class="prose" style="margin:6px 0 0">Its coins rank as the keyword meta <b>${esc(m.meta_key)}</b>: <b class="${edgeCls(m)}">${esc(m.explain.recommendation.stance.toLowerCase())}</b>, #${m.edge.rank} of ${m.edge.of}. <button class="linkbtn" data-rec="${esc(m.meta_key)}">Why →</button></p>`).join("")}
+    <p class="notes">A narrative's state says what is happening to the idea; the recommendation says how its next coins are likely to fare against other metas. They can disagree.</p></div>`;
+}
 function openNarrative(n) {
   openSheet("Narrative profile", `${esc(catLabel(n.category))} · ${esc(n.label)}`, profileHtml(n), (root) => bindProfile(root, n));
 }
@@ -605,6 +612,7 @@ function profileHtml(n) {
         <div class="row"><span>Buyers per launch</span><b>${nf(T.buyers_per_launch_1h, 1)}</b></div><div class="row"><span>Top token's share</span><b>${isNum(T.top_token_share) ? pct(T.top_token_share) : "—"}</b></div><div class="row"><span>Tokens trading</span><b>${T.tokens_traded}</b></div></div>
     </div>
     <p class="notes"><b style="color:var(--ink-2)">Why ${esc((Viz.STAGE_LABEL[n.state] || n.state).toLowerCase())}:</b> ${esc(n.state_reasons.join("; "))}. <b style="color:var(--ink-2)">Opportunity:</b> ${esc(n.opportunity)}</p>
+    ${narRecHtml(n)}
     <section class="psec">${slug("What drives it", "", "", "thin")}<div class="two">
       <div><h4 class="label" style="margin:0 0 6px">Drivers</h4>${n.drivers.length ? `<ul class="ev pos">${n.drivers.map((d) => `<li><span class="g">●</span><span>${esc(d)}</span></li>`).join("")}</ul>` : `<p class="dek2">No single driver stands out.</p>`}</div>
       <div><h4 class="label" style="margin:0 0 6px">Saturation and risks</h4>${n.risks.length ? `<ul class="ev cau">${n.risks.map((r) => `<li><span class="g">▲</span><span>${esc(r)}</span></li>`).join("")}</ul>` : `<p class="dek2">No copycat, bundling, insider or creator-selling pattern found.</p>`}</div></div></section>
@@ -629,6 +637,7 @@ function profileHtml(n) {
       <li>Buyer counts are per-token sums; one wallet buying three tokens counts three times. States are descriptions, not tested profit signals.</li></ol></section>`;
 }
 function bindProfile(root, n) {
+  $$("[data-rec]", root).forEach((b) => b.addEventListener("click", () => { const m = S.ov.metas.find((x) => x.meta_key === b.dataset.rec); if (m) openMetaSheet(m); }));
   $$("[data-ex]", root).forEach((b) => b.addEventListener("click", () => openToken(n.represents.examples[+b.dataset.ex].mint)));
   Viz.tick(root);
   if (n.history?.length >= 2) {
@@ -715,6 +724,56 @@ function coverage(m) {
     ["Validated against outcomes", !!m.validated, "backtest passed", "no validated backtest yet"],
   ];
 }
+// ---------------------------------------------------------------- plain-language explanation (analytics/explain.py)
+const STATUS = { new: ["New", "novel"], growing: ["Growing", "accelerating"], steady: ["Steady", "steady"], fading: ["Fading", "fading"], crowded: ["Crowded", "saturating"] };
+const effBar = (v, max) => {
+  const w = Math.min(50, (Math.abs(v) / (max || 1)) * 50);
+  return `<span class="eff" aria-hidden="true"><i class="${v >= 0 ? "p" : "n"}" style="${v >= 0 ? "left" : "right"}:50%;width:${w}%"></i></span>`;
+};
+function explainHtml(m) {
+  const x = m.explain, r = x.recommendation, c = x.confidence, h = x.happening, st = STATUS[h.status] || STATUS.steady;
+  const li = (arr, cls, g) => `<ul class="ev ${cls}">${arr.map((t) => `<li><span class="g">${g}</span><span>${esc(t)}</span></li>`).join("")}</ul>`;
+  // each reason carries how that kind of reason held up on its own in periods the model never saw
+  const reasons = (arr, cls, g) => `<ul class="ev ${cls}">${arr.map((t) => `<li><span class="g">${g}</span><span>${esc(t.text)}<small class="rel ${t.reliability.held === t.reliability.tested && t.reliability.tested ? "" : t.reliability.held ? "mid" : "weak"}">${esc(t.reliability.note)}</small></span></li>`).join("")}</ul>`;
+  const maxD = Math.max(...r.drivers.map((d) => Math.abs(d.effect)), 0.01), maxE = Math.max(...x.evidence.map((d) => Math.abs(d.effect)), 0.01);
+  const hist = x.history;
+  return `
+    <div class="dsec"><h3>What it is<span class="note">${x.concept.source === "names" ? "read from coin names" : x.concept.source === "post" ? "from the X post its coins cite" : "from its creators' descriptions"}</span></h3>
+      ${x.concept.text.map((t) => `<p class="prose" style="margin:0 0 8px">${esc(t)}</p>`).join("")}
+      <p class="notes">${esc(x.concept.connects)}${x.concept.narrative ? ` The atlas reads the same coins as the narrative <button class="linkbtn" data-nar="${esc(x.concept.narrative.label)}">${esc(x.concept.narrative.title)} →</button>` : ""}</p></div>
+    <div class="dsec"><h3>What's happening<span class="note"><span class="stamp ${st[1]}">${st[0]}</span></span></h3>
+      ${h.text.map((t) => `<p class="prose" style="margin:0 0 8px">${esc(t)}</p>`).join("")}
+      <div class="chart" id="x-launch"></div></div>
+    <div class="dsec"><h3>Why it's getting attention</h3>${li(x.attention, "", "●")}</div>
+    <div class="dsec"><h3>Why it's ranked here<span class="note">#${r.rank} of ${r.of} · ${esc(r.tier)}</span></h3>
+      <p class="prose" style="margin:0 0 10px"><b>${esc(r.stance)}.</b> ${r.tier === "strongest" || r.tier === "above average" ? "Compared with the other metas right now, this is what lifts it:" : "Compared with the other metas right now, this is what holds it back:"}</p>
+      ${r.for.length ? `<div class="label" style="margin:6px 0 2px">In its favour</div>${reasons(r.for, "pos", "+")}` : ""}
+      ${r.against.length ? `<div class="label" style="margin:14px 0 2px">Against it</div>${reasons(r.against, "neg", "−")}` : ""}
+      ${r.conflict ? `<p class="notes"><b>The signals disagree:</b> the points against it are nearly as strong as the points for it, so the rank could flip with a little new data.</p>` : ""}
+      ${x.popular_vs_promising ? `<p class="notes">${esc(x.popular_vs_promising)}</p>` : ""}</div>
+    <div class="dsec"><h3>What could go wrong</h3>${li(x.risks, "cau", "▲")}</div>
+    <div class="dsec"><h3>What to watch next<span class="note">what would move its rank</span></h3>${li(x.watch, "", "→")}</div>
+    <div class="dsec"><h3>How sure is this?<span class="note">${esc(c.level)}</span></h3>
+      <p class="prose" style="margin:0 0 8px"><b>${esc(c.summary)}</b>${c.track ? ` ${esc(c.track)}` : ""}</p>
+      ${c.notes.map((t) => `<p class="notes" style="margin-top:4px">${esc(t)}</p>`).join("")}</div>
+    <details class="more"><summary>Why this recommendation? <span>the numbers behind it</span></summary>
+      <div class="dsec"><h3>What moved the rank<span class="note">exact share of its rank vs the average meta now</span></h3>
+        <div class="drv">${r.drivers.map((d) => `<span>${esc(d.label)}</span>${effBar(d.effect, maxD)}<span class="mono ${d.effect > 0.02 ? "up" : d.effect < -0.02 ? "down" : "i3"}">${Math.abs(d.effect) < 0.005 ? "0.00" : `${d.effect > 0 ? "+" : ""}${nf(d.effect, 2)}`}</span>`).join("")}</div>
+        <p class="notes">Positive lifts the rank, negative lowers it. Related measurements are grouped, because on their own they overlap; the table below has each one.</p></div>
+      <div class="dsec"><h3>Every measurement</h3>
+        <table class="tbl static ev-tbl"><thead><tr><th>Measurement</th><th class="r">This meta</th><th class="r">Typical now</th><th>Effect on rank</th></tr></thead><tbody>
+        ${x.evidence.map((e) => `<tr><td>${esc(e.label)}${e.unusual ? ` <span class="warn">unusual</span>` : ""}<small>${esc(e.meaning)}</small></td><td class="r mono">${esc(e.value)}</td><td class="r mono i3">${esc(e.most_metas_now)}</td>
+          <td>${effBar(e.effect, maxE)} <small class="${e.reads.startsWith("supports") ? "up" : e.reads.startsWith("weakens") ? "down" : "i3"}">${esc(e.reads)}</small></td></tr>`).join("")}</tbody></table>
+        <p class="notes">Single measurements inside a group can point the “wrong” way (for example more buyers lowering the rank) because they overlap with others in the group; read the group total above.</p></div>
+      <div class="dsec"><h3>How metas ranked “${esc(r.tier)}” did before</h3>
+        <table class="tbl static wrap"><thead><tr><th>Period</th><th class="r">Next coins graduated vs all coins</th><th class="r hide-s">90% range</th><th class="r hide-s">Sample</th></tr></thead><tbody>
+        ${c.periods.map((p) => `<tr><td>${esc(p.period)}</td><td class="r mono">${nf(p.ratio, 2)}×</td><td class="r mono hide-s">${nf(p.ci90[0], 2)}–${nf(p.ci90[1], 2)}</td><td class="r hide-s">${compact(p.meta_hours)} meta-hours, ${compact(p.launches)} coins</td></tr>`).join("")}</tbody></table>
+        ${c.text.length ? `<p class="notes">${esc(c.text[c.text.length - 1])} For reference, “strongest” vs “weakest”: ${c.periods.map((p) => `${esc(p.period.split(" (")[0])} ${nf(p.strongest, 2)}× vs ${nf(p.weakest, 2)}×`).join("; ")}.</p>` : ""}</div>
+      ${hist ? `<div class="dsec"><h3>Its own record<span class="note">while the app was running</span></h3>
+        <p class="prose" style="margin:0">${hist.launches} coins using “${esc(m.terms[0])}” have a known 1-hour outcome; ${hist.graduated} graduated (${pct(hist.rate, 1)}), against ${pct(hist.all_rate_24h, 1)} of all coins in the last day.</p>
+        <p class="notes">${esc(hist.note)}</p></div>` : ""}
+    </details>`;
+}
 function dossierHtml(m) {
   const e = m.evidence, d = e.demand, l = e.launch, s = e.social, cf = m.confidence_factors, sat = e.saturation;
   const cov = coverage(m), miss = cov.filter((c) => !c[1]);
@@ -731,11 +790,10 @@ function dossierHtml(m) {
   const toks = d.top_tokens || [];
   return `
     <header class="prof-head"><div class="cat label">${m.edge ? `<span class="stamp ${{ strongest: "accelerating", weakest: "fading" }[m.edge.tier] || "steady"}">${esc(cap(m.edge.tier))} edge</span><span class="i3" style="margin:0 10px">·</span>` : ""}<span class="i3" style="margin-right:6px">readiness</span>${vst(m.verdict)}<span style="margin-left:auto">keyword cluster</span></div><h2>${esc(m.meta_key)}</h2>
-      <p class="dek">${esc(cap(m.hype_check))}.</p>
+      <p class="dek">${m.explain ? `${esc(m.explain.recommendation.stance)}: ranked #${m.explain.recommendation.rank} of ${m.explain.recommendation.of} metas right now. Interest is ${esc((STATUS[m.explain.happening.status] || STATUS.steady)[0].toLowerCase())}.` : `${esc(cap(m.hype_check))}.`}</p>
       <div class="by"><span>${esc(m.terms.length > 1 ? `matches ${m.terms.join(", ")}` : `${l.launches_6h} launches in 6h`)}</span>${e.merged_by_meaning?.length ? `<span>grouped by meaning: ${esc(e.merged_by_meaning.map(([w]) => w).join(", "))}</span>` : ""}</div></header>
-    ${m.edge ? `<div class="verdict"><div><div class="k">Launch edge</div><div class="big ${edgeCls(m)}">#${m.edge.rank}<small> of ${m.edge.of}</small></div>
-        <div class="c">${esc(cap(m.edge.tier))} in this read. In back-tests the edge model's top meta each hour saw its next launches graduate 1.7× as often as all launches (the readiness score's top pick: 1.3×), and it also picked better in September and October. A ranking, not a probability.</div></div>
-      <div><div class="k">What it rewards</div><div class="c" style="margin-top:6px">Many distinct creators launching and many tokens trading; it marks down metas crowded with launches, reused tickers and late growth. Acceleration alone carried no edge. Graduation is not profit.</div></div></div>` : ""}
+    ${m.explain ? explainHtml(m) : ""}
+    <details class="more" id="d-baseline" ${m.explain ? "" : "open"}><summary>The readiness score <span>the older baseline, and its raw evidence</span></summary>
     <div class="verdict">
       <div class="${isProv(m) ? "prov" : ""}"><div class="k">Readiness score <small style="text-transform:none;letter-spacing:0">(baseline)</small></div><div class="big">${isNum(m.score) ? Math.round(m.score) : "—"}<small> / 100</small></div>
         <div class="c">${isProv(m) ? "Provisional. Not a call: confidence is below the bar." : `${vinfo(m.verdict).label}.`}${m.validated ? "" : " The weights have not been validated against outcomes."}</div></div>
@@ -769,19 +827,29 @@ function dossierHtml(m) {
       <table class="tbl"><thead><tr><th>Token</th><th class="r">Vol 1h</th><th>Buy/sell</th><th>Curve</th></tr></thead><tbody>
       ${toks.map((t, i) => `<tr data-dt="${i}"><td>${tk(t.symbol || short(t.mint), `${t.name || ""}${isNum(t.age_h) ? `, ${age(t.age_h)} old` : ""}`)}</td><td class="r">${usd(t.vol_h1)}</td>
         <td>${bsr(t.buyers_h1, t.sellers_h1)}</td><td>${t.graduated ? ruler(1, true) : ruler(t.progress)}</td></tr>`).join("") || `<tr><td colspan="4" class="i3">No token in this cluster has fresh stats.</td></tr>`}</tbody></table></div>
-    <p class="attr">Computed ${esc(dayhm(S.ov.as_of))} by model ${esc(S.ov.model_version)}. Sources: ${esc(srcs.join("; "))}.</p>`;
+    </details>
+    <p class="attr">Computed ${esc(dayhm(S.ov.as_of))} by model ${esc(S.ov.model_version)}${S.ov.edge_model ? ` and ranked by ${esc(S.ov.edge_model)}` : ""}. Sources: ${esc(srcs.join("; "))}.</p>`;
 }
 async function bindDossier(root, m) {
   const l = m.evidence.launch, to = S.ov.as_of, hr = Math.floor(to / 3600) * 3600;
   $$("tr[data-dt]", root).forEach((r) => r.addEventListener("click", () => openToken(m.evidence.demand.top_tokens[+r.dataset.dt].mint)));
-  Charts.timeBars($("#d-launch", root), { data: l.launch_hourly_12h.map((v, i) => [hr - (11 - i) * 3600, v]), from: hr - 11 * 3600, to: hr + 3600, step: 3600,
+  const bars = (el) => el && Charts.timeBars(el, { data: l.launch_hourly_12h.map((v, i) => [hr - (11 - i) * 3600, v]), from: hr - 11 * 3600, to: hr + 3600, step: 3600,
     height: 100, fmtY: (v) => compact(v, 0), unit: "launches", label: "Launches per hour" });
-  try {
+  bars($("#x-launch", root));
+  $$("[data-nar]", root).forEach((b) => b.addEventListener("click", () => {
+    const n = (S.nar?.narratives || []).find((x) => x.label === b.dataset.nar);
+    if (n) openNarrative(n); else toast("Open the atlas to see this narrative");
+  }));
+  const base = $("#d-baseline", root);
+  if (base && !base.open) { base.addEventListener("toggle", () => { if (base.open) { bars($("#d-launch", root)); drawHist(); } }, { once: true }); }
+  else bars($("#d-launch", root));
+  const drawHist = async () => { try {
     const h = await api(`/api/metas/${encodeURIComponent(m.meta_key)}/history?hours=48`);
     const el = $("#d-hist", root);
     if (el) Charts.timeLine(el, { data: h.filter((r) => isNum(r.score)).map((r) => [r.computed_at, r.score]), yMin: 0, yMax: 100, height: 130,
       fmtY: (v) => nf(v, 0), refs: [{ v: 65, label: "favorable from 65" }, { v: 45, label: "mixed from 45" }], label: "Score history" });
-  } catch (_) { const el = $("#d-hist", root); if (el) el.innerHTML = `<div class="chart-empty">Score history is unavailable.</div>`; }
+  } catch (_) { const el = $("#d-hist", root); if (el) el.innerHTML = `<div class="chart-empty">Score history is unavailable.</div>`; } };
+  if (!base || base.open) drawHist();
 }
 function openMetaSheet(m) { openSheet("Keyword cluster", esc(m.meta_key), dossierHtml(m), (root) => bindDossier(root, m)); }
 
@@ -1097,6 +1165,7 @@ async function renderSystem() {
           ${bt.top_pick?.edge ? `<p class="notes">Top meta each step, next launches' graduation against all launches: launch edge ${nf(bt.top_pick.edge.ratio, 2)}×, readiness score ${nf(bt.top_pick.readiness.ratio, 2)}× (${bt.top_pick.edge.steps} steps).</p>` : ""}
           <p class="notes">Lift compares later launches in a narrative with all launches in the same window. Validation needs at least 30 favorable signals.</p>`
           : `<p class="dek2">No backtest yet. It needs labelled outcomes, which start about 13 hours after collection begins.</p>`}
+        ${S.ov.edge_monitor?.inputs ? `<p class="notes"><b>Launch-edge inputs in this read:</b> ${pct(S.ov.edge_monitor.missing_share)} not measured yet, ${pct(S.ov.edge_monitor.unusual_share, 1)} outside what the model was trained on${Object.keys(S.ov.edge_monitor.unusual_by_input || {}).length ? ` (${esc(Object.entries(S.ov.edge_monitor.unusual_by_input).map(([k, n]) => `${k.toLowerCase()} ×${n}`).join(", "))})` : ""}. A rising share means the market has moved away from the data the ranking learned from.</p>` : ""}
         <button class="btn" id="runbt" style="margin-top:14px">Run a 3-day backtest</button></div>
       <div>${slug("Display", "", "", "thin")}
         <div class="label" style="margin-bottom:6px">Edition</div>${seg("Edition", [["day", "Day · newsprint"], ["night", "Night · blueprint"]], Edition.get(), "data-ed")}

@@ -98,6 +98,45 @@ def binom_ll(k, n, eta):
     return float((k * -np.logaddexp(0, -eta) + (n - k) * -np.logaddexp(0, eta)).sum() / n.sum())
 
 
+TIERS = (("strongest", 0.0, 0.2), ("above average", 0.2, 0.5), ("below average", 0.5, 0.8), ("weakest", 0.8, 1.01))
+
+
+def tier_of(lift, T, rows):
+    """Tier of each row by its position in its own step's ranking, as the app assigns it."""
+    out = {}
+    for s in np.unique(T[rows]):
+        r = rows[T[rows] == s]
+        order = r[np.argsort(-lift[r], kind="stable")]
+        for pos, i in enumerate(order):
+            q = pos / max(len(order) - 1, 1)
+            out[i] = next(name for name, lo, hi in TIERS if lo <= q < hi)
+    return np.array([out[i] for i in rows])
+
+
+def tier_table(lift, T, rows, k, n, rate, blocks, rng, boot=1000):
+    """How the next launches of metas in each tier graduated against all launches then:
+    pooled observed / expected, with a block-bootstrap 90% interval."""
+    tiers = tier_of(lift, T, rows)
+    ub = np.unique(blocks[rows])
+    res = {}
+    for name, _, _ in TIERS:
+        r = rows[tiers == name]
+        if not len(r):
+            continue
+        e = (rate[r] * n[r]).sum()
+        draws = []
+        by_b = {b: r[blocks[r] == b] for b in ub}
+        for _ in range(boot):
+            rr = np.concatenate([by_b[b] for b in rng.choice(ub, len(ub))])
+            ee = (rate[rr] * n[rr]).sum()
+            if ee > 0:
+                draws.append(k[rr].sum() / ee)
+        res[name] = {"meta_hours": int(len(r)), "launches": int(n[r].sum()), "graduations": int(k[r].sum()),
+                     "ratio": round(float(k[r].sum() / e), 3) if e else None,
+                     "ci90": [round(float(np.percentile(draws, 5)), 3), round(float(np.percentile(draws, 95)), 3)]}
+    return res
+
+
 def external(M, rows, k, n, off, lam_of, path, outcome):
     """Fit each model on every row of the training data, then score a later, separate period
     (a Shrine replay). Bootstrap over 3-hour blocks: a replay spans under a day."""
@@ -156,6 +195,7 @@ def external(M, rows, k, n, off, lam_of, path, outcome):
         for key in ("ll", "top1"):
             d_ = np.array(draws[m][key]) - np.array(draws["existing"][key])
             out[m][f"{key}_minus_existing"] = [float(np.percentile(d_, 5)), float(np.mean(d_)), float(np.percentile(d_, 95))]
+    out["tiers"] = tier_table(lifts["full_nohist"], TE, er, ke, ne, rate_e, blocks, np.random.default_rng(9))
     log("external", path.name, " | ".join(f"{m}: ll {out[m]['ll_gain_per_1000']:+.2f} top1 x{out[m]['top1_ratio']:.2f}"
                                           for m in lifts))
     for m in ("full_nohist", "full", "demand", "history"):
@@ -308,6 +348,9 @@ def main():
                          "expected": float(exp_), "observed": int(k[s].sum()), "launches": int(n[s].sum())})
         cal[m] = bins
     res["calibration"] = cal
+    res["tiers"] = {m: tier_table(eta[m] - off, T, test, k, n, rate, day, np.random.default_rng(9), a.boot)
+                    for m in ("existing", "full_nohist")}
+    log("tiers", json.dumps(res["tiers"]))
     res["coefs_last"] = {m: coefs[m][-1] if coefs[m] else None for m in SPECS}
     if a.external:
         res["external"] = {str(p): external(M, rows, k, n, off, lam_of, p, a.outcome) for p in a.external}

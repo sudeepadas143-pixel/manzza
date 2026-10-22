@@ -253,14 +253,184 @@
    ],
    "ll_minus_existing_ci90": [
     0.24359055097629073,
-    0.8713068816260102,
+    0.8713068816260144,
     1.5300873955626284
    ],
    "history_adds_ll_ci90": [
-    -0.02423357877250659,
-    0.17535567154450502,
-    0.38269043432846117
+    -0.024233578772526417,
+    0.17535567154450224,
+    0.3826904343284553
    ],
+   "tiers": {
+    "corpus_walk_forward": {
+     "strongest": {
+      "meta_hours": 1528,
+      "launches": 288416,
+      "graduations": 4387,
+      "ratio": 1.305,
+      "ci90": [
+       1.163,
+       1.42
+      ]
+     },
+     "above average": {
+      "meta_hours": 2063,
+      "launches": 152611,
+      "graduations": 1492,
+      "ratio": 0.849,
+      "ci90": [
+       0.761,
+       0.974
+      ]
+     },
+     "below average": {
+      "meta_hours": 2170,
+      "launches": 86776,
+      "graduations": 398,
+      "ratio": 0.421,
+      "ci90": [
+       0.34,
+       0.533
+      ]
+     },
+     "weakest": {
+      "meta_hours": 1572,
+      "launches": 80750,
+      "graduations": 108,
+      "ratio": 0.124,
+      "ci90": [
+       0.085,
+       0.175
+      ]
+     }
+    },
+    "readiness_corpus_walk_forward": {
+     "strongest": {
+      "meta_hours": 1528,
+      "launches": 315955,
+      "graduations": 4314,
+      "ratio": 1.203,
+      "ci90": [
+       1.11,
+       1.283
+      ]
+     },
+     "above average": {
+      "meta_hours": 2063,
+      "launches": 129255,
+      "graduations": 1163,
+      "ratio": 0.767,
+      "ci90": [
+       0.705,
+       0.853
+      ]
+     },
+     "below average": {
+      "meta_hours": 2170,
+      "launches": 99318,
+      "graduations": 636,
+      "ratio": 0.56,
+      "ci90": [
+       0.439,
+       0.703
+      ]
+     },
+     "weakest": {
+      "meta_hours": 1572,
+      "launches": 64025,
+      "graduations": 272,
+      "ratio": 0.389,
+      "ci90": [
+       0.293,
+       0.526
+      ]
+     }
+    },
+    "meta_sep": {
+     "strongest": {
+      "meta_hours": 141,
+      "launches": 15277,
+      "graduations": 616,
+      "ratio": 2.271,
+      "ci90": [
+       2.044,
+       2.519
+      ]
+     },
+     "above average": {
+      "meta_hours": 198,
+      "launches": 9880,
+      "graduations": 268,
+      "ratio": 1.478,
+      "ci90": [
+       1.335,
+       1.596
+      ]
+     },
+     "below average": {
+      "meta_hours": 205,
+      "launches": 6511,
+      "graduations": 108,
+      "ratio": 0.928,
+      "ci90": [
+       0.793,
+       1.066
+      ]
+     },
+     "weakest": {
+      "meta_hours": 148,
+      "launches": 3490,
+      "graduations": 21,
+      "ratio": 0.334,
+      "ci90": [
+       0.136,
+       0.597
+      ]
+     }
+    },
+    "meta_oct": {
+     "strongest": {
+      "meta_hours": 147,
+      "launches": 23969,
+      "graduations": 560,
+      "ratio": 1.196,
+      "ci90": [
+       1.089,
+       1.298
+      ]
+     },
+     "above average": {
+      "meta_hours": 202,
+      "launches": 23232,
+      "graduations": 561,
+      "ratio": 1.237,
+      "ci90": [
+       1.046,
+       1.44
+      ]
+     },
+     "below average": {
+      "meta_hours": 211,
+      "launches": 12996,
+      "graduations": 328,
+      "ratio": 1.282,
+      "ci90": [
+       1.162,
+       1.454
+      ]
+     },
+     "weakest": {
+      "meta_hours": 152,
+      "launches": 4194,
+      "graduations": 91,
+      "ratio": 1.113,
+      "ci90": [
+       0.727,
+       1.522
+      ]
+     }
+    }
+   },
    "later_periods": {
     "meta_sep": {
      "top1_ratio": {
@@ -273,9 +443,9 @@
       3.822776892561147
      ],
      "ll_minus_existing_ci90": [
-      -5.084845251188709,
-      -3.0050147520819572,
-      -1.1832284935602098
+      -5.084845251190206,
+      -3.005014752083257,
+      -1.1832284935612298
      ]
     },
     "meta_oct": {
@@ -289,9 +459,9 @@
       0.8281940115587115
      ],
      "ll_minus_existing_ci90": [
-      -6.269159716922444,
-      -4.734770616617032,
-      -3.371209213156276
+      -6.26915971692347,
+      -4.734770616617885,
+      -3.371209213157065
      ]
     }
    }
@@ -346,6 +516,176 @@
     -0.05173115839983878,
     0.1941434547078881
    ],
+   "tiers": {
+    "corpus_walk_forward": {
+     "strongest": {
+      "meta_hours": 1494,
+      "launches": 167361,
+      "graduations": 3173,
+      "ratio": 1.43,
+      "ci90": [
+       1.314,
+       1.534
+      ]
+     },
+     "above average": {
+      "meta_hours": 2014,
+      "launches": 94521,
+      "graduations": 1165,
+      "ratio": 0.946,
+      "ci90": [
+       0.82,
+       1.081
+      ]
+     },
+     "below average": {
+      "meta_hours": 2119,
+      "launches": 56979,
+      "graduations": 274,
+      "ratio": 0.392,
+      "ci90": [
+       0.312,
+       0.497
+      ]
+     },
+     "weakest": {
+      "meta_hours": 1533,
+      "launches": 49055,
+      "graduations": 76,
+      "ratio": 0.123,
+      "ci90": [
+       0.081,
+       0.166
+      ]
+     }
+    },
+    "readiness_corpus_walk_forward": {
+     "strongest": {
+      "meta_hours": 1494,
+      "launches": 187942,
+      "graduations": 3198,
+      "ratio": 1.313,
+      "ci90": [
+       1.214,
+       1.397
+      ]
+     },
+     "above average": {
+      "meta_hours": 2014,
+      "launches": 77882,
+      "graduations": 812,
+      "ratio": 0.792,
+      "ci90": [
+       0.701,
+       0.902
+      ]
+     },
+     "below average": {
+      "meta_hours": 2119,
+      "launches": 61737,
+      "graduations": 485,
+      "ratio": 0.606,
+      "ci90": [
+       0.479,
+       0.76
+      ]
+     },
+     "weakest": {
+      "meta_hours": 1533,
+      "launches": 40355,
+      "graduations": 193,
+      "ratio": 0.38,
+      "ci90": [
+       0.282,
+       0.52
+      ]
+     }
+    },
+    "meta_sep": {
+     "strongest": {
+      "meta_hours": 141,
+      "launches": 9070,
+      "graduations": 577,
+      "ratio": 2.659,
+      "ci90": [
+       2.406,
+       2.974
+      ]
+     },
+     "above average": {
+      "meta_hours": 196,
+      "launches": 7212,
+      "graduations": 255,
+      "ratio": 1.427,
+      "ci90": [
+       1.29,
+       1.574
+      ]
+     },
+     "below average": {
+      "meta_hours": 204,
+      "launches": 4884,
+      "graduations": 105,
+      "ratio": 0.894,
+      "ci90": [
+       0.744,
+       1.062
+      ]
+     },
+     "weakest": {
+      "meta_hours": 148,
+      "launches": 3021,
+      "graduations": 23,
+      "ratio": 0.316,
+      "ci90": [
+       0.131,
+       0.555
+      ]
+     }
+    },
+    "meta_oct": {
+     "strongest": {
+      "meta_hours": 147,
+      "launches": 14068,
+      "graduations": 408,
+      "ratio": 1.114,
+      "ci90": [
+       0.983,
+       1.244
+      ]
+     },
+     "above average": {
+      "meta_hours": 202,
+      "launches": 16538,
+      "graduations": 424,
+      "ratio": 1.008,
+      "ci90": [
+       0.904,
+       1.147
+      ]
+     },
+     "below average": {
+      "meta_hours": 209,
+      "launches": 7710,
+      "graduations": 224,
+      "ratio": 1.131,
+      "ci90": [
+       0.932,
+       1.345
+      ]
+     },
+     "weakest": {
+      "meta_hours": 152,
+      "launches": 2968,
+      "graduations": 61,
+      "ratio": 0.806,
+      "ci90": [
+       0.411,
+       1.305
+      ]
+     }
+    }
+   },
    "later_periods": {
     "meta_sep": {
      "top1_ratio": {
@@ -378,6 +718,162 @@
       -1.6405902060801547,
       -0.1321861529847812
      ]
+    }
+   }
+  },
+  "reasons_out_of_period": {
+   "meta_sep": {
+    "crowding": {
+     "for": {
+      "meta_hours": 299,
+      "ratio": 1.669
+     },
+     "against": {
+      "meta_hours": 345,
+      "ratio": 1.578
+     },
+     "difference_ci90": [
+      -0.373,
+      0.664
+     ],
+     "holds": false
+    },
+    "creators": {
+     "for": {
+      "meta_hours": 319,
+      "ratio": 1.579
+     },
+     "against": {
+      "meta_hours": 295,
+      "ratio": 1.558
+     },
+     "difference_ci90": [
+      -0.73,
+      0.605
+     ],
+     "holds": false
+    },
+    "spread": {
+     "for": {
+      "meta_hours": 331,
+      "ratio": 1.752
+     },
+     "against": {
+      "meta_hours": 292,
+      "ratio": 1.059
+     },
+     "difference_ci90": [
+      0.102,
+      1.132
+     ],
+     "holds": true
+    },
+    "copycats": {
+     "for": {
+      "meta_hours": 330,
+      "ratio": 1.894
+     },
+     "against": {
+      "meta_hours": 309,
+      "ratio": 0.731
+     },
+     "difference_ci90": [
+      0.891,
+      1.394
+     ],
+     "holds": true
+    },
+    "money_in": {
+     "for": {
+      "meta_hours": 302,
+      "ratio": 2.675
+     },
+     "against": {
+      "meta_hours": 297,
+      "ratio": 0.858
+     },
+     "difference_ci90": [
+      1.126,
+      2.437
+     ],
+     "holds": true
+    }
+   },
+   "meta_oct": {
+    "crowding": {
+     "for": {
+      "meta_hours": 286,
+      "ratio": 1.614
+     },
+     "against": {
+      "meta_hours": 373,
+      "ratio": 1.138
+     },
+     "difference_ci90": [
+      0.181,
+      0.788
+     ],
+     "holds": true
+    },
+    "creators": {
+     "for": {
+      "meta_hours": 342,
+      "ratio": 1.167
+     },
+     "against": {
+      "meta_hours": 279,
+      "ratio": 1.505
+     },
+     "difference_ci90": [
+      -0.761,
+      0.038
+     ],
+     "holds": false
+    },
+    "spread": {
+     "for": {
+      "meta_hours": 342,
+      "ratio": 1.121
+     },
+     "against": {
+      "meta_hours": 318,
+      "ratio": 1.54
+     },
+     "difference_ci90": [
+      -0.669,
+      -0.127
+     ],
+     "holds": false
+    },
+    "copycats": {
+     "for": {
+      "meta_hours": 305,
+      "ratio": 1.201
+     },
+     "against": {
+      "meta_hours": 328,
+      "ratio": 1.251
+     },
+     "difference_ci90": [
+      -0.328,
+      0.206
+     ],
+     "holds": false
+    },
+    "money_in": {
+     "for": {
+      "meta_hours": 294,
+      "ratio": 1.377
+     },
+     "against": {
+      "meta_hours": 327,
+      "ratio": 1.147
+     },
+     "difference_ci90": [
+      0.043,
+      0.439
+     ],
+     "holds": true
     }
    }
   }

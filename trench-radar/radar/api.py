@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import collectors as c
 from . import early
+from .analytics import explain
 from .analytics.backtest import run_backtest
 from .analytics.common import LAUNCH_SOURCES, OBS_SOURCES, RETIRED, in_list, source_freshness
 from .analytics.scoring import run_analysis
@@ -72,9 +73,11 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
     async def overview():
         r = current()
         bt = rows(con, "SELECT created_at, params, results FROM backtests ORDER BY id DESC LIMIT 1")
+        metas = explain.attach(r, State.narratives, LIVE)
         return {
             "as_of": r["as_of"], "model_version": r["model_version"], "market": r["market"],
-            "metas": r["metas"], "context": r["context"], "social_measured": r["social_measured"],
+            "edge_model": r.get("edge_model"), "edge_monitor": explain.monitor(metas),
+            "metas": metas, "context": r["context"], "social_measured": r["social_measured"],
             "freshness": r["freshness"], "config": settings.public_view(),
             "backtest": ({"created_at": bt[0]["created_at"], "dataset": json.loads(bt[0]["params"]).get("dataset"),
                           "range": [json.loads(bt[0]["params"]).get("start"), json.loads(bt[0]["params"]).get("end")],
@@ -207,7 +210,7 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
         # narratives are not crowded out by the many small new ones
         big = set(map(id, sorted(n["narratives"], key=lambda x: -((x["traction"]["buyers_h1"] or 0)
                                                                    + 5 * x["popularity"]["launches_6h"]))[:80]))
-        slim = [{k: v for k, v in x.items() if k != "cluster"} for x in n["narratives"] if id(x) in big]
+        slim = [{k: v for k, v in x.items() if k not in ("cluster", "members")} for x in n["narratives"] if id(x) in big]
         return {**n, "narratives": slim, "total": len(n["narratives"])}
 
     @app.get("/api/narratives/cluster")

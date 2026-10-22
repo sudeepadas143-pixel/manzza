@@ -375,7 +375,7 @@ def build(con, as_of: int, lineage: Lineage | None = None, *, persist: bool = Fa
     base.update(narratives=out, parents=parents, events=events)
     for n in out:
         n.pop("_centroid", None)
-        n.pop("_members", None)
+        n["members"] = n.pop("_members", [])[:500]   # joins keyword metas to their narrative (explain.py)
     return base
 
 

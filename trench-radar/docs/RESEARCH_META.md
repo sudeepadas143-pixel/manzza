@@ -24,6 +24,7 @@ python scripts/meta_dataset.py tune/shrine_test.db --out meta/meta_oct.npz      
 python scripts/meta_validate.py meta/meta_corpus.npz --outcome grad --out meta/res_grad.json \
     --external meta/meta_sep.npz meta/meta_oct.npz           # also: grad_nf, x2, grad_el
 python scripts/meta_fit.py meta/meta_corpus.npz --results meta/res_grad.json --results-nf meta/res_grad_nf.json
+python scripts/meta_explain_check.py meta/meta_sep.npz meta/meta_oct.npz --write   # reasons, out of period
 ```
 
 ## The question, the decision time and the target
@@ -203,6 +204,126 @@ about as much:
   (0.78× vs null 0.89×).
 - **Factory exclusion stays in meta detection.** It still makes the metas cleaner, and the
   launch edge is measured with it.
+
+## Explaining each meta in plain language
+
+Every ranked meta carries an explanation (`radar/analytics/explain.py`). Each part answers one
+question and is built only from measured values; nothing is generated freely.
+
+**What it is.** The narrative read by meaning (`narratives.py`) is joined to the keyword meta
+by shared coins. A narrative whose title contains the meta's word wins over one that merely
+lists it, so "cat" is described by "Weird Cat", not by a broad "DOGE PEPE" animal cluster. The
+text then uses:
+- the most typical coin and other examples;
+- the X post the coins cite, or the creators' own description;
+- the category;
+- what sets it apart from the nearest similar narrative.
+
+Without a narrative, it says the idea is read from names alone.
+
+**What is happening.** Whether the meta is new, growing, steady, fading or crowded, from:
+- launches this hour against its 6-hour pace;
+- buyers against the hour before;
+- money into the curves;
+- the crowding signals, in plain words.
+
+This is kept apart from the recommendation: a meta can be growing and still rank low.
+
+**Why it is getting attention.** A cited X post, social mentions (if connected), a leading
+coin, recent graduations, proven wallets, paid promotion. If none of these is visible, it says
+so.
+
+**Why it is ranked here.** Exact, from the model.
+- The launch edge is linear, so each input's contribution to a meta's rank is coefficient ×
+  (its standardised value − the average of the metas in the same read). The contributions add
+  up to the meta's lift over the average meta: what SHAP reports for a linear model, without
+  the dependency. A test checks the sum.
+- Inputs that move together (launch counts; buyers, volume, buyers per launch) are explained
+  as five themes:
+  - how many new coins are piling in;
+  - who is launching;
+  - how many coins trade;
+  - copycats;
+  - how much money is already in.
+
+  Their separate coefficients share information; only their sum is meaningful.
+- Each reason compares the meta with the median meta of the same read ("41 coins trading;
+  most metas: 6").
+- If a theme's measurements point different ways, the reason names the measurements that moved
+  it instead of telling a story.
+
+**Is each kind of reason predictive, or only convincing?** For each theme, compare metas where
+it counted *for* them with metas where it counted *against* them. Measure how their next coins
+graduated against all coins, in the two replays the model never saw
+(`scripts/meta_explain_check.py`):
+
+| Kind of reason | September 16 | October 15 |
+|---|---|---|
+| How much money is already in | held (+1.13 to +2.44) | held (+0.04 to +0.44) |
+| Copycat tickers | held (+0.89 to +1.39) | flat (−0.33 to +0.21) |
+| How many coins trade | held (+0.10 to +1.13) | reversed (−0.67 to −0.13) |
+| How many new coins are piling in | flat (−0.37 to +0.66) | held (+0.18 to +0.79) |
+| Who is launching | flat (−0.73 to +0.61) | flat (−0.76 to +0.04) |
+
+What this means:
+- Inside the model, every theme earns its weight jointly. On its own, a reason can still point
+  the wrong way: metas with few new coins are also often small and dead.
+- So every reason in the app carries this record. Those that never held up alone say so ("it
+  only counts alongside the other signals").
+- A sentence that claimed "broad participation goes with better results" was removed, because
+  the evidence did not support it on its own.
+
+**What could go wrong.** Warning signs are always listed, whatever the rank:
+- copycats;
+- one coin carrying the trend;
+- buyers disappearing;
+- fading volume;
+- new coins outrunning buyers;
+- sellers winning;
+- one-sided buying;
+- creator selling;
+- bundled launches;
+- bot-heavy buying;
+- insiders;
+- serial launchers;
+- thin data;
+- a cold market;
+- and that graduation is not profit.
+
+**What to watch next.** What would move the rank up or down, from the themes driving it now.
+These are statements about the model's rank, not about outcomes.
+
+**How sure is this?** Not a label but the record:
+- how the meta's tier did in each tested period, with intervals and sample sizes (strongest
+  tier: 1.31×, 2.27× and 1.20× the market; weakest: 0.12×, 0.33× and 1.11×);
+- the fact that the tiers did not separate on October 15;
+- any of the model's main inputs that are missing or outside the training range;
+- small samples;
+- a reminder that it ranks metas, not coins.
+
+**The numbers.** "Why this recommendation?" opens:
+- the theme effects;
+- every measurement, with this meta's value, the median meta's value, its effect on the rank
+  and what it measures;
+- the tier record;
+- the meta's own 7-day outcomes while the app was running, marked as not used for the ranking.
+
+**Monitoring.** The System page shows the share of live model inputs that are missing or
+outside the training range (more than 4 standard deviations). It is a light, built-in version
+of what Evidently does; the backtest's top-pick comparison tracks the ranking's actual
+performance on live history.
+
+### Libraries considered
+
+- **sentence-transformers.** The app already embeds launch text with the same all-MiniLM-L6-v2
+  model through onnxruntime (`radar/embed.py`), without PyTorch. Adding the library would add
+  hundreds of MB for the same vectors.
+- **scikit-learn.** The fitting, validation and metrics are a few hundred lines of tested NumPy
+  (`radar/analytics/quant.py`), already shipped in the exe. Nothing here needed it.
+- **SHAP.** For a linear model SHAP values have a closed form. They are computed exactly as
+  above, with a test that they add up.
+- **Evidently.** Its drift reports would need a separate service and pandas. The in-app input
+  check and the live top-pick comparison cover what this app can act on.
 
 ## Limitations
 

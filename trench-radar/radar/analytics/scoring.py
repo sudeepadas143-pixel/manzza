@@ -249,7 +249,7 @@ def run_analysis(con, as_of: int | None = None, *, persist: bool = True, max_met
             "social_history_h": social_history_h(con, as_of)}
     ctx["history"] = hist
     validated = latest_validation(con) if persist else False
-    scored = []
+    scored, meta_mints, buyers_prev = [], {}, {}
     for meta in metas:
         if hist["launch_coverage_baseline"] < 0.5:
             meta["launch"]["launch_accel_z"] = None
@@ -258,6 +258,8 @@ def run_analysis(con, as_of: int | None = None, *, persist: bool = True, max_met
         mints = meta["launch"]["mints_all"]
         meta["demand"] = dm.meta_demand(con, mints, as_of, lineage)
         prev = dm.meta_demand(con, mints, as_of - H, lineage)
+        meta_mints[meta["key"]] = meta["launch"]["mints_6h"]
+        buyers_prev[meta["key"]] = prev.get("unique_buyers_h1_sum")
         meta["attention"] = dm.attention(con, mints, as_of, lineage)
         meta["creators"] = dm.creator_history(con, meta["launch"]["mints_6h"], as_of, lineage)
         meta["saturation"] = saturation(meta["launch"], meta["social"], meta["demand"], prev)
@@ -275,6 +277,9 @@ def run_analysis(con, as_of: int | None = None, *, persist: bool = True, max_met
     result = {"as_of": as_of, "model_version": MODEL_VERSION,
               "edge_model": EDGE_MODEL.version if EDGE_MODEL else None, "market": mkt, "metas": scored,
               "context": ctx, "social_measured": social_measured, "freshness": fresh,
+              # for the plain-language explanations (analytics/explain.py); not persisted
+              "meta_mints": {s["meta_key"]: meta_mints.get(s["meta_key"], []) for s in scored},
+              "buyers_prev": {s["meta_key"]: buyers_prev.get(s["meta_key"]) for s in scored},
               "lineage": {"max_ts": lineage.max_ts, "reads": lineage.reads}}
     if persist:
         for s in scored:

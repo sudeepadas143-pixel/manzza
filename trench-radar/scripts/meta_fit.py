@@ -30,7 +30,11 @@ def summary(R: dict) -> dict:
            "top1_minus_existing_ci90": R["ci"][SPEC]["top1_ratio_minus_existing"],
            "ll_minus_existing_ci90": R["ci"][SPEC]["ll_minus_existing"],
            "history_adds_ll_ci90": R["ci"]["full"]["ll_minus_full_nohist"]}
+    out["tiers"] = {"corpus_walk_forward": R["tiers"][SPEC], "readiness_corpus_walk_forward": R["tiers"]["existing"]}
     ext = R.get("external") or {}
+    for p, v in ext.items():
+        if v:
+            out["tiers"][Path(p).stem] = v["tiers"]
     out["later_periods"] = {Path(p).stem: {"top1_ratio": {m: round(v[m]["top1_ratio"], 3) for m in ("existing", SPEC)},
                                            "top1_minus_existing_ci90": v[SPEC]["top1_minus_existing"],
                                            "ll_minus_existing_ci90": v[SPEC]["ll_minus_existing"]}
