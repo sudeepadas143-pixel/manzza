@@ -12,7 +12,10 @@ import json
 import math
 from pathlib import Path
 
-import numpy as np
+try:     # the app must start even if numpy cannot load (frozen builds); the edge model is then off
+    import numpy as np
+except Exception:  # noqa: BLE001
+    np = None
 
 MODEL_PATH = Path(__file__).resolve().parent.parent / "data" / "meta_model.json"
 
@@ -89,6 +92,8 @@ class EdgeModel:
 
     @classmethod
     def load(cls, path: Path = MODEL_PATH) -> "EdgeModel | None":
+        if np is None:
+            return None
         try:
             return cls(json.loads(path.read_text()))
         except (OSError, ValueError, KeyError):

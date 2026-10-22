@@ -31,14 +31,18 @@ jobs:
           $env:LOCALAPPDATA = "$env:RUNNER_TEMP\appdata"
           $env:DASHBOARD_PORT = "8899"
           $env:BROWSER = "none"
-          $p = Start-Process dist\TrenchRadar.exe -PassThru
+          $p = Start-Process dist\TrenchRadar.exe -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\exe-out.txt" -RedirectStandardError "$env:RUNNER_TEMP\exe-err.txt"
           $ok = $false
           for ($i = 0; $i -lt 40; $i++) {
             Start-Sleep 2
             try { if ((Invoke-WebRequest http://127.0.0.1:8899/ -UseBasicParsing).Content -match "TRENCH//RADAR") { $ok = $true; break } } catch {}
           }
-          Stop-Process $p -Force
-          if (-not $ok) { throw "exe did not serve the dashboard" }
+          Stop-Process $p -Force -ErrorAction SilentlyContinue
+          if (-not $ok) {
+            Write-Host "---- exe stdout ----"; Get-Content "$env:RUNNER_TEMP\exe-out.txt" -ErrorAction SilentlyContinue | Select-Object -Last 60
+            Write-Host "---- exe stderr ----"; Get-Content "$env:RUNNER_TEMP\exe-err.txt" -ErrorAction SilentlyContinue | Select-Object -Last 60
+            throw "exe did not serve the dashboard"
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: TrenchRadar-windows
