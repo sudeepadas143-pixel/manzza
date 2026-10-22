@@ -95,3 +95,23 @@ def test_meta_and_track_record_are_point_in_time():
     ctx.mature(T0 + 2 * 3600, grads.get)
     m = ctx.meta(T0 + 2 * 3600, ["kimchi"], "Kimchi Dog")
     assert m["m_hist_n"] == 6 and m["m_hist_grad"] == 1 and m["m_launch_1h"] == 0
+
+
+def test_shipped_model_gets_every_input_it_was_fitted_on():
+    model = early.Model.load()
+    if model is None:
+        pytest.skip("no fitted model in radar/data")
+    live = Live()
+    feed(live)
+    raw = early.window_features(live.mints["M1"], 60, live)
+    ctx = early.Context()
+    x = early.model_inputs(raw, ctx.meta(T0, ["cat"], "Test Cat"), {"prior": 0, "24h": 0, "grads": 0}, 0.005,
+                           model.spec["shrink_k"], False, True, model.spec.get("shrink_k_x2"))
+    assert set(model.names) <= set(x), set(model.names) - set(x)
+    p = model.predict(x)
+    assert 0 < p < 1
+    # more first-minute trading at the same base rate never lowers the score
+    raw2 = {**raw, "n_trades": raw["n_trades"] * 10}
+    x2 = early.model_inputs(raw2, ctx.meta(T0, ["cat"], "Test Cat"), {"prior": 0, "24h": 0, "grads": 0}, 0.005,
+                            model.spec["shrink_k"], False, True, model.spec.get("shrink_k_x2"))
+    assert model.predict(x2) > p

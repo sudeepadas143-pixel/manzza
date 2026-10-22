@@ -1,6 +1,7 @@
 """Fit the deployable launch score on every labelled day of the corpus and write it for the app.
 
-The model is the one validated walk-forward as `logreg_deploy` (scripts/quant_validate.py):
+The model is the one validated walk-forward as `token_only` (scripts/quant_validate.py; the meta
+features of `logreg_deploy` added nothing on top of it, so the smaller model ships):
 L2 logistic regression for P(graduates within 1 h of launch | still on the curve at age A),
 with the cohort base rate as an input. Lambda is chosen exactly as in validation (inner split on
 the last 3 days). Output: radar/data/quant_model.json, read by radar/early.py.
@@ -28,6 +29,7 @@ def main():
     ap.add_argument("dataset", type=Path)
     ap.add_argument("--results", type=Path, required=True, help="walk-forward results to record with the model")
     ap.add_argument("--age", type=int, default=60)
+    ap.add_argument("--spec", default="token_only")
     ap.add_argument("--out", type=Path, default=Path(__file__).resolve().parent.parent / "radar" / "data" / "quant_model.json")
     a = ap.parse_args()
     D = dict(np.load(a.dataset))
@@ -44,7 +46,7 @@ def main():
     kx = Q.fit_beta_strength(np.nan_to_num(D["m_hist_x2"][hist]), np.nan_to_num(D["m_hist_n"][hist]),
                              np.clip(np.nan_to_num(D["base_x2_24h"][hist], nan=0.05), 1e-4, 0.9))
     F["m_hist_x2_lift"] = V.track_lift(D, kx, "x2")
-    cols = V.DEPLOY
+    cols = V.SPECS[a.spec]
     lam = V.choose_lam(F, cols, y, idx, day)
     pr = Q.Prep().fit(V.matrix(F, cols, idx), cols)
     b = Q.fit_logreg(pr.transform(V.matrix(F, cols, idx)), y[idx], lam)
@@ -52,10 +54,10 @@ def main():
     val = {}
     for key in ("eligible/grad_1h", "active/grad_1h"):
         r = R.get(key)
-        if r and "logreg_deploy" in r["summary"]:
-            s = r["summary"]["logreg_deploy"]
+        if r and a.spec in r["summary"]:
+            s = r["summary"][a.spec]
             val[key] = {m: s[m] for m in ("n", "events", "auc", "auc_within_day", "ap", "brier_skill", "logloss", "intercept", "slope", "lift10")}
-            val[key]["auc_ci"] = r["ci"]["logreg_deploy"]["auc"]
+            val[key]["auc_ci"] = r["ci"][a.spec]["auc"]
             val[key]["base_auc_within_day"] = r["summary"]["base"]["auc_within_day"]
             if "buyers" in r["summary"]:
                 val[key]["buyers_auc_within_day"] = r["summary"]["buyers"]["auc_within_day"]
@@ -65,7 +67,7 @@ def main():
         "age_s": A, "features": pr.names, "missing_indicators": pr.ind,
         "median": [float(x) for x in pr.med], "mean": [float(x) for x in pr.mu], "sd": [float(x) for x in pr.sd],
         "coef": [float(x) for x in b], "coef_names": ["intercept"] + pr.out_names, "lambda": lam, "shrink_k": k, "shrink_k_x2": kx,
-        "min_base_n": 2000,
+        "min_base_n": 2000, "spec": a.spec,
         "trained_on": {"dataset": "Pump.fun Memecoin Corpus (jocry/Pumpfun_Memecoin_Corpus @ bd8aed6), CC BY 4.0",
                        "from": time.strftime("%Y-%m-%d", time.gmtime(t0[idx].min())),
                        "to": time.strftime("%Y-%m-%d", time.gmtime(t0[idx].max())),

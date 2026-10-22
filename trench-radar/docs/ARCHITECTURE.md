@@ -125,6 +125,17 @@ Weights are priors. The backtest exists to check them; until it has enough
 resolved outcomes (default ≥ 30 metas-windows per bucket) the dashboard says
 "unvalidated" next to every score.
 
+### Launch-window score (fitted, validated — `docs/RESEARCH_QUANT.md`)
+
+Separate from the meta score above, and per token rather than per meta. `radar/early.py`
+keeps each new token's first 15 minutes of trades (from `stream.py`) and closes windows at
+60 s, 5 min and 15 min into `token_early`. At 60 s, an L2 logistic regression fitted on the
+Pump.fun Memecoin Corpus (`radar/data/quant_model.json`, written by `scripts/quant_fit.py`)
+gives P(graduates within 1 h). The cohort base rate is learned live from matured outcomes,
+and graduations credit first-minute buyers in `wallet_credits` (the "proven buyers" input).
+Meta momentum and track record were tested as inputs and dropped (no gain); they are
+stored with each row for display and re-validation.
+
 ## 5. Implementation plan (as executed)
 
 1. Shared core: config (env, redaction), SQLite schema + migrations, HTTP client
