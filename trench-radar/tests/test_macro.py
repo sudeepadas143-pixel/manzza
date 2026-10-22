@@ -255,3 +255,59 @@ def test_usual_means_the_same_time_of_day(tmp_path):
     night = max(start + h * H for h in range(hours) if (start // H + h) % 24 == 3)
     st = {r["category"]: r for r in M.intraday_read(con, night)["categories"]}
     assert st["Rhythm"]["status"] == "normal" and st["Rhythm"]["demand_vs_usual"] < 1.5
+
+
+def _decay_market(tmp_path, name, plan, buyers, days=17):
+    """plan[cat](day_age) -> share of its coins drawing 50+ buyers; buyers[cat](hours_ago) -> buyers per read.
+    One creator per coin, so breadth follows the rate. All fabricated."""
+    con = connect(tmp_path / name)
+    k = 0
+    for cat, rate in plan.items():
+        n = 200 if cat == "Plain" else 60
+        for age in range(1, days):
+            r = rate(age)
+            for j in range(n):
+                t0 = NOW - age * D - 2 * H - j * 60
+                insert(con, "token_summary", {"mint": f"{cat}{age}_{j}", "created_at": t0, "creator": f"c{k}", "factory": 0,
+                                              "category": cat, "peak_buyers_h1": 80 if j < round(r * n) else 5,
+                                              "graduated": 0, "summarized_at": NOW})
+                insert(con, "token_narrative", {"mint": f"{cat}{age}_{j}", "narrative_id": 1, "category": cat, "at": t0})
+                insert(con, "tokens", {"mint": f"{cat}{age}_{j}", "created_at": t0, "first_seen_at": t0, "source": "chain"})
+                k += 1
+    for i, cat in enumerate(buyers):
+        con.execute("INSERT INTO narratives (id, label, category, first_seen, last_seen, status) VALUES (?,?,?,?,?, 'active')",
+                    (100 + i, cat.lower(), cat, NOW - days * D, NOW))
+        for h in range(days * 24):
+            insert(con, "narrative_obs", {"narrative_id": 100 + i, "observed_at": NOW - h * H, "buyers_h1": int(buyers[cat](h)),
+                                          "net_sol_h1": 1.0, "state": "steady", "members": "[]"})
+    con.commit()
+    return con
+
+
+def test_decay_needs_several_families_and_ignores_a_market_wide_fall(tmp_path):
+    good, plain = (lambda a: 0.2), (lambda a: 0.05)
+    con = _decay_market(tmp_path, "d.db",
+                        {"Plain": plain, "Steady": good, "Fading": lambda a: 0.02 if a <= 5 else 0.2, "DemandOnly": good, "Dip": good,
+                         "Never": plain},
+                        {"Plain": lambda h: 1000, "Steady": lambda h: 300, "Fading": lambda h: 60 if h < 5 * 24 else 300,
+                         "DemandOnly": lambda h: 60 if h < 5 * 24 else 300, "Dip": lambda h: 100 if h < 20 else 300,
+                         "Never": lambda h: 300})
+    dec = M.decay(con, NOW)
+    st = {r["category"]: r for r in dec["categories"]}
+    assert st["Fading"]["status"] == "confirmed" and {"results", "demand"} <= set(st["Fading"]["families_on"])
+    assert st["Fading"]["days_flagged"] >= 2 and st["Fading"]["evidence"] and st["Fading"]["watch_recovery"]
+    assert st["DemandOnly"]["status"] in ("healthy", "cooldown") and st["DemandOnly"]["families_on"] == ["demand"]
+    assert st["Dip"]["status"] == "cooldown"
+    assert st["Steady"]["status"] == "healthy"
+    assert "Never" not in st                                   # no edge to lose: not tracked
+    assert "not in a broad downturn" in dec["market"]["text"]
+
+
+def test_a_market_wide_fall_is_not_a_meta_decaying(tmp_path):
+    con = _decay_market(tmp_path, "m.db",
+                        {"Plain": lambda a: 0.025 if a <= 5 else 0.05, "Steady": lambda a: 0.1 if a <= 5 else 0.2},
+                        {"Plain": lambda h: 400 if h < 5 * 24 else 1000, "Steady": lambda h: 120 if h < 5 * 24 else 300})
+    dec = M.decay(con, NOW)
+    st = {r["category"]: r for r in dec["categories"]}
+    assert st["Steady"]["status"] == "healthy" and not st["Steady"]["families_on"]
+    assert "whole market is down" in dec["market"]["text"]

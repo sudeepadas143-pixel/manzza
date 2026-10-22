@@ -465,11 +465,38 @@ const TREND = { gaining: "▲ gaining", losing: "▼ losing", steady: "● stead
 const WSTAGE = { confirmed: ["Confirmed", "accelerating", "its week already shows it working"],
   emerging: ["Emerging", "heating", "its record is improving or its new coins are already graduating"],
   speculative: ["Speculative", "new", "buyers are moving in, with nothing behind it yet"] };
+const HEALTH = { confirmed: ["Decay confirmed", "fading", "decay confirmed"], early: ["Early weakening", "saturating", "early weakening"],
+  recovering: ["Recovering", "heating", "recovering"], cooldown: ["Cooling off", "steady", "cooling off"], healthy: ["Healthy", "accelerating", "healthy"],
+  thin: ["Too little data", "steady", null] };
+const FAM = { demand: "buyers & money in", crowding: "crowding", concentration: "concentration", results: "results", breadth: "breadth", follow_through: "follow-through" };
+function healthRecord(ck, st) {
+  const k = HEALTH[st]?.[2], r = k && ck?.decay?.all?.[k];
+  if (!r || !r.flagged) return "";
+  return `On history, ${r.flagged} reads with this status were followed by a decline ${pct(r.declined_after_flag)} of the time (all tracked categories: ${pct(ck.decay.base_rate)}).`;
+}
+function healthHtml(Dc, ck) {
+  const rows = (Dc.categories || []).filter((r) => r.status !== "thin");
+  const card = (r) => `<article class="link-card">
+      <div class="label"><span class="stamp ${HEALTH[r.status][1]}">${esc(HEALTH[r.status][0])}</span><span class="i3" style="font-size:12px">${r.days_flagged ? `${r.days_flagged} day${r.days_flagged > 1 ? "s" : ""} flagged · ` : ""}${esc(r.evidence_trend || "")}</span><button class="linkbtn" data-cat="${esc(r.category)}" style="margin-left:auto">${esc(r.category)} →</button></div>
+      <h4>${esc(r.category)}</h4><p class="prose">${esc(r.why)}</p>
+      ${r.evidence.length ? `<ul class="ev tight">${r.evidence.map((t) => `<li><span class="g">−</span><span>${esc(t)}</span></li>`).join("")}</ul>` : ""}
+      ${r.against.length ? `<p class="notes"><b>Against it:</b> ${esc(r.against.join(" "))}</p>` : ""}
+      <div class="ci-grid"><div><b>Recovery if</b><ul>${r.watch_recovery.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>
+        <div><b>Worse if</b><ul>${r.watch_decay.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div></div>
+      <p class="notes">${r.window.recent_coins} coins in the last ${r.window.recent_days} days against ${r.window.baseline_coins} in the ${r.window.baseline_days} before. ${esc(healthRecord(ck, r.status))}</p></article>`;
+  const flagged = rows.filter((r) => ["confirmed", "early", "recovering", "cooldown"].includes(r.status));
+  const fine = rows.filter((r) => r.status === "healthy");
+  return `<section class="sect"><div class="slug"><h3 class="h3">Meta health</h3><span class="note">is a category that had an edge losing it? judged against its own past and the market</span></div>
+    ${Dc.market ? `<p class="dek2">${esc(Dc.market.text)}</p>` : ""}
+    ${flagged.length ? `<div class="link-grid">${flagged.map(card).join("")}</div>` : `<p class="dek2">${esc((Dc.notes || []).join(" ") || "No category with an edge shows signs of losing it.")}</p>`}
+    ${fine.length ? `<p class="notes" style="margin-top:12px"><b>Holding their edge:</b> ${fine.map((r) => `<button class="linkbtn" data-cat="${esc(r.category)}">${esc(r.category)}</button>`).join(", ")}.</p>` : ""}
+    <p class="notes">A warning needs two independent kinds of evidence (out of ${Object.values(FAM).join(", ")}); “decay confirmed” also needs its coins' results to have turned, two days running. ${ck?.decay?.text ? esc(ck.decay.text) : "Not yet measured on history."}</p></section>`;
+}
 function watchHtml(R, ck) {
   const rec = (k) => ck?.rotation?.[k];
   const cards = (R.watchlist || []).map((w) => { const h = rec(`watch_${w.stage}`) || rec("watch"); return `<article class="link-card">
       <div class="label"><span class="stamp ${WSTAGE[w.stage][1]}">${esc(WSTAGE[w.stage][0])}</span><button class="linkbtn" data-cat="${esc(w.category)}" style="margin-left:auto">${esc(w.category)} →</button></div>
-      <h4>${esc(w.category)}</h4><p class="i3" style="margin:0 0 8px">${esc(WSTAGE[w.stage][2])}.${w.emergent ? " A category the app formed from recent narratives, not one of its described ones." : ""}</p>
+      <h4>${esc(w.category)}</h4><p class="i3" style="margin:0 0 8px">${w.health && HEALTH[w.health] ? `Health: ${esc(HEALTH[w.health][0].toLowerCase())}. ` : ""}${esc(WSTAGE[w.stage][2])}.${w.emergent ? " A category the app formed from recent narratives, not one of its described ones." : ""}</p>
       <ul class="ev tight">${w.evidence.map((t) => `<li><span class="g">+</span><span>${esc(t)}</span></li>`).join("")}</ul>
       ${w.risks.length ? `<p class="notes"><b>Against it:</b> ${esc(w.risks.join(" "))}</p>` : ""}
       <div class="ci-grid"><div><b>Confirms if</b><ul>${w.confirm.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>
@@ -547,6 +574,7 @@ function renderMap() {
     <section class="sect"><div class="slug"><h3 class="h3">How today connects to the week</h3><span class="note">where they agree, and where today breaks from the trend</span></div>
       ${links ? `<div class="link-grid">${links}</div>` : `<p class="dek2">No category shows a clear link or break between its week and today yet.</p>`}</section>
     ${M.rotation ? watchHtml(M.rotation, ck) : ""}
+    ${M.decay ? healthHtml(M.decay, ck) : ""}
     <section class="sect g12">
       <div class="span-7"><div class="slug thin"><h3 class="h3">Moving together</h3><span class="note">${C.tested ? `${C.tested} pairs tested over ${C.hours} hours` : ""}</span></div>
         ${pairs ? `<ul class="ev">${pairs}</ul>` : `<p class="dek2">${esc(C.note && !C.tested ? C.note : "No pair of categories moved together beyond what the whole market did.")}</p>`}
@@ -565,6 +593,7 @@ function openCategory(cat) {
   const nars = (M.intraday.narratives || []).filter((n) => n.category === cat);
   const beta = M.comovement?.market_correlation?.[cat];
   const rot = (M.rotation?.categories || []).find((r) => r.category === cat);
+  const hl = (M.decay?.categories || []).find((r) => r.category === cat);
   const body = `
     <header class="prof-head"><div class="cat label">${r7 ? `<span class="stamp ${MSTAT[r7.status][1]}">${esc(MSTAT[r7.status][0])} this week</span>` : ""}${I ? `<span class="i3" style="margin:0 10px">·</span><span class="stamp ${ISTAT[I.status][1]}">${esc(ISTAT[I.status][0])} today</span>` : ""}<span style="margin-left:auto">category</span></div>
       <h2>${esc(cat)}</h2><p class="dek">${esc(r7?.sentence || "Not enough coins this week to judge its record.")}</p></header>
@@ -580,6 +609,19 @@ function openCategory(cat) {
     ${I ? `<div class="dsec"><h3>Today<span class="note">against its usual day</span></h3>
       <p class="prose" style="margin:0 0 8px">${compact(I.buyers_now)} buyers in the last hour across ${I.narratives_live} live narratives${isNum(I.demand_vs_usual) ? ` (${xf(I.demand_vs_usual)} its usual)` : ""}; ${I.coins_with_buyers} coins with 20+ buyers${isNum(I.top_coin_share) ? `, the top one with ${pct(I.top_coin_share)} of the buying` : ""}. ${I.graduations_24h} graduations in 24 hours${isNum(I.graduations_usual_per_day) ? ` against about ${nf(I.graduations_usual_per_day, 1)} on a usual day${I.graduation_surprise < 0.05 ? " — unusually many" : ""}` : ""}. ${I.launches_6h} coins launched in 6 hours${isNum(I.launches_usual_6h) ? ` (usual ${nf(I.launches_usual_6h, 0)})` : ""}.</p>
       ${isNum(beta) ? `<p class="notes">Its hour-to-hour swings line up with the rest of the market at a correlation of ${nf(beta, 2)} (${beta >= 0.6 ? "it mostly rides the market" : beta >= 0.3 ? "partly its own moves" : "it mostly moves on its own"}).</p>` : ""}</div>` : ""}
+    ${hl ? `<div class="dsec"><h3>Health<span class="note">${esc(HEALTH[hl.status][0])}${hl.days_flagged ? ` · ${hl.days_flagged} day${hl.days_flagged > 1 ? "s" : ""} flagged` : ""}</span></h3>
+      <p class="prose" style="margin:0 0 6px">${esc(hl.why)}</p>${hl.evidence.map((t) => `<p class="prose" style="margin:0 0 6px">${esc(t)}</p>`).join("")}
+      ${hl.against.length ? `<p class="notes"><b>Against it:</b> ${esc(hl.against.join(" "))}</p>` : ""}
+      <table class="tbl static wrap"><thead><tr><th>Measure</th><th class="r">Recent</th><th class="r">Before</th></tr></thead><tbody>
+        <tr><td>Coins drawing 50+ buyers, vs market</td><td class="r mono">${xf(hl.metrics.traction_ratio[0], 2)}</td><td class="r mono">${xf(hl.metrics.traction_ratio[1], 2)}</td></tr>
+        <tr><td>Graduations, vs market</td><td class="r mono">${xf(hl.metrics.graduation_ratio[0], 2)}</td><td class="r mono">${xf(hl.metrics.graduation_ratio[1], 2)}</td></tr>
+        <tr><td>Creators with a winner, per day</td><td class="r mono">${nf(hl.metrics.winners_per_day[0], 1)}</td><td class="r mono">${nf(hl.metrics.winners_per_day[1], 1)}</td></tr>
+        <tr><td>Share of all category buying (3 days · last day)</td><td class="r mono">${pct(hl.metrics.buyer_share["3d"])} · ${pct(hl.metrics.buyer_share.day)}</td><td class="r mono">${pct(hl.metrics.buyer_share.baseline)}</td></tr>
+        <tr><td>Share of SOL flowing in</td><td class="r mono">${pct(hl.metrics.sol_share["3d"])}</td><td class="r mono">${pct(hl.metrics.sol_share.baseline)}</td></tr>
+        <tr><td>Went on after drawing buyers</td><td class="r mono">${pct(hl.metrics.follow_through[0])}</td><td class="r mono">${pct(hl.metrics.follow_through[1])}</td></tr>
+        <tr><td>Holders kept after a day</td><td class="r mono">${pct(hl.metrics.holder_retention[0])}</td><td class="r mono">${pct(hl.metrics.holder_retention[1])}</td></tr>
+      </tbody></table>
+      <p class="notes">Recent = coins launched in the last ${hl.window.recent_days} days (${hl.window.recent_coins}); before = the ${hl.window.baseline_days} days earlier (${hl.window.baseline_coins}). Results count coins after their first day, so they confirm a day or more after buying changes. ${esc(healthRecord(M.check, hl.status))}</p></div>` : ""}
     ${rot ? `<div class="dsec"><h3>Rotation<span class="note">is it gaining a bigger part of today's buying?</span></h3>
       <p class="prose" style="margin:0 0 6px">${isNum(rot.share_now) ? `${pct(rot.share_now)} of all category buying in the last hour, against ${pct(rot.share_usual)} on a usual day.` : "No share history yet."}
         ${rot.early?.launched_24h ? ` Of ${rot.early.launched_24h} coins launched in the last day, ${rot.early.graduated_24h} graduated (about ${nf(rot.early.expected, 1)} expected).` : ""}

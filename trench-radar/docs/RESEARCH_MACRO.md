@@ -4,6 +4,7 @@ The **Macro · Today** view of the Meta screen answers three questions:
 - **This week (macro):** which categories have actually produced successful coins.
 - **Today (intraday):** which categories are busier or quieter than usual right now.
 - **Tomorrow's watchlist (rotation):** where buying is moving, and which categories might work next.
+- **Meta health:** whether a category that had an edge is losing it, early enough to react.
 
 Everything is computed from data the app already collects (`radar/analytics/macro.py`). There
 are no paid sources and no Telegram. Every signal was measured on replayed history before being
@@ -138,6 +139,68 @@ not** crowding.
 
 No confidence score is attached to any item. The only number about the future is each signal's
 measured record on history, shown next to it.
+
+## Meta health: decay and exhaustion
+
+The question: has a category that *had* an edge started losing it, and can we tell while there
+is still time to react?
+
+**Which categories are tracked.** Only those that had an edge. Over the 11 days before the last 3,
+their coins drew 50+ buyers (or graduated) at 1.2× the market or more, with 60+ coins and
+successes from 3+ creators. Everything else reads "no edge to lose" and is not shown.
+
+**Market-relative throughout.**
+- Every rate is against all coins launched in the same days.
+- Every demand measure is a share of all category buying or of SOL flowing in.
+- So a market-wide sell-off moves the baseline with it, and alone does not read as one
+  category's decay.
+- The screen also says when the whole market is down.
+
+**Six families of evidence**, each the category's last days against its own baseline:
+
+| Family | Speed | Signal |
+|---|---|---|
+| Buyers and money in | fast | share of all category buying ≤ 0.75× baseline over 3 days *and* ≤ 0.8× in the last day (a one-day dip alone is not enough); or share of SOL in ≤ 0.7× with net selling in 15+ points more of the hours |
+| Crowding | fast | share of categorised launches ≥ 1.3× baseline while buyers per launch ≤ 0.7× |
+| Concentration | fast | two coins hold 60%+ of recent buying, and the rest draw buyers at ≤ 0.6× their earlier rate |
+| Results | slow | coins drawing 50+ buyers against the market, recent vs baseline: P(recent better) ≤ 0.15. Graduations count the same way, but only when drawing buyers is not holding up too (graduations are rare) |
+| Breadth | slow | different creators with a winner per day ≤ 0.6× baseline relative to the market's change; or coins reaching half the curve ≤ 0.7× |
+| Follow-through | slow | of coins that drew buyers, the share going on to half the curve or graduation ≤ 0.6× baseline; or holders kept after a day ≤ 0.8× (live only) |
+
+"Slow" families use coins whose first day is over, so they confirm a day or more after the
+fast ones move.
+
+**Comparing rates.** Recent and baseline rates are compared with a weak prior (strength 20). A
+strong prior pulled the short recent window toward the market harder than the long baseline;
+in a test with a market-wide fall, that read as a decline when nothing had changed.
+
+**Statuses:**
+
+| Status | When |
+|---|---|
+| Decay confirmed | 2+ families now, including a slow one, and 2+ the day before too |
+| Early weakening | 2+ families |
+| Recovering | was weakening in either of the last two days, now at most one family |
+| Cooling off | the last day's share of buying ≤ 0.75× baseline, but 3-day demand and results hold up |
+| Healthy | at most one family, none slow |
+| Too little data | under 30 recent coins |
+
+**What each category shows:**
+- how many consecutive days it has been flagged;
+- whether the evidence is strengthening or easing against a day ago;
+- each family's evidence, with sample sizes and windows;
+- what argues against it;
+- what would confirm recovery or further decay;
+- every measure, recent against before, in the category sheet.
+
+A watchlist item whose category is weakening says so first among its risks.
+
+**What the corpus cannot test:**
+- **Holder retention and liquidity milestones.** The corpus has no holder counts or liquidity,
+  so these are live-only.
+- **Faster sell-offs.** These are approximated by the share of hours with net selling.
+- **The length of each coin's momentum.** Not measured: the coin summaries keep peaks, not
+  durations.
 
 ## How much each part says about what comes next
 

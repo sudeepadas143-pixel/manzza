@@ -13,6 +13,12 @@ knew at the time.
    did not: their coins launched in the next 24 hours, graduated (not instantly) and drew 50+
    buyers, each against all coins then. Also broad momentum against single-coin momentum.
    Consecutive reads share outcome hours, so the bootstrap resamples whole days.
+4. Decay warnings -> the next 3 days. Every 6 hours, meta health (macro.decay) for every category
+   that had an edge. Outcome: its coins launched in the next 3 days, drawing 50+ buyers against
+   all coins then, compared with its own baseline before the read. "Declined" = 0.6x that
+   baseline or less. Hit rate per status, false alarms, missed declines, the same restricted to
+   categories whose results had not yet turned (the early-warning question), lead time against
+   the day a collapse first showed in matured results, and single-signal rules for comparison.
 
 Day-block bootstrap for 90% ranges. Writes radar/data/macro_check.json for the app to show.
 
@@ -45,6 +51,110 @@ def outcomes(con, start, end):
             k, n = by.get(c["category"], (0, 0))
             by[c["category"]] = (k + M._success(c), n + 1)
     return by, p
+
+
+def decay_rows(con, reads, lo, hi):
+    """(day, t, category, status, families, recent ratio, base ratio, forward ratio) per tracked category per read."""
+    out = []
+    last = 0
+    for t in reads:
+        if t - last < 6 * H or t > hi - 3 * D - D:
+            continue
+        last = t
+        dec = M.decay(con, t)
+        if not dec["categories"]:
+            continue
+        cs = M._coins(con, t, t + 3 * D)
+        if not cs:
+            continue
+        p = sum(M._traction(c) for c in cs) / len(cs)
+        by: dict = {}
+        for c in cs:
+            if c["category"]:
+                b = by.setdefault(c["category"], [0, 0])
+                b[0] += M._traction(c)
+                b[1] += 1
+        for r in dec["categories"]:
+            if r["status"] == "thin" or not r["baseline"]["drew_buyers_vs_market"]:
+                continue
+            f = by.get(r["category"])
+            if not f or f[1] < 30 or not p:
+                continue
+            out.append({"day": t // D, "t": t, "category": r["category"], "status": r["status"], "families": r["families_on"],
+                        "recent": r["metrics"]["traction_ratio"][0], "base": r["baseline"]["drew_buyers_vs_market"],
+                        "forward": f[0] / f[1] / p})
+    return out
+
+
+def decay_summary(rows, rng):
+    """How decay warnings did: hit rate, false alarms, missed declines, early warning and lead time."""
+    if len({r["day"] for r in rows}) < 5:
+        return {"rows": len(rows), "text": "Too few days with categories to track to test decay warnings."}
+    for r in rows:
+        r["declined"] = r["forward"] <= 0.6 * r["base"]
+        r["visible"] = r["recent"] is not None and r["recent"] <= 0.6 * r["base"]     # already showing in matured results
+        r["warned"] = r["status"] in ("early", "confirmed")
+    rules = {"warning (early or confirmed)": lambda r: r["warned"], "decay confirmed": lambda r: r["status"] == "confirmed",
+             "early weakening": lambda r: r["status"] == "early", "cooling off": lambda r: r["status"] == "cooldown",
+             "recovering": lambda r: r["status"] == "recovering", "healthy": lambda r: r["status"] == "healthy",
+             "one signal: buyers and money in": lambda r: "demand" in r["families"],
+             "one signal: results": lambda r: "results" in r["families"],
+             "one signal: crowding": lambda r: "crowding" in r["families"]}
+
+    def stats(sub, rule):
+        on = [r for r in sub if rule(r)]
+        off = [r for r in sub if not rule(r)]
+        days = sorted({r["day"] for r in sub})
+        by = {d: [r for r in sub if r["day"] == d] for d in days}
+        diffs = []
+        for _ in range(2000):
+            pick = [r for d in rng.choice(days, len(days)) for r in by[d]]
+            a = [r["declined"] for r in pick if rule(r)]
+            b = [r["declined"] for r in pick if not rule(r)]
+            if a and b:
+                diffs.append(np.mean(a) - np.mean(b))
+        dec = [r for r in sub if r["declined"]]
+        return {"flagged": len(on), "declined_after_flag": round(float(np.mean([r["declined"] for r in on])), 3) if on else None,
+                "declined_otherwise": round(float(np.mean([r["declined"] for r in off])), 3) if off else None,
+                "difference_ci90": [round(float(np.percentile(diffs, 5)), 3), round(float(np.percentile(diffs, 95)), 3)] if len(diffs) > 100 else None,
+                "false_alarms": round(1 - float(np.mean([r["declined"] for r in on])), 3) if on else None,
+                "declines_caught": round(float(np.mean([rule(r) for r in dec])), 3) if dec else None, "declines": len(dec)}
+    out = {"rows": len(rows), "days": len({r["day"] for r in rows}), "categories": len({r["category"] for r in rows}),
+           "base_rate": round(float(np.mean([r["declined"] for r in rows])), 3),
+           "all": {k: stats(rows, f) for k, f in rules.items()}}
+    early = [r for r in rows if not r["visible"]]
+    out["not_yet_visible"] = {"rows": len(early), "base_rate": round(float(np.mean([r["declined"] for r in early])), 3) if early else None,
+                              **({k: stats(early, rules[k]) for k in ("warning (early or confirmed)", "one signal: buyers and money in")}
+                                 if len({r["day"] for r in early}) >= 5 else {})}
+    # lead time: for each category, the first read whose matured results show the collapse, and the first warning before it
+    leads, unwarned = [], 0
+    for cat in {r["category"] for r in rows}:
+        rs = sorted((r for r in rows if r["category"] == cat), key=lambda r: r["t"])
+        for i, r in enumerate(rs):
+            if r["visible"] and (i == 0 or not rs[i - 1]["visible"]) and i > 0:
+                prior = [x for x in rs[:i] if x["warned"] and r["t"] - x["t"] <= 7 * D]
+                if prior:
+                    leads.append((r["t"] - prior[0]["t"]) / D)
+                else:
+                    unwarned += 1
+    out["lead"] = {"collapses": len(leads) + unwarned, "warned_before": len(leads),
+                   "median_days_ahead": round(float(np.median(leads)), 1) if leads else None}
+    a = out["all"]["warning (early or confirmed)"]
+    rng_ = a["difference_ci90"]
+    holds = rng_ and rng_[0] > 0
+    lt = out["lead"]
+    out["text"] = (f"Over {out['days']} days and {out['categories']} categories with an edge, {_p(out['base_rate'])} of reads were followed by a "
+                   f"decline in the next 3 days. After a warning: {_p(a['declined_after_flag'])}; without one: {_p(a['declined_otherwise'])} "
+                   + (f"(difference, 90% range {rng_[0]:+.2f} to {rng_[1]:+.2f}). " if rng_ else ". ")
+                   + f"{'Warnings came before declines more often than chance.' if holds else 'That difference is not clear of chance.'} "
+                   f"False alarms: {_p(a['false_alarms'])} of warnings; declines caught: {_p(a['declines_caught'])} of {a['declines']}. "
+                   + (f"Of {lt['collapses']} collapses that later showed in results, {lt['warned_before']} had a warning first"
+                      + (f", a median {lt['median_days_ahead']:.1f} days ahead." if lt["median_days_ahead"] is not None else ".") if lt["collapses"] else ""))
+    return out
+
+
+def _p(x):
+    return f"{x:.0%}" if x is not None else "—"
 
 
 def ranks(a):
@@ -140,6 +250,7 @@ def main():
             for j, (name, p) in enumerate((("grad", p_g), ("traction", p_t))):
                 rot["broad_vs_single"][name].append((t // D, sum(x[j] for x in br), sum(x[2] for x in br) * p,
                                                      sum(x[j] for x in sg), sum(x[2] for x in sg) * p))
+    dec_rows = decay_rows(con, reads, lo, hi)
     rng = np.random.default_rng(31)
 
     def boot_mean(vals):
@@ -219,6 +330,7 @@ def main():
                                        f"against {g['rest']:.2f}× for {rest} (difference, 90% range {lo_g:+.2f} to {hi_g:+.2f}; "
                                        f"{events} graduations behind it). Drew 50+ buyers: {tr['top']:.2f}× against {tr['rest']:.2f}×. "
                                        f"{'The same direction' if same_sign else 'Not the same direction'} in both halves of the period.")}
+    res["decay"] = decay_summary(dec_rows, rng)
     print(json.dumps(res, indent=1))
     if a.write:
         OUT.write_text(json.dumps(res, indent=1))
