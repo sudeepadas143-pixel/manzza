@@ -47,6 +47,7 @@ T_CAT = 0.24          # close enough to a described category (top scores on real
 T_CAT_MARGIN = 0.04   # ...or at least T_CAT - 0.04 and this far ahead of the runner-up
 T_NEWCAT = 0.62       # a novel narrative joins an earlier emergent category
 MIN_TOKENS, MIN_CREATORS = 3, 2
+OBS_KEEP_S = 21 * 86400   # hourly narrative history kept: meta health compares 3 days with the 11 before, up to 4 days back
 MAX_SEED, MAX_POINTS = 2000, 6000
 
 # Categories are described, not keyword-matched: each line is a sentence the embedding of a
@@ -733,7 +734,8 @@ def _persist(con, out: list[dict], as_of: int, emb, np, events: list[dict]) -> N
         for e in events:
             insert(con, "narrative_events", {"at": as_of, "kind": e["kind"], "detail": json.dumps(e)})
         con.execute("UPDATE narratives SET status='ended' WHERE status='active' AND last_seen < ?", (as_of - 12 * H,))
-        con.execute("DELETE FROM narrative_obs WHERE observed_at < ?", (as_of - 14 * 86400,))
+        if OBS_KEEP_S:
+            con.execute("DELETE FROM narrative_obs WHERE observed_at < ?", (as_of - OBS_KEEP_S,))
         con.execute("COMMIT")
     except Exception:
         con.execute("ROLLBACK")

@@ -37,6 +37,7 @@ def main():
     if not embed.load(a.models):
         sys.exit("the language model could not be loaded")
     con = connect(a.db)
+    narratives.OBS_KEEP_S = None      # keep the whole history: the backtests look back over all of it
     if a.fresh:
         for t in ("narratives", "narrative_obs", "narrative_categories", "narrative_events", "token_narrative", "token_summary"):
             con.execute(f"DELETE FROM {t}")
