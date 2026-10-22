@@ -101,6 +101,9 @@ def _ratio_summary(k: int, n: int, p0: float, m: float) -> dict:
     np = _np()
     if n == 0 or p0 <= 0:
         return {"ratio": None, "low": None, "high": None, "ratio_ex_best": None, "low_ex_best": None}
+    if n < MIN_COINS:     # too few to judge (shown as such): a plain estimate, no ranges
+        return {"ratio": round(k / n / p0, 3), "low": None, "high": None,
+                "ratio_ex_best": round(max(k - 1, 0) / max(n - 1, 1) / p0, 3), "low_ex_best": None}
     d = _draws(k, n, p0, m) / p0
     dx = _draws(max(k - 1, 0), max(n - 1, 0), p0, m) / p0
     return {"ratio": round(float(np.median(d)), 3), "low": round(float(np.percentile(d, 10)), 3),
@@ -200,10 +203,17 @@ def macro_read(con, as_of: int | None = None, windows=(7, 14, 30)) -> dict:
     as_of = as_of or _now()
     end = as_of - D                      # only coins whose first 24 hours have passed
     out = {"as_of": as_of, "matured_until": end, "windows": {}, "notes": []}
+    span = max(max(windows), 14)                 # the trend needs the week before this one
+    pool = sorted(_coins(con, end - span * D, end), key=lambda c: c["created_at"])   # fetched once, sliced below
+    times = [c["created_at"] for c in pool]
+
+    def coins(a, b):
+        from bisect import bisect_left
+        return pool[bisect_left(times, a):bisect_left(times, b)]
     for w in windows:
         start = end - w * D
         cov = coverage(con, start, end)
-        cs = _coins(con, start, end)
+        cs = coins(start, end)
         if not cs or cov < 0.5:
             out["windows"][str(w)] = {"days": w, "coverage": cov, "coins": len(cs), "available": False}
             continue
@@ -233,20 +243,20 @@ def macro_read(con, as_of: int | None = None, windows=(7, 14, 30)) -> dict:
                                   "categories": sorted(rows_, key=lambda r: -(r["grad"]["low_ex_best"] or 0))}
     w7 = out["windows"].get("7")
     if w7 and w7.get("available"):
-        _trends(con, out, end)
-        _narratives(con, out, end)
+        _trends(coins, out, end)
+        _narratives(coins, out, end)
     else:
         out["notes"].append("Less than a week of collection: the weekly view needs 7 days of matured coins.")
     return out
 
 
-def _trends(con, out: dict, end: int) -> None:
+def _trends(coins, out: dict, end: int) -> None:
     """For each category in the 7-day view: this week vs the week before, newer launches vs older
     ones in this week, launches per day (crowding), and how steadily it produced successes."""
     w7 = out["windows"]["7"]
     m = w7["prior_strength"]
-    this = _coins(con, end - 7 * D, end)
-    prev = _coins(con, end - 14 * D, end - 7 * D)
+    this = coins(end - 7 * D, end)
+    prev = coins(end - 14 * D, end - 7 * D)
     early = [c for c in this if c["created_at"] < end - 3 * D]
     late = [c for c in this if c["created_at"] >= end - 3 * D]
 
@@ -260,6 +270,9 @@ def _trends(con, out: dict, end: int) -> None:
             if c["category"]:
                 g.setdefault(c["category"], []).append(c)
         groups[name] = g
+    n_late = sum(len(v) for v in groups["late"].values())
+    n_early = sum(len(v) for v in groups["early"].values())
+    mgrow = (n_late / 3) / (n_early / 4) if n_early and n_late else 1.0
     for row in w7["categories"]:
         cat = row["category"]
         t, p, e, l = (groups[k].get(cat, []) for k in ("this", "prev", "early", "late"))
@@ -277,16 +290,18 @@ def _trends(con, out: dict, end: int) -> None:
         row["trend"] = ("new" if len(p) < MIN_COINS else "gaining" if vs is not None and vs >= 0.9
                         else "losing" if vs is not None and vs <= 0.1 else "steady")
         nv = row["newer_vs_older"]
-        grow = row["launches_last_3d_per_day"] / max(row["launches_prior_4d_per_day"], 0.5)
+        # its launch growth against the growth of all categorised launches, so a busier market (or
+        # more coins finding a category) does not make every category look crowded
+        grow = (row["launches_last_3d_per_day"] / max(row["launches_prior_4d_per_day"], 0.5)) / mgrow
         row["crowding"] = ("saturating" if grow >= 1.3 and nv is not None and nv <= 0.2 else
                            "filling up" if grow >= 1.3 else "thinning" if grow <= 0.7 else "stable")
 
 
-def _narratives(con, out: dict, end: int) -> None:
+def _narratives(coins, out: dict, end: int) -> None:
     """The narratives inside each category that produced its successes this week."""
     w7 = out["windows"]["7"]
     p0 = w7["market"]["graduation_rate"]
-    cs = _coins(con, end - 7 * D, end)
+    cs = coins(end - 7 * D, end)
     by: dict[tuple, list] = {}
     for c in cs:
         if c["category"] and c["narrative_id"] is not None:
@@ -871,7 +886,7 @@ def decay(con, as_of: int, back: int = 4) -> dict:
     """Meta health for every category that had an edge: status, how long, how broad, which way the
     evidence is moving, what argues against it, and what would confirm recovery or decay."""
     data = _decay_data(con, as_of, back)
-    cats = {k for k, v in data["by_cat"].items() if len(v) >= 90}    # fewer coins could never meet the baseline's 60 + 30
+    cats = {k for k, v in data["by_cat"].items() if len(v) >= 90 and k.strip()}    # fewer coins could never meet the baseline's 60 + 30
     out = {"as_of": as_of, "categories": [], "market": None, "notes": []}
     # market context: is everyone down?
     e = as_of - D
@@ -1061,7 +1076,7 @@ def links(macro: dict, intraday: dict) -> list[dict]:
         elif i and is_ == "heating" and ms in ("lagging", "average", "one coin"):
             f = ("hot without a record", f"{cat} is busy today, but its week does not back it up",
                  [f"Buyers today are {_x(i['demand_vs_usual'])} its usual level.", macro_sentence(m)])
-        elif i and (is_ == "new" or ms == "insufficient") and (i["buyers_now"] or 0) >= 50:
+        elif i and (is_ == "new" or ms == "insufficient") and (i["buyers_now"] or 0) >= 50 and i["coins_with_buyers"] >= 2:
             f = ("new, no record", f"{cat} is drawing buyers today with no track record yet",
                  [f"{i['buyers_now']:,} buyers in the last hour across {i['narratives_live']} narrative(s); "
                   + ("there is no week of history to compare with." if not m else f"only {m['coins']} coins last week, too few to judge.")])
