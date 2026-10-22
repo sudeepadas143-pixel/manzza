@@ -54,7 +54,7 @@ const Perf = {
 Perf.apply();
 
 // ---------------------------------------------------------------- api + state
-const S = { nar: null, metaView: "narratives", narSel: null, narState: "all", narCat: "all", ov: null, charts: {}, tokens: null, reports: null, report: null, range: 24, tab: "overview", sel: null,
+const S = { nar: null, narAsOf: null, metaView: "narratives", narSel: null, narState: "all", narCat: "all", ov: null, charts: {}, tokens: null, reports: null, report: null, range: 24, tab: "overview", sel: null,
   metaFilter: "all", metaSort: "score", tok: { key: "vol_h1", dir: -1, filter: "all", q: "" }, cmp: null, error: null, lastOk: 0, sig: null };
 let token = null;
 try { token = localStorage.getItem("radar-token"); } catch (_) { /* ignore */ }
@@ -408,79 +408,144 @@ function renderLive() {
 const NSTATE = { accelerating: ["pos", "●", "Accelerating"], bought: ["pos", "●", "Being bought"], heating: ["warn", "▲", "Heating, little buying"],
   new: ["mute", "○", "New"], steady: ["mute", "○", "Steady"], saturating: ["warn", "▲", "Saturating"], fading: ["neg", "✕", "Fading"] };
 const nst = (s) => { const x = NSTATE[s] || NSTATE.steady; return st(x[0], x[1], x[2]); };
-const catLabel = (c) => c.primary || "New kind of meta";
+const catLabel = (c) => NViz.catName(c);
+const NFLIP = new Map();        // narrative label -> {from, to, at}: a state change seen between two reads
+function trackFlips(N) {
+  if (S.narAsOf === N.as_of) return;
+  S.narAsOf = N.as_of;
+  N.narratives.forEach((n) => {
+    const p = NViz.remember("state:" + n.label, n.state);
+    if (p && p !== n.state) NFLIP.set(n.label, { from: p, to: n.state, at: N.as_of });
+    else if (NFLIP.has(n.label) && N.as_of - NFLIP.get(n.label).at > 900) NFLIP.delete(n.label);
+  });
+}
+const flipBadge = (n) => { const f = NFLIP.get(n.label); return f ? `<span class="flip" title="Was ${esc(f.from)} at the previous read">now ${esc(NSTATE[f.to]?.[2].toLowerCase() || f.to)}</span>` : ""; };
+// the narrative dossier needs room beside the field; narrower screens open it as a sheet
+const narWide = () => matchMedia("(min-width: 1100px)").matches;
 function renderNarratives() {
   const el = $(".screen[data-screen=metas]"), N = S.nar;
   if (!N || N.pending || !N.narratives?.length) {
+    ["field", "momentum", "trend", "cluster"].forEach(NViz.drop);
     setHead("Metas", N?.note ? esc(N.note) : "Reading narratives…", VIEW_SEG() + REFRESH); bindView();
     el.innerHTML = `<div class="empty"><h3>${N?.pending ? "First narrative read in progress" : N?.semantic === false ? "Narratives need the language model" : "No narrative yet"}</h3>${esc(N?.note || "A narrative appears once 3+ tokens from 2+ creators share an idea.")}</div>`;
     return;
   }
   const all = N.narratives;
+  trackFlips(N);
   setHead("Metas", `${N.total ?? all.length} narratives read by meaning from ${compact(N.launches_considered)} launches in the last 6 hours`
     + `${N.factory_launches_excluded ? ` (${compact(N.factory_launches_excluded)} launches by factory wallets left out)` : ""}. Updated ${esc(hhmm(N.as_of))}.`, VIEW_SEG() + REFRESH);
   bindView();
-  const cats = [...new Set(all.map((n) => catLabel(n.category)))].sort();
   const states = ["accelerating", "bought", "heating", "new", "steady", "saturating", "fading"].filter((s) => all.some((n) => n.state === s));
-  const list = all.filter((n) => (S.narState === "all" || n.state === S.narState) && (S.narCat === "all" || catLabel(n.category) === S.narCat));
+  if (S.narCat !== "all" && !all.some((n) => NViz.bandKey(n.category) === S.narCat)) S.narCat = "all";
+  const list = all.filter((n) => (S.narState === "all" || n.state === S.narState) && (S.narCat === "all" || NViz.bandKey(n.category) === S.narCat));
+  const span = Math.max(0, ...all.map((n) => (n.history?.length >= 2 ? n.history[n.history.length - 1][0] - n.history[0][0] : 0)));
   if (!S.narSel || !all.some((n) => n.label === S.narSel)) S.narSel = (list[0] || all[0]).label;
   const sel = all.find((n) => n.label === S.narSel);
-  el.innerHTML = `<div class="md">
-    <div class="sec" style="margin-top:0">
-      <div class="toolbar"><div class="chips" role="group" aria-label="Filter by state"><button class="chip" data-ns="all" aria-pressed="${S.narState === "all"}">All<span class="ct">${all.length}</span></button>${states.map((s) => `<button class="chip" data-ns="${s}" aria-pressed="${S.narState === s}">${esc(NSTATE[s][2])}<span class="ct">${all.filter((n) => n.state === s).length}</span></button>`).join("")}</div>
-        <span class="end"><label class="sr" for="ncat">Category</label><select id="ncat"><option value="all">All categories</option>${cats.map((c) => `<option ${S.narCat === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></span></div>
-      <table class="tbl ledgertbl"><thead><tr><th>Narrative</th><th class="hide-s">Category</th><th>State</th><th class="r">Creators<span class="hide-s"> 1h / 6h</span></th><th class="r">Buyers/h</th><th class="r wide-only">Net SOL 1h</th><th class="wide-only">Evidence</th></tr></thead>
-        <tbody id="nrows">${list.map((n) => `<tr data-n="${esc(n.label)}" class="${n.label === S.narSel ? "sel" : ""}" aria-selected="${n.label === S.narSel}">
-          <td class="nmc">${esc(n.title)}<small>${esc(n.label)}${n.parent?.siblings?.length ? ` · part of ${esc(n.parent.label)}` : ""}</small></td>
-          <td class="hide-s"><span class="i2">${esc(catLabel(n.category))}</span>${n.category.secondary?.length ? `<div class="wide-only"><small class="i3">${esc(n.category.secondary.join(", "))}</small></div>` : ""}</td>
-          <td>${nst(n.state)}</td><td class="r">${n.popularity.creators_1h}<span class="i3"> / ${n.popularity.creators_6h}</span></td>
-          <td class="r">${compact(n.traction.buyers_h1)}</td>
-          <td class="r wide-only ${n.traction.net_sol_h1 > 0 ? "up" : n.traction.net_sol_h1 < 0 ? "down" : ""}">${signed(n.traction.net_sol_h1, 1)}</td>
-          <td class="wide-only"><span class="i3">${esc(n.evidence.level)}</span></td></tr>`).join("") || `<tr><td colspan="7" class="i3" style="padding:24px 12px">No narrative matches these filters.</td></tr>`}</tbody></table>
-      <p class="notes">Grouped by what the tokens mean (name, description, the X post they link to) and by shared pictures, not by keywords. States describe launches and buying; none of them is a tested profit signal.</p>
+  const row = (n) => {
+    const T = n.traction, P = n.popularity, sp = (n.history || []).map((h) => h[2] || 0);
+    return `<tr data-n="${esc(n.label)}" class="${n.label === S.narSel ? "sel" : ""} life-${NViz.life(n.state)}" aria-selected="${n.label === S.narSel}" style="--c:${NViz.enc(n.category).color}">
+      <td class="nmc"><span class="nm" title="${esc(catLabel(n.category))}">${NViz.swatch(n.category)}<span>${esc(n.title)}</span><span class="sr">, ${esc(catLabel(n.category))}</span></span><small>${esc(n.label)}${n.parent?.siblings?.length ? ` · part of ${esc(n.parent.label)}` : ""}</small></td>
+      <td class="wide-only catc"><span class="i2">${esc(catLabel(n.category))}</span>${n.category.secondary?.length ? `<div><small class="i3">${esc(n.category.secondary.join(", "))}</small></div>` : ""}</td>
+      <td class="stc">${nst(n.state)}${flipBadge(n)}</td>
+      <td class="r ${NViz.moved("c1:" + n.label, P.creators_1h)}">${P.creators_1h}<span class="i3"> / ${P.creators_6h}</span></td>
+      <td class="r"><span class="lc"><span class="spk">${sp.length >= 2 ? Charts.spark(sp, 48, 16) : ""}</span><span class="${NViz.moved("b1:" + n.label, T.buyers_h1)}">${compact(T.buyers_h1)}</span></span></td>
+      <td class="r wide-only ${T.net_sol_h1 > 0 ? "up" : T.net_sol_h1 < 0 ? "down" : ""}">${signed(T.net_sol_h1, 1)}</td>
+      <td class="wide-only"><span class="i3">${esc(n.evidence.level)}</span></td></tr>`;
+  };
+  el.innerHTML = `<div class="md nmd">
+    <div class="ncol">
+      <div class="plane nsum">${NViz.tally(all)}${NViz.band(all, S.narCat)}</div>
+      <div class="plane mapwrap">
+        <div class="chart-h"><h3>Narrative field</h3><span class="note">where each narrative sits now; marks move when the next read moves them</span>
+          <span class="end legend"><span><i class="lg lit"></i>lit = emerging</span><span><i class="lg dim"></i>dim = established</span><span><i class="lg hollow"></i>hollow = saturating</span><span class="i3">size = launches 6h</span></span></div>
+        <div class="chart nfield" id="nfield" role="img" aria-label="Scatter of ${all.length} narratives by launch momentum and buyers per launch; the table below lists the same data"></div>
+      </div>
+      <div class="plane mapwrap">
+        <div class="chart-h"><h3>Momentum</h3><span class="note">buyers per hour in the most-bought narratives${span ? `, last ${span >= 5400 ? nf(span / 3600, 0) + " hours" : Math.round(span / 60) + " minutes"}` : ""}</span></div>
+        <div class="chart nmom" id="nmom"></div>
+      </div>
+      <div class="sec">
+        <div class="toolbar"><div class="chips" role="group" aria-label="Filter by state"><button class="chip" data-ns="all" aria-pressed="${S.narState === "all"}">All<span class="ct">${all.length}</span></button>${states.map((s) => `<button class="chip" data-ns="${s}" aria-pressed="${S.narState === s}">${esc(NSTATE[s][2])}<span class="ct">${all.filter((n) => n.state === s).length}</span></button>`).join("")}</div>
+          ${S.narCat !== "all" ? `<span class="end"><button class="chip" data-cat="all" aria-pressed="true">${esc(S.narCat)} ✕</button></span>` : ""}</div>
+        <table class="tbl ledgertbl nartbl"><thead><tr><th>Narrative</th><th class="wide-only">Category</th><th>State</th><th class="r">Creators<span class="hide-s"> 1h / 6h</span></th><th class="r">Buyers/h</th><th class="r wide-only">Net SOL 1h</th><th class="wide-only">Evidence</th></tr></thead>
+          <tbody id="nrows">${list.map(row).join("") || `<tr><td colspan="7" class="i3" style="padding:24px 12px">No narrative matches these filters.</td></tr>`}</tbody></table>
+        <p class="notes">Grouped by what the tokens mean (name, description, the X post they link to) and by shared pictures, not by keywords. States describe launches and buying; none of them is a tested profit signal.</p>
+      </div>
     </div>
-    <aside class="dossier swap" id="dossier" aria-label="Selected narrative">${sel ? narrativeDossier(sel) : ""}</aside>
+    <aside class="dossier swap" id="dossier" aria-label="Selected narrative">${sel && narWide() ? narrativeDossier(sel) : ""}</aside>
   </div>`;
+  const pick = (label) => {
+    S.narSel = label;
+    const n = all.find((x) => x.label === label);
+    if (narWide()) {
+      $$("#nrows tr").forEach((r) => { const on = r.dataset.n === label; r.classList.toggle("sel", on); r.setAttribute("aria-selected", on); });
+      const d = $("#dossier"); d.innerHTML = narrativeDossier(n); d.scrollTop = 0; bindNarrativeDossier(d, n);
+      NViz.field($("#nfield"), all, { selected: label, compact: false, highlight: S.narCat !== "all" ? S.narCat : null, onPick: (x) => pick(x.label) });
+    } else {
+      openSheet(n.title, esc(n.label), narrativeDossier(n), (b) => bindNarrativeDossier(b, n));
+    }
+  };
   $$("[data-ns]", el).forEach((b) => b.addEventListener("click", () => { S.narState = b.dataset.ns; renderNarratives(); }));
-  $("#ncat", el).addEventListener("change", (e) => { S.narCat = e.target.value; renderNarratives(); });
-  $$("#nrows tr[data-n]", el).forEach((r) => r.addEventListener("click", () => {
-    S.narSel = r.dataset.n;
-    if (wide()) { renderNarratives(); } else { const n = all.find((x) => x.label === S.narSel); openSheet(n.title, esc(n.label), narrativeDossier(n)); bindNarrativeDossier($("#sheet-body"), n); }
-  }));
-  if (sel) bindNarrativeDossier($("#dossier", el), sel);
+  $$("[data-cat]", el).forEach((b) => b.addEventListener("click", () => { S.narCat = b.dataset.cat === S.narCat ? "all" : b.dataset.cat; renderNarratives(); }));
+  $$("#nrows tr[data-n]", el).forEach((r) => r.addEventListener("click", () => pick(r.dataset.n)));
+  NViz.field($("#nfield"), all, { selected: S.narSel, compact: !narWide(), highlight: S.narCat !== "all" ? S.narCat : null, onPick: (x) => pick(x.label) });
+  NViz.momentum($("#nmom"), all, { compact: !narWide(), onPick: (x) => pick(x.label) });
+  NViz.tick(el);
+  if (sel && narWide()) bindNarrativeDossier($("#dossier", el), sel);
 }
 function narrativeDossier(n) {
-  const P = n.popularity, T = n.traction, c = n.category, p = n.represents.post;
-  const fact = (k, v, cls = "") => `<div><div class="k">${esc(k)}</div><div class="v ${cls}">${v}</div></div>`;
+  const P = n.popularity, T = n.traction, c = n.category, p = n.represents.post, k = n.label;
+  const fact = (lbl, v, cls = "") => `<div><div class="k">${esc(lbl)}</div><div class="v ${cls}">${v}</div></div>`;
+  const e = NViz.enc(c);
   return `
-    <div class="d-id"><div>${nst(n.state)}</div><h2 style="margin-top:8px">${esc(n.title)}</h2>
-      <div class="terms">Sub-meta: ${esc(n.label)}${n.parent?.siblings?.length ? ` · parent narrative: ${esc(n.parent.label)} (with ${esc(n.parent.siblings.slice(0, 3).join(", "))})` : ""}</div></div>
+    <div class="d-id pig" style="--c:${e.color}"><div class="d-st">${nst(n.state)}${flipBadge(n)}<span class="i3 d-cat">${NViz.swatch(c)}${esc(catLabel(c))}</span></div>
+      <h2 style="margin-top:8px">${esc(n.title)}</h2>
+      <div class="terms">Sub-meta: ${esc(n.label)}${n.parent?.siblings?.length ? ` · parent narrative: ${esc(n.parent.label)} (with ${esc(n.parent.siblings.slice(0, 3).join(", "))})` : ""}</div>
+      ${NViz.tracker(n)}</div>
     <div class="dsec"><h3>What it is</h3>${n.explanation.map((s) => `<p style="margin:0 0 8px">${esc(s)}</p>`).join("")}
       ${p ? `<p class="notes"><a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer nofollow">Open the post on X</a>${isNum(p.likes) ? ` · ${compact(p.likes)} likes` : ""}</p>` : ""}
-      <div class="links" style="margin-top:8px">${n.represents.examples.map((e, i) => `<button class="btn" data-ex="${i}">${esc(e.symbol || e.name || "token")}${e.buyers ? ` · ${compact(e.buyers)}` : ""}</button>`).join("")}</div></div>
+      <div class="links" style="margin-top:8px">${n.represents.examples.map((x, i) => `<button class="btn" data-ex="${i}">${esc(x.symbol || x.name || "token")}${x.buyers ? ` · ${compact(x.buyers)}` : ""}</button>`).join("")}</div></div>
+    <div class="dsec"><h3>Token cluster<span class="note" id="nclnote"></span></h3>
+      <div class="chart ncl" id="ncl"><p class="notes">Loading the cluster…</p></div>${NViz.clusterLegend()}</div>
     <div class="dsec"><h3>Classification</h3><div class="ledger">
-      <div class="li"><span class="k">Category</span><span class="v">${esc(catLabel(c))}</span><span class="c">${c.primary ? `match ${nf(c.primary_score, 2)}${c.emergent ? ", a category created from earlier narratives" : ""}` : `no known category fits (closest ${esc(c.nearest_seed || "—")}, ${nf(c.primary_score, 2)})`}</span></div>
+      <div class="li"><span class="k">Category</span><span class="v">${NViz.swatch(c)} ${esc(catLabel(c))}</span><span class="c">${c.primary ? `match ${nf(c.primary_score, 2)}${c.emergent ? ", a category created from earlier narratives" : ""}` : `no known category fits (closest ${esc(c.nearest_seed || "—")}, ${nf(c.primary_score, 2)})`}</span></div>
       ${c.secondary?.length ? `<div class="li"><span class="k">Also</span><span class="v">${esc(c.secondary.join(", "))}</span></div>` : ""}
       <div class="li"><span class="k">Sub-meta</span><span class="v">${esc(n.label)}</span></div>
       <div class="li"><span class="k">Novelty</span><span class="v">${isNum(n.novelty?.score) ? nf(n.novelty.score, 2) : "—"}</span><span class="c">${esc(n.novelty?.most_similar_before ? `resembles “${n.novelty.most_similar_before}” seen earlier` : n.novelty?.basis || "")}</span></div></div></div>
     <div class="dsec"><h3>What's driving it</h3>${n.drivers.length ? `<ul class="ev">${n.drivers.map((d) => `<li><span class="g" style="color:var(--demand)">●</span><span>${esc(d)}</span></li>`).join("")}</ul>` : `<p class="notes" style="margin:0">No single driver stands out.</p>`}</div>
     <div class="dsec"><h3>Is it working?<span class="note">${esc(n.state_reasons.join("; "))}</span></h3>
-      <div class="facts">${fact("Popularity: creators 1h", `${P.creators_1h}<small> vs ${nf(P.creator_rate_h, 1)}/h before</small>`)}${fact("Launches 6h", `${P.launches_6h}<small> · ${P.creators_6h} creators</small>`)}${fact("Launch velocity (z)", nf(P.velocity_z, 1), P.velocity_z >= 2 ? "up" : P.velocity_z <= -1 ? "down" : "")}
-        ${fact("Traction: buyers/h", `${compact(T.buyers_h1)}${isNum(T.buyers_h1_hour_ago) ? `<small> vs ${compact(T.buyers_h1_hour_ago)} an hour ago</small>` : ""}`)}${fact("Net SOL 1h", signed(T.net_sol_h1, 1), T.net_sol_h1 > 0 ? "up" : T.net_sol_h1 < 0 ? "down" : "")}${fact("Top token's share of buyers", isNum(T.top_token_share) ? pct(T.top_token_share) : "—")}</div>
+      <div class="facts">${fact("Popularity: creators 1h", `${NViz.num("d:c1:" + k, P.creators_1h, P.creators_1h)}<small> vs ${nf(P.creator_rate_h, 1)}/h before</small>`)}${fact("Launches 6h", `${NViz.num("d:l6:" + k, P.launches_6h, P.launches_6h)}<small> · ${P.creators_6h} creators</small>`)}${fact("Launch momentum (z)", nf(P.velocity_z, 1), P.velocity_z >= 2 ? "up" : P.velocity_z <= -1 ? "down" : "")}
+        ${fact("Traction: buyers/h", `${NViz.num("d:b1:" + k, T.buyers_h1, compact(T.buyers_h1))}${isNum(T.buyers_h1_hour_ago) ? `<small> vs ${compact(T.buyers_h1_hour_ago)} an hour ago</small>` : ""}`)}${fact("Net SOL 1h", NViz.num("d:ns:" + k, T.net_sol_h1, signed(T.net_sol_h1, 1), "signed"), T.net_sol_h1 > 0 ? "up" : T.net_sol_h1 < 0 ? "down" : "")}${fact("Top token's share of buyers", isNum(T.top_token_share) ? pct(T.top_token_share) : "—")}</div>
       <p class="notes">Opportunity: ${esc(n.opportunity)}</p></div>
+    <div class="dsec"><h3>Momentum<span class="note">${n.history_hours ? `tracked for ${nf(n.history_hours, 1)}h` : "first read"}</span></h3>
+      ${n.merged_from ? `<p class="notes" style="margin:0 0 6px">Merged with ${esc(n.merged_from.join(", "))}.</p>` : ""}${n.split_from ? `<p class="notes" style="margin:0 0 6px">Split from ${esc(n.split_from)}.</p>` : ""}
+      ${n.history?.length >= 2 ? `<div class="chart ntrend" id="ntrend"></div>` : `<p class="notes" style="margin:0">History builds up every 5 minutes.</p>`}</div>
     <div class="dsec"><h3>Saturation and risks</h3>${n.risks.length ? `<ul class="ev cau">${n.risks.map((r) => `<li><span class="g" style="color:var(--caution)">▲</span><span>${esc(r)}</span></li>`).join("")}</ul>` : `<p class="notes" style="margin:0">No copycat, bundling, insider or creator-selling pattern found.</p>`}
       <p class="notes">Copycat launches ${pct(P.clone_share)}; buyers per launch in the last hour ${nf(T.buyers_per_launch_1h, 1)}.</p></div>
-    <div class="dsec"><h3>Why these tokens are grouped</h3><p class="notes" style="margin:0">${n.grouping.by_meaning} by similar meaning${Object.entries(n.grouping.links).map(([k, v]) => `, ${v} by ${esc(k)}`).join("")}; coherence ${nf(n.grouping.coherence, 2)} (weakest member ${nf(n.grouping.weakest_member_similarity, 2)}).
+    <div class="dsec"><h3>Why these tokens are grouped</h3><p class="notes" style="margin:0">${n.grouping.by_meaning} by similar meaning${Object.entries(n.grouping.links).map(([kk, v]) => `, ${v} by ${esc(kk)}`).join("")}; coherence ${nf(n.grouping.coherence, 2)} (weakest member ${nf(n.grouping.weakest_member_similarity, 2)}).
       ${n.closest ? ` Closest other narrative: ${esc(n.closest.title)} (${nf(n.closest.similarity, 2)})${n.closest.distinct_terms.length ? `; this one is about ${esc(n.closest.distinct_terms.join(", "))}` : ""}.` : ""}</p></div>
-    <div class="dsec"><h3>Evolution<span class="note">${n.history_hours ? `tracked for ${nf(n.history_hours, 1)}h` : "first read"}</span></h3>
-      ${n.merged_from ? `<p class="notes" style="margin:0 0 6px">Merged with ${esc(n.merged_from.join(", "))}.</p>` : ""}${n.split_from ? `<p class="notes" style="margin:0 0 6px">Split from ${esc(n.split_from)}.</p>` : ""}
-      ${n.history?.length >= 2 ? `<div class="chart" id="nhist"></div>` : `<p class="notes" style="margin:0">History builds up every 5 minutes.</p>`}</div>
     <div class="dsec"><h3>Evidence<span class="note">${esc(n.evidence.level)}</span></h3><p class="notes" style="margin:0">${n.evidence.gaps.length ? esc(cap(n.evidence.gaps.join("; "))) + "." : "Several creators, readable descriptions or posts, and trading data."}</p></div>`;
 }
+const CLUSTERS = new Map();      // "label@as_of" -> cluster, so re-renders don't refetch
 function bindNarrativeDossier(root, n) {
   $$("[data-ex]", root).forEach((b) => b.addEventListener("click", () => openToken(n.represents.examples[+b.dataset.ex].mint)));
-  const h = $("#nhist", root);
-  if (h && n.history?.length >= 2) Charts.timeLine(h, { data: n.history.map((x) => [x[0], x[2] || 0]), from: n.history[0][0], to: n.history[n.history.length - 1][0], fmtY: (v) => compact(v, 0), label: "Buyers per hour in this narrative" });
+  NViz.tick(root);
+  const h = $("#ntrend", root);
+  if (h) NViz.trend(h, n);
+  const box = $("#ncl", root), key = `${n.label}@${S.nar?.as_of}`;
+  const draw = (cl) => {
+    if (!box.isConnected) return;
+    if (!cl.nodes?.length) { NViz.drop("cluster"); box.innerHTML = `<p class="notes">No token data for this read.</p>`; return; }
+    box.innerHTML = "";
+    const note = $("#nclnote", root);
+    if (note) note.textContent = `${cl.shown} most-bought of ${cl.of} · size = buyers/h`;
+    NViz.cluster(box, n, cl, { compact: !narWide(), onToken: (m) => openToken(m) });
+  };
+  if (CLUSTERS.has(key)) return draw(CLUSTERS.get(key));
+  api(`/api/narratives/cluster?label=${encodeURIComponent(n.label)}`).then((cl) => {
+    if (CLUSTERS.size > 40) CLUSTERS.clear();
+    CLUSTERS.set(key, cl); draw(cl);
+  }).catch(() => { if (box.isConnected) box.innerHTML = `<p class="notes">The cluster is not in the latest read; refresh to load it.</p>`; });
 }
 
 // ---------------------------------------------------------------- NARRATIVES (metas)

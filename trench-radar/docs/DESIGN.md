@@ -45,6 +45,39 @@ Labels are sentence case at weight 500. No all-caps eyebrows, and no mono labels
 Strong colour appears only where it carries meaning: buying, selling, risk, caution. Blue means
 "someone is talking or launching", and green means "someone is paying".
 
+### Narrative categories: pigments
+
+The Narratives view gives each category a pigment (`web/nviz.js`, `FAMILY`). Eight families in a
+fixed order, validated with the dataviz palette checker against `--plane` (#15171a): every
+adjacent pair separates under protan/deutan simulation (worst ΔE 11.3, target ≥ 8), normal vision
+worst ΔE 20.3 (floor 15), every pigment ≥ 3:1 on the plane. No pigment is a red or green, which
+already mean selling and buying.
+
+| Family | Hex | Categories (circle / diamond) |
+|---|---|---|
+| rose | #cb5589 | Art & visual memes / Lifestyle & nostalgia |
+| blue | #5193f4 | Crypto-native |
+| olive | #7b7c29 | Absurdist & surreal |
+| violet | #8570dd | Gaming, anime & entertainment |
+| teal | #27a7a8 | Technology & AI |
+| purple | #9f52b1 | Internet culture & slang / Communities & fandoms |
+| copper | #bf6d2c | Characters & creatures |
+| cerulean | #3ca1c4 | Current events & news / Politics & geopolitics |
+
+Eleven categories share eight hues; the second member of a family is a diamond, and every mark
+on the map, line and table row also carries a name, so identity never rests on colour alone.
+Categories the app creates fold into one "Created by the app" group (bone, dashed); a narrative
+fitting no category is bone white. A colour follows its category, never its rank. A scatter of
+eight hues cannot pass the all-pairs colour-blind check, which is why the field labels its larger
+marks and the table lists the same data.
+
+### Lifecycle: light
+
+On the narrative field brightness is the lifecycle. Emerging narratives (new, heating,
+accelerating, bought) are lit, with a soft halo in their own pigment; established ones are dim;
+saturating and fading ones are hollow with a dashed rim. The tally above the map uses the same
+code: bone, grey, hatched.
+
 ## Space and shape
 
 - 4px base: 4, 8, 12, 16, 24, 32, 48.
@@ -73,6 +106,18 @@ Strong colour appears only where it carries meaning: buying, selling, risk, caut
 Only for state changes: panel content swap (opacity, 160ms), sheet open (320ms, iOS drawer
 curve), and press feedback. No entrance choreography and no hover animation on rows.
 
+On the Narratives view motion reports a change in the data and nothing else:
+
+- **Marks move** (650 ms, cubic in-out) from where the previous read put a narrative to where the
+  new one does. Charts survive the page's re-render; an unchanged read moves nothing, and the
+  token cluster's force layout runs once per narrative and read.
+- **Numbers count** (700 ms ease-out) in the dossier and the tally when they changed since the
+  last render, never on first view.
+- **A changed cell flashes once** (1.6 s, green up / red down) in the ledger.
+- **A state that flipped** since the previous read shows a "now …" badge that shines once.
+
+Low visual and `prefers-reduced-motion` remove all of these and the halos; every value stays.
+
 ## Performance modes (Settings, in System)
 
 - **Premium**: everything above, live crosshairs, 30-second refresh, Live screen every 3 seconds.
@@ -81,6 +126,28 @@ curve), and press feedback. No entrance choreography and no hover animation on r
   changed. Every number and chart is still shown.
 - **Auto** (default): Low visual if `prefers-reduced-motion`, Save-Data, ≤4 GB device memory,
   ≤4 CPU threads or a 2G/3G connection is reported; otherwise Premium. It can be overridden.
+
+## Narratives view (2026-10-22)
+
+Metas → Narratives, left to right and top to bottom: the lifecycle tally and category band (share
+of launches by category; click to filter), the narrative field (ECharts scatter: launch momentum
+against buyers per launch, log scale, size = launches in 6 hours, quadrants named "Emerging with
+buyers", "Launch rush, thin buying", "Bought without a rush", "Quiet or saturated"), momentum lines
+(buyers per hour of the most-bought narratives, end-labelled, a second line of one family dashed),
+and the ledger with a buyers sparkline. The dossier adds a pigment edge, a state tracker (one block
+per read), the token cluster (force graph: size = buyers, faint = loosely related, edges show the
+link: same post, picture, name, or nearest by meaning) and a two-panel trend (buyers, launches;
+one axis each, never a dual axis).
+
+ECharts 5.6.0 (Apache-2.0) is vendored in `web/vendor/` and loaded the first time Metas opens
+(one ~54 ms parse task; refreshes add no long task). The React component libraries suggested as
+references (Magic UI, Motion Primitives, Tremor, React Bits) need React, Tailwind and a build step
+this app does not have; the few ideas worth having were written in plain CSS and JS instead:
+the number ticker, the one-time shine, the category bar and the tracker.
+
+Widths checked with no horizontal overflow: 390, 820, 1099, 1100, 1280, 1366, 1920. Below 1100 px
+the dossier opens as a sheet; below 1600 px the table drops its category column (the swatch and
+an accessible label carry it).
 
 ## Review record (2026-10-16)
 

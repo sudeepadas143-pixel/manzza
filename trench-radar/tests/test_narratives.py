@@ -131,3 +131,46 @@ def test_boilerplate_descriptions_carry_no_narrative():
     assert N.meaningful_description("Fees to @nima_owji via UsePaid") == ""
     assert "aura" in N.meaningful_description("A meme coin built around aura, confidence and main-character vibes")
     assert "9E51XMWG" not in N.clean("CA: 9E51XMWGbUCrgiLu7PrYrBa4TWo88GByvvmUMQfYpump the coin")
+
+
+def test_token_cluster_shows_how_members_connect(tmp_path, fake_model):
+    con = connect(tmp_path / "n.db")
+    world(con)
+    r = N.build(con, T0)
+    pic = next(n for n in r["narratives"] if any(e["mint"].startswith("P") for e in n["represents"]["examples"]))
+    cl = pic["cluster"]
+    assert cl["of"] == len(cl["nodes"]) == 3
+    assert {e[2] for e in cl["edges"]} >= {"same picture"}
+    assert all("same picture" in n["via"] for n in cl["nodes"])
+    gta = next(n for n in r["narratives"] if any(e["mint"].startswith("G") for e in n["represents"]["examples"]))
+    assert any(e[2] == "same X post" for e in gta["cluster"]["edges"])
+    for n in r["narratives"]:
+        k = len(n["cluster"]["nodes"])
+        assert all(0 <= a < k and 0 <= b < k and a != b for a, b, _ in n["cluster"]["edges"])
+
+
+def test_api_sends_the_largest_narratives_and_clusters_separately(tmp_path, fake_model):
+    from fastapi.testclient import TestClient
+
+    from radar.api import create_app
+    from radar.scheduler import State
+    from tests.conftest import make_settings
+
+    def nar(label, state, buyers, launches):
+        return {"label": label, "state": state, "traction": {"buyers_h1": buyers}, "popularity": {"launches_6h": launches},
+                "cluster": {"nodes": [{"mint": label}], "edges": []}}
+    small_new = [nar(f"new{i}", "new", 0, 3) for i in range(100)]
+    big_fading = nar("fading", "fading", 500, 40)
+    State.narratives = {"as_of": T0, "narratives": small_new + [big_fading], "parents": [], "events": [],
+                        "launches_considered": 0, "factory_launches_excluded": 0}
+    s = make_settings(tmp_path)
+    try:
+        with TestClient(create_app(s)) as client:
+            body = client.get("/api/narratives").json()
+            assert body["total"] == 101 and len(body["narratives"]) == 80
+            assert any(n["label"] == "fading" for n in body["narratives"])         # not crowded out by small new ones
+            assert all("cluster" not in n for n in body["narratives"])
+            assert client.get("/api/narratives/cluster", params={"label": "fading"}).json()["nodes"] == [{"mint": "fading"}]
+            assert client.get("/api/narratives/cluster", params={"label": "nope"}).status_code == 404
+    finally:
+        State.narratives = None

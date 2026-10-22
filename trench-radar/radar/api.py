@@ -197,12 +197,24 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
     async def narratives_now():
         """Latest narrative read (computed by the scheduler every 5 minutes)."""
         n = State.narratives
-        if n is not None:
-            return {**n, "narratives": n["narratives"][:80], "total": len(n["narratives"])}
         if n is None:
             return {"pending": True, "narratives": [], "parents": [], "events": [],
                     "note": "The first narrative read runs a few minutes after start."}
-        return n
+        # token clusters are large; the selected one is fetched on its own
+        # the 80 largest by buyers and launches, in the read's order, so saturating and fading
+        # narratives are not crowded out by the many small new ones
+        big = set(map(id, sorted(n["narratives"], key=lambda x: -((x["traction"]["buyers_h1"] or 0)
+                                                                   + 5 * x["popularity"]["launches_6h"]))[:80]))
+        slim = [{k: v for k, v in x.items() if k != "cluster"} for x in n["narratives"] if id(x) in big]
+        return {**n, "narratives": slim, "total": len(n["narratives"])}
+
+    @app.get("/api/narratives/cluster")
+    async def narrative_cluster(label: str):
+        n = State.narratives
+        hit = next((x for x in (n or {}).get("narratives", []) if x["label"] == label), None)
+        if hit is None:
+            raise HTTPException(404, "narrative not in the latest read")
+        return {"as_of": n["as_of"], "label": label, **hit.get("cluster", {"nodes": [], "edges": []})}
 
     @app.get("/api/narratives/{nid}/history")
     async def narrative_history(nid: int):

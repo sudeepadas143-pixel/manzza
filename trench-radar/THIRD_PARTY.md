@@ -61,6 +61,13 @@ challenge, so they are not used.)
 **all-MiniLM-L6-v2** (ONNX export, quantized), https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2,
 Apache-2.0. Stored in the data folder under `models/`.
 
+## Shipped in the web app
+
+**Apache ECharts 5.6.0**, https://github.com/apache/echarts, Apache-2.0. The unmodified
+`dist/echarts.min.js` from the npm package is vendored as `web/vendor/echarts-5.6.0.min.js`
+(sha256 bf4a2235…07b1) with its LICENSE and NOTICE in `web/vendor/ECHARTS-LICENSE.txt`. Used for
+the narrative field, momentum lines, token clusters and trend charts.
+
 ## Libraries (installed from PyPI)
 
 FastAPI (MIT), Uvicorn (BSD-3-Clause), httpx (BSD-3-Clause), websockets (BSD-3-Clause),
@@ -82,6 +89,10 @@ imagehash library (BSD-2-Clause) was considered but adds SciPy and PyWavelets fo
 | jito-foundation/jito-solana | Apache-2.0 | Validator software; not needed. Bundled launches are detected from same-block buys instead. |
 | mlfoundations/open_clip | MIT | Not integrated: needs PyTorch (~2 GB) and downloading every token image. Same-picture links use the difference hash instead, which catches reposted pictures but not two different pictures of the same subject. |
 | UKPLab/sentence-transformers | Apache-2.0 | Not installed (needs PyTorch); its MiniLM model runs through onnxruntime instead. |
+| magicuidesign/magicui | MIT | Ideas only (number ticker, one-time shine). It is React + Tailwind; the app's frontend is plain JS. |
+| ibelick/motion-primitives | MIT (stated in its README; the linked LICENSE.md was missing on 2026-10-22) | Ideas only: motion that follows data, interruptible transitions. Needs React and motion.dev. |
+| tremorlabs/tremor | Apache-2.0 | Ideas only: the category bar and tracker. Needs React and Tailwind. |
+| DavidHDev/react-bits | MIT + Commons Clause | Reviewed; nothing used. Its effects are decorative rather than data-driven. |
 | JohannesBuchner/imagehash | BSD-2-Clause | The difference-hash idea, reimplemented in `radar/images.py` (see above). |
 | NARRA (narrative-tracking reference supplied 2026-10-22) | none found | Ideas only: track a narrative's identity across runs and describe what drives it. No code copied. |
 | mihailShumilov/narrative-detection | none stated | Ideas only: embed, cluster, then label clusters with class-based TF-IDF rather than a fixed keyword list. No code copied. |

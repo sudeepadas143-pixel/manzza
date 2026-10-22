@@ -419,6 +419,7 @@ def _describe(toks, members, link, words, c, vecs, as_of, np, seed_names, seed_v
                                     for t in by_buyers[:6]]},
         "grouping": {"by_meaning": by_meaning, "links": link, "coherence": round(float(sims.mean()), 2),
                      "weakest_member_similarity": round(float(sims.min()), 2)},
+        "cluster": _cluster(ms, vecs[members], c, np),
         "popularity": {"launches_6h": len(ms), "creators_6h": len(creators), "launches_1h": len(recent),
                        "creators_1h": n1, "creator_rate_h": round(rate, 2),
                        "velocity_z": round((n1 - rate) / math.sqrt(rate + 1), 2),
@@ -436,6 +437,45 @@ def _describe(toks, members, link, words, c, vecs, as_of, np, seed_names, seed_v
                       "bot_heavy_tokens": sum(1 for x in s1 if x.get("organic_buyers_h1") is not None and (x.get("buyers_h1") or 0) >= 5
                                               and x["organic_buyers_h1"] < 0.5 * x["buyers_h1"])},
     }
+
+
+def _cluster(ms: list[dict], v, c, np, cap: int = 40) -> dict:
+    """The member tokens as a graph for display: the most-bought `cap` of them, joined by the hard
+    links that grouped them (same post, picture, name) and each to its nearest neighbour by meaning."""
+    from ..images import distance
+    keep = sorted(range(len(ms)), key=lambda i: -(ms[i]["buyers"] or 0))[:cap]
+    sub = v[keep]
+    sims = sub @ c
+    nodes = [{"mint": ms[i]["mint"], "name": ms[i]["name"], "symbol": ms[i]["symbol"], "buyers": ms[i]["buyers"] or 0,
+              "similarity": round(float(s), 2), "created_at": ms[i]["created_at"]} for i, s in zip(keep, sims)]
+    edges, seen = [], set()
+
+    def add(a, b, kind):
+        k = (min(a, b), max(a, b))
+        if a != b and k not in seen:
+            seen.add(k)
+            edges.append([a, b, kind])
+    hubs: dict = {}
+    for a, i in enumerate(keep):
+        t = ms[i]
+        for kind, key in (("same X post", t["x_post"]), ("same name", _norm_name(t["name"]) if len(_norm_name(t["name"])) >= 3 else None)):
+            if key:
+                b = hubs.setdefault((kind, key), a)
+                add(a, b, kind)
+    imgs = [(a, ms[i]["image_hash"]) for a, i in enumerate(keep) if ms[i]["image_hash"] is not None]
+    for x in range(len(imgs)):
+        for y in range(x):
+            if distance(imgs[x][1], imgs[y][1]) <= 6:
+                add(imgs[x][0], imgs[y][0], "same picture")
+                break
+    if len(keep) > 1:
+        S = sub @ sub.T
+        np.fill_diagonal(S, -1)
+        for a in range(len(keep)):
+            add(a, int(S[a].argmax()), "meaning")
+    for a, n in enumerate(nodes):
+        n["via"] = sorted({e[2] for e in edges if a in e[:2] and e[2] != "meaning"}) or ["meaning"]
+    return {"nodes": nodes, "edges": edges, "shown": len(keep), "of": len(ms)}
 
 
 def _relate(out: list[dict], np) -> None:
@@ -539,11 +579,11 @@ def _assess(n: dict, con, as_of: int) -> None:
     P, T, R = n["popularity"], n["traction"], n["risks_raw"]
     z, b1, b0 = P["velocity_z"], T["buyers_h1"], T["buyers_h1_hour_ago"]
     growth = (b1 / b0) if b0 else None
-    hist = rows(con, """SELECT observed_at, launches_6h, buyers_h1, buyers_per_launch FROM narrative_obs
+    hist = rows(con, """SELECT observed_at, launches_6h, buyers_h1, buyers_per_launch, state FROM narrative_obs
                         WHERE narrative_id = ? AND observed_at <= ? ORDER BY observed_at""",
                 (n["id"], as_of)) if n.get("id") and _has(con, "narrative_obs") else []
     bpl_before = next((h["buyers_per_launch"] for h in hist if h["observed_at"] <= as_of - H), None)
-    n["history"] = [[h["observed_at"], h["launches_6h"], h["buyers_h1"]] for h in hist[-36:]]
+    n["history"] = [[h["observed_at"], h["launches_6h"], h["buyers_h1"], h["state"]] for h in hist[-36:]]
     reasons = []
     if n["history_hours"] < 1 and P["first_launch_at"] > as_of - 2 * H:
         state = "new"
