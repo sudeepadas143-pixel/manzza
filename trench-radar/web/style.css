@@ -720,3 +720,8 @@ details.more > .dsec:first-of-type { margin-top: var(--s3); }
 .link-card .prose { margin: 0 0 6px; font-size: 15px; }
 .nar-row { padding: 8px 0; border-bottom: 1px dotted var(--rule-2); }
 .nar-row .coins { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.ev.tight li { margin-bottom: 4px; font-size: 14px; }
+.ci-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 10px; margin: 8px 0 4px; font-size: 13px; }
+.ci-grid b { font: 600 11px/1.2 var(--mono); text-transform: uppercase; letter-spacing: .06em; }
+.ci-grid ul { margin: 4px 0 0; padding-left: 16px; }
+.ci-grid li { margin-bottom: 3px; }

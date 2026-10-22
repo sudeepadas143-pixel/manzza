@@ -332,15 +332,22 @@ def _latest_read(con, as_of: int) -> int | None:
     return r[0] if r and r[0] else None
 
 
-def _category_buyers(con, start: int, end: int) -> dict[str, list[tuple[int, float]]]:
-    """Per category, per narrative read: the summed buyers in the last hour of its narratives."""
+def _category_buyers(con, start: int, end: int, col: str = "buyers_h1") -> dict[str, list[tuple[int, float]]]:
+    """Per category, per narrative read: the summed buyers (or `col`) in the last hour of its narratives."""
+    assert col in ("buyers_h1", "net_sol_h1")
     out: dict[str, dict[int, float]] = {}
-    for t, cat, b in con.execute("""SELECT o.observed_at, n.category, SUM(COALESCE(o.buyers_h1, 0))
+    for t, cat, b in con.execute(f"""SELECT o.observed_at, n.category, SUM(COALESCE(o.{col}, 0))
                                     FROM narrative_obs o JOIN narratives n ON n.id = o.narrative_id
                                     WHERE o.observed_at > ? AND o.observed_at <= ? AND n.category IS NOT NULL
                                     GROUP BY o.observed_at, n.category""", (start, end)):
         out.setdefault(cat, {})[t] = b
     return {k: sorted(v.items()) for k, v in out.items()}
+
+
+def _same_hours(t: int, as_of: int, width: int = 2 * H) -> bool:
+    """t falls within `width` of as_of's time of day: trading has a daily rhythm, so "usual" for a
+    category at 2 a.m. is its other nights, not its daily average."""
+    return abs((t - as_of + D // 2) % D - D // 2) <= width
 
 
 def intraday_read(con, as_of: int | None = None, live_narratives: dict | None = None) -> dict:
@@ -357,6 +364,7 @@ def intraday_read(con, as_of: int | None = None, live_narratives: dict | None = 
     reads = {r[0] for r in con.execute("SELECT DISTINCT observed_at FROM narrative_obs WHERE observed_at > ? AND observed_at <= ?",
                                         (base_start, base_end))}
     base_hours = len({t // H for t in reads})
+    same = sorted(t for t in reads if _same_hours(t, as_of))
     cb = _category_buyers(con, base_start, as_of)
     # current narratives
     nar = con.execute("""SELECT o.narrative_id, n.label, n.category, n.first_seen, o.launches_6h, o.creators_6h, o.buyers_h1,
@@ -409,18 +417,20 @@ def intraday_read(con, as_of: int | None = None, live_narratives: dict | None = 
         if cat:
             by_cat.setdefault(cat, []).append(row)
     for cat, rows_ in by_cat.items():
-        hist = [b for t, b in cb.get(cat, []) if t <= base_end]
+        own = dict(cb.get(cat, []))
+        hist = [own.get(t, 0) for t in same]       # a read where it had no narrative counts as zero buyers
         now_b = sum(r["buyers_h1"] or 0 for r in rows_)
         base_b = (sum(hist) / len(hist)) if hist else None
         g = grads.get(cat, [])
         g24 = sum(1 for t in g if t > as_of - D)
         g_base_daily = sum(1 for t in g if t <= base_end) / 6 if base_hours >= 72 else None
         l6 = sum(1 for t in launches.get(cat, []) if t > as_of - 6 * H)
-        l_base_6h = sum(1 for t in launches.get(cat, []) if t <= base_end) / 24 if base_hours >= 72 else None
+        l_base_6h = (sum(1 for t in launches.get(cat, []) if t <= base_end and as_of - t < 7 * D
+                         and (as_of - t) % D <= 6 * H) / 6) if base_hours >= 72 else None   # the same 6 hours of the day
         coins = sorted((c for r in rows_ for c in r["coins"]), key=lambda c: -c["buyers_h1"])
         tot = sum(c["buyers_h1"] for c in coins)
         demand = (now_b / base_b) if base_b else None
-        status = ("new" if base_b is None or base_hours < 72 else
+        status = ("new" if not base_b or base_hours < 72 else
                   "heating" if demand >= 1.5 else "cooling" if demand <= 0.6 else "normal")
         out["categories"].append({
             "category": cat, "status": status, "buyers_now": now_b, "buyers_usual": round(base_b, 1) if base_b else None,
@@ -442,6 +452,216 @@ def intraday_read(con, as_of: int | None = None, live_narratives: dict | None = 
     if base_hours < 72:
         out["notes"].append(f"Only {base_hours} hours of narrative history before today: comparisons with a usual day need 3+ days.")
     return out
+
+
+# ---------------------------------------------------------------- rotation: what could work tomorrow
+HEAT = 1.5            # buyers at 1.5x the category's usual level
+BROAD_COINS = 3       # buying spread over 3+ coins with 20+ buyers in the last hour
+ONE_COIN = 0.6        # one coin with 60%+ of a category's buying is a coin, not a meta
+FACTORY_24H = 10      # a creator with 10+ launches in a day is a factory; its coins are left out
+
+
+def _early_cohort(con, as_of: int) -> dict:
+    """Per category: coins launched in the last 24 hours that already graduated (not instantly),
+    against what its own last week and today's market say to expect. The last day's coins have had
+    less time than a full day; comparing each category with the market on the same coins cancels that."""
+    rows = con.execute(f"""SELECT tn.category, k.created_at, k.creator,
+                                  CASE WHEN COALESCE(g.graduated_at, g.detected_at) <= ?
+                                        AND COALESCE(g.graduated_at, g.detected_at) - k.created_at BETWEEN {INSTANT_S} AND {D}
+                                       THEN 1 ELSE 0 END
+                           FROM tokens k LEFT JOIN token_narrative tn ON tn.mint = k.mint
+                           LEFT JOIN graduations g ON g.mint = k.mint
+                           WHERE k.created_at > ? AND k.created_at <= ?""", (as_of, as_of - 7 * D, as_of)).fetchall()
+    per_day: dict[tuple, int] = {}
+    for _, t, cr, _ in rows:
+        if cr:
+            per_day[(cr, t // D)] = per_day.get((cr, t // D), 0) + 1
+    rec, base = {"k": 0, "n": 0}, {"k": 0, "n": 0}
+    cats: dict[str, dict] = {}
+    for cat, t, cr, ok in rows:
+        if cr and per_day[(cr, t // D)] >= FACTORY_24H:
+            continue
+        recent = t > as_of - D
+        if not recent and t > as_of - 2 * D:     # the day before: not yet a full day old, in neither group
+            continue
+        g = rec if recent else base
+        g["k"] += ok
+        g["n"] += 1
+        if cat:
+            c = cats.setdefault(cat, {"k": 0, "n": 0, "bk": 0, "bn": 0, "creators": set()})
+            if recent:
+                c["k"] += ok
+                c["n"] += 1
+                if ok and cr:
+                    c["creators"].add(cr)
+            else:
+                c["bk"] += ok
+                c["bn"] += 1
+    p_rec = rec["k"] / rec["n"] if rec["n"] else None
+    p_base = base["k"] / base["n"] if base["n"] else None
+    out = {}
+    for cat, c in cats.items():
+        # the category's usual rate against the market, shrunk toward 1 when it has few coins
+        ratio = ((c["bk"] + 2 * (p_base or 0)) / (c["bn"] + 2) / p_base) if p_base else 1.0
+        expected = c["n"] * (p_rec or 0) * ratio
+        out[cat] = {"launched_24h": c["n"], "graduated_24h": c["k"], "creators": len(c["creators"]),
+                    "expected": round(expected, 2), "usual_vs_market": round(ratio, 2),
+                    "surprise": round(_poisson_sf(c["k"], expected), 4) if expected > 0 else None}
+    return out
+
+
+def _holder_growth(con, as_of: int) -> dict:
+    """Per category, live installs only: holders gained in the last hour by coins with holder counts."""
+    out: dict[str, dict] = {}
+    for cat, mint, first, last in con.execute(
+            """SELECT tn.category, o.mint,
+                      (SELECT holders FROM token_obs a WHERE a.mint = o.mint AND a.observed_at >= ? AND a.holders IS NOT NULL
+                       ORDER BY a.observed_at LIMIT 1),
+                      (SELECT holders FROM token_obs b WHERE b.mint = o.mint AND b.observed_at <= ? AND b.holders IS NOT NULL
+                       ORDER BY b.observed_at DESC LIMIT 1)
+               FROM (SELECT DISTINCT mint FROM token_obs WHERE observed_at > ? AND observed_at <= ? AND holders IS NOT NULL) o
+               JOIN token_narrative tn ON tn.mint = o.mint WHERE tn.category IS NOT NULL""",
+            (as_of - H, as_of, as_of - H, as_of)):
+        if first is None or last is None:
+            continue
+        g = out.setdefault(cat, {"coins": 0, "growing": 0, "holders_gained": 0})
+        g["coins"] += 1
+        g["growing"] += last > first
+        g["holders_gained"] += last - first
+    return out
+
+
+def rotation(con, as_of: int, macro: dict, intraday: dict) -> dict:
+    """Where buying is moving, and a watchlist of categories that might work next. Every signal is
+    point-in-time; how each one did historically is measured in scripts/macro_check.py."""
+    out = {"as_of": as_of, "categories": [], "gaining": [], "losing": [], "watchlist": [], "weakening": [],
+           "crowding": [], "single_coin": [], "notes": []}
+    I = {r["category"]: r for r in intraday.get("categories", [])}
+    t_read = intraday.get("read_at")
+    if t_read is None or intraday.get("baseline_hours", 0) < 72:
+        out["notes"].append("Rotation needs a current narrative read and 3+ days of history before today.")
+        return out
+    w7 = (macro.get("windows") or {}).get("7") or {}
+    M = {r["category"]: r for r in w7.get("categories", [])} if w7.get("available") else {}
+    base_end = as_of - D
+    cb = _category_buyers(con, as_of - 7 * D, as_of)
+    cs = _category_buyers(con, as_of - 7 * D, as_of, "net_sol_h1")
+    tot: dict[int, float] = {}
+    for v in cb.values():
+        for t, b in v:
+            tot[t] = tot.get(t, 0) + b
+    same = sorted(t for t in tot if t <= base_end and _same_hours(t, as_of))
+    early = _early_cohort(con, as_of)
+    holders = _holder_growth(con, as_of)
+    for cat, i in I.items():
+        own = dict(cb.get(cat, []))
+        shares = [own.get(t, 0) / tot[t] for t in same if tot.get(t)]
+        sh_usual = sum(shares) / len(shares) if shares else None
+        sh_now = (i["buyers_now"] / tot[t_read]) if tot.get(t_read) else None
+        own_sol = dict(cs.get(cat, []))
+        sol_hist = [own_sol.get(t, 0) for t in same if tot.get(t)]
+        sol_now = next((x for t, x in cs.get(cat, []) if t == t_read), None)
+        sol_usual = sum(sol_hist) / len(sol_hist) if sol_hist else None
+        e = early.get(cat) or {}
+        m = M.get(cat)
+        demand = i["demand_vs_usual"]
+        sig = {
+            "buyers_up": demand is not None and demand >= HEAT,
+            "sol_up": sol_now is not None and sol_usual is not None and sol_now > 0 and sol_now >= HEAT * max(sol_usual, 0.5),
+            "share_up": sh_now is not None and sh_usual is not None and sh_now >= 1.25 * sh_usual and sh_now - sh_usual >= 0.01,
+            "share_down": sh_now is not None and sh_usual is not None and sh_now <= 0.75 * sh_usual and sh_usual - sh_now >= 0.01,
+            "early_successes": e.get("graduated_24h", 0) >= 2 and e.get("creators", 0) >= 2 and (e.get("surprise") or 1) < 0.1,
+            "broad": i["coins_with_buyers"] >= BROAD_COINS and (i["top_coin_share"] or 1) < ONE_COIN,
+            "single_coin": (i["top_coin_share"] or 0) >= ONE_COIN and (i["buyers_now"] or 0) >= 50,
+            "crowding": (i["launches_usual_6h"] or 0) >= 3 and demand is not None and i["launches_6h"] >= HEAT * i["launches_usual_6h"]
+                        and demand * i["launches_usual_6h"] / max(i["launches_6h"], 1) < 1.0,
+            "holders_up": None,
+        }
+        h = holders.get(cat)
+        if h and h["coins"] >= 3:
+            sig["holders_up"] = h["growing"] >= 0.6 * h["coins"]
+        row = {"category": cat, "signals": sig, "buyers_now": i["buyers_now"], "buyers_usual": i["buyers_usual"],
+               "demand_vs_usual": demand, "share_now": round(sh_now, 3) if sh_now is not None else None,
+               "share_usual": round(sh_usual, 3) if sh_usual is not None else None,
+               "sol_now": round(sol_now, 1) if sol_now is not None else None,
+               "sol_usual": round(sol_usual, 1) if sol_usual is not None else None,
+               "early": e or None, "holders": h, "coins_with_buyers": i["coins_with_buyers"],
+               "top_coin_share": i["top_coin_share"], "launches_6h": i["launches_6h"], "launches_usual_6h": i["launches_usual_6h"],
+               "week_status": m["status"] if m else "insufficient", "week_trend": m.get("trend") if m else None}
+        row["watch"] = sig["buyers_up"] and sig["share_up"] and sig["broad"] and not sig["crowding"]
+        if row["watch"]:
+            row["stage"] = ("confirmed" if row["week_status"] == "working" else
+                            "emerging" if row["week_trend"] == "gaining" or sig["early_successes"] else "speculative")
+        out["categories"].append(row)
+    rows = out["categories"]
+    shifted = [r for r in rows if r["share_now"] is not None and r["share_usual"] is not None]
+    shifted.sort(key=lambda r: r["share_now"] - r["share_usual"])
+    out["gaining"] = [_share_item(r) for r in reversed(shifted) if r["signals"]["share_up"]][:6]
+    out["losing"] = [_share_item(r) for r in shifted if r["signals"]["share_down"]][:6]
+    order = {"confirmed": 0, "emerging": 1, "speculative": 2}
+    for r in sorted((r for r in rows if r["watch"]), key=lambda r: (order[r["stage"]], -(r["demand_vs_usual"] or 0))):
+        out["watchlist"].append(_watch_item(r))
+    for r in rows:
+        s = r["signals"]
+        if s["single_coin"] and s["buyers_up"]:
+            out["single_coin"].append({"category": r["category"], "top_coin_share": r["top_coin_share"],
+                                       "text": f"{r['category']}: buyers are up, but one coin has {_pct(r['top_coin_share'])} of them. "
+                                               "That is a coin working, not the category."})
+        if s["crowding"]:
+            out["crowding"].append({"category": r["category"],
+                                    "text": f"{r['category']}: {r['launches_6h']} launches in 6 hours (usual {r['launches_usual_6h']:.0f}), "
+                                            f"buyers at {_x(r['demand_vs_usual'])} usual. Launches are rising faster than buyers, so each new coin gets fewer."})
+        if (s["share_down"] and (r["demand_vs_usual"] or 1) <= 0.8) or (r["week_trend"] == "losing" and (r["demand_vs_usual"] or 1) <= 0.8):
+            out["weakening"].append({"category": r["category"],
+                                     "text": f"{r['category']}: buyers at {_x(r['demand_vs_usual'])} usual"
+                                             + (f", share of all buying {_pct(r['share_now'])} from {_pct(r['share_usual'])}" if s["share_down"] else "")
+                                             + ("; its weekly rate is also falling." if r["week_trend"] == "losing" else ".")})
+    return out
+
+
+def _share_item(r: dict) -> dict:
+    return {"category": r["category"], "share_now": r["share_now"], "share_usual": r["share_usual"],
+            "text": f"{r['category']}: {_pct(r['share_now'])} of all category buying now, against {_pct(r['share_usual'])} on a usual day."}
+
+
+def _watch_item(r: dict) -> dict:
+    s, e, cat = r["signals"], r["early"] or {}, r["category"]
+    ev = [f"Buyers {_x(r['demand_vs_usual'])} its usual level ({r['buyers_now']:,} in the last hour against about {r['buyers_usual']:,.0f}).",
+          f"Its share of all category buying rose to {_pct(r['share_now'])} from {_pct(r['share_usual'])}.",
+          f"Spread: {r['coins_with_buyers']} coins with 20+ buyers; the top one has {_pct(r['top_coin_share'])}."]
+    if s["sol_up"]:
+        ev.append(f"Net SOL into its coins in the last hour: {r['sol_now']:+.1f} against about {r['sol_usual']:+.1f} usual.")
+    if e.get("graduated_24h"):
+        ev.append(f"Of {e['launched_24h']} coins launched in the last day, {e['graduated_24h']} graduated "
+                  f"(about {e['expected']:.1f} expected from its usual rate and today's market).")
+    if r["stage"] == "confirmed":
+        ev.append("Its week already shows it working across several creators.")
+    elif r["week_trend"] == "gaining":
+        ev.append("Its weekly rate is improving against last week.")
+    risks = []
+    if r["stage"] == "speculative":
+        risks.append("No record behind it: its week " + ("is too thin to judge." if r["week_status"] == "insufficient"
+                                                          else f"reads “{r['week_status']}”, not working."))
+    if (r["top_coin_share"] or 0) >= 0.4:
+        risks.append(f"Buying is still fairly concentrated: one coin has {_pct(r['top_coin_share'])}.")
+    if r["launches_usual_6h"] and r["launches_6h"] >= 1.2 * r["launches_usual_6h"]:
+        risks.append(f"Launches are rising too ({r['launches_6h']} in 6 hours, usual {r['launches_usual_6h']:.0f}): copycats arrive fast.")
+    if not s["sol_up"]:
+        risks.append("Money in has not risen with the buyers.")
+    if e.get("launched_24h") and not e.get("graduated_24h"):
+        risks.append("None of its coins launched in the last day has graduated yet.")
+    if s["holders_up"] is False:
+        risks.append("Most of its live coins are not adding holders.")
+    usual_g = max(1, round(e.get("expected") or 0))
+    confirm = [f"Buyers stay at {HEAT}× usual or more through the next reads, spread over {BROAD_COINS}+ coins.",
+               f"{usual_g + 1}+ more graduations (not instant) from different creators among its new coins in the next 24 hours."]
+    invalidate = ["Buyers fall back below its usual level.",
+                  f"One coin takes {ONE_COIN:.0%}+ of its buying: then it is that coin, not the category.",
+                  "Launches jump while buyers per launch fall (crowding)."]
+    from .narratives import CATEGORY_SEEDS
+    return {"category": cat, "stage": r["stage"], "emergent": cat not in CATEGORY_SEEDS, "evidence": ev, "risks": risks, "confirm": confirm, "invalidate": invalidate,
+            "signals": {k: v for k, v in s.items() if v}, "demand_vs_usual": r["demand_vs_usual"],
+            "share_now": r["share_now"], "share_usual": r["share_usual"], "week_status": r["week_status"]}
 
 
 # ---------------------------------------------------------------- connecting the two
@@ -676,6 +896,7 @@ def read(con, as_of: int | None = None, live_narratives: dict | None = None) -> 
     for r in w7.get("categories", []) if w7.get("available") else []:
         r["sentence"] = macro_sentence(r)
     return {"as_of": as_of, "macro": mac, "intraday": intra, "links": links(mac, intra),
+            "rotation": rotation(con, as_of, mac, intra),
             "comovement": comovement(con, as_of), "popularity_vs_success": popularity_vs_success(mac),
             "check": _check()}
 

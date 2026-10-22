@@ -192,3 +192,66 @@ def test_backfill_recovers_links_once(tmp_path):
     assert M.backfill_token_narrative(con) == 2
     assert M.backfill_token_narrative(con) == 0
     assert {r[0] for r in con.execute("SELECT mint FROM token_narrative WHERE category='Cats'")} == {"a", "b"}
+
+
+def test_rotation_separates_a_broad_move_from_one_coin_and_crowding(tmp_path):
+    """Four categories over 8 days of hourly reads. Today: 'Broad' doubles its buyers over four coins
+    and its new coins graduate from different creators; 'Solo' doubles on one coin; 'Fading' halves;
+    'Crowd' keeps its buyers while its launches jump."""
+    con = connect(tmp_path / "r.db")
+    start = NOW - 8 * D
+    hours = 8 * 24
+    as_of = start + (hours - 1) * H
+    series = {"Broad": (1, [100] * (hours - 6) + [260] * 6), "Solo": (2, [100] * (hours - 6) + [260] * 6),
+              "Fading": (3, [200] * (hours - 6) + [80] * 6), "Crowd": (4, [100] * hours)}
+    _reads(con, series, start)
+    members = {1: [f"b{i}" for i in range(4)], 2: [f"s{i}" for i in range(4)], 3: [], 4: []}
+    for nid, ms in members.items():
+        con.execute("UPDATE narrative_obs SET members=? WHERE narrative_id=? AND observed_at=?", (json.dumps(ms), nid, as_of))
+    for i in range(4):     # Broad: four coins sharing the buying, three graduated from different creators
+        coin(con, f"b{i}", as_of - 20 * H, f"cb{i}", "Broad", 1, 0, grad_after=1800 if i < 3 else None)
+        insert(con, "token_obs", {"mint": f"b{i}", "observed_at": as_of - 600, "source": "chain", "buyers_h1": 60})
+    for i in range(4):     # Solo: one coin has the buying
+        coin(con, f"s{i}", as_of - 20 * H, f"cs{i}", "Solo", 2, 0)
+        insert(con, "token_obs", {"mint": f"s{i}", "observed_at": as_of - 600, "source": "chain", "buyers_h1": 240 if i == 0 else 5})
+    for d in range(1, 7):  # a usual week of launches for every category, rarely graduating
+        for cat, nid in (("Broad", 1), ("Solo", 2), ("Fading", 3), ("Crowd", 4)):
+            for j in range(4):
+                coin(con, f"u{cat}{d}{j}", as_of - d * D - 3 * H - j * 60, f"cu{cat}{d}{j}", cat, nid, 3,
+                     grad_after=900 if (d, j) == (3, 0) else None)
+        for j in range(40):
+            coin(con, f"m{d}{j}", as_of - d * D - 2 * H - j * 60, f"cm{d}{j}", None, None, 3)
+    for j in range(40):
+        coin(con, f"mr{j}", as_of - 4 * H - j * 60, f"cmr{j}", None, None, 3)
+    for j in range(12):    # Crowd: a burst of launches in the last 6 hours
+        coin(con, f"c{j}", as_of - 3 * H - j * 300, f"cc{j}", "Crowd", 4, 2)
+    con.commit()
+    intra = M.intraday_read(con, as_of)
+    rot = M.rotation(con, as_of, {"windows": {}}, intra)
+    by = {r["category"]: r for r in rot["categories"]}
+    assert by["Broad"]["watch"] and by["Broad"]["stage"] == "emerging"           # early successes, no weekly record
+    assert by["Broad"]["signals"]["early_successes"] and by["Broad"]["signals"]["broad"]
+    assert not by["Solo"]["watch"] and by["Solo"]["signals"]["single_coin"]
+    assert [x["category"] for x in rot["single_coin"]] == ["Solo"]
+    assert by["Crowd"]["signals"]["crowding"] and not by["Crowd"]["watch"]
+    assert "Fading" in {x["category"] for x in rot["losing"]} and "Fading" in {x["category"] for x in rot["weakening"]}
+    assert "Broad" in {x["category"] for x in rot["gaining"]}
+    w = rot["watchlist"][0]
+    assert w["category"] == "Broad" and w["evidence"] and w["confirm"] and w["invalidate"]
+    assert by["Broad"]["signals"]["holders_up"] is False                      # its coins' holder counts are flat
+    assert any("holders" in x for x in w["risks"])
+    assert by["Fading"]["signals"]["holders_up"] is None                      # no coins with holder counts: not guessed
+    # without enough history there is no rotation call at all
+    assert M.rotation(con, as_of, {}, {"read_at": as_of, "baseline_hours": 10, "categories": []})["notes"]
+
+
+def test_usual_means_the_same_time_of_day(tmp_path):
+    """A category busy by day and quiet by night is 'normal' at night; a quiet night is not 'cooling'."""
+    con = connect(tmp_path / "t.db")
+    start = NOW - 8 * D
+    hours = 8 * 24
+    day_night = [200 if 8 <= (start // H + h) % 24 < 20 else 20 for h in range(hours)]
+    _reads(con, {"Rhythm": (1, day_night), "Flat": (2, [60] * hours)}, start)
+    night = max(start + h * H for h in range(hours) if (start // H + h) % 24 == 3)
+    st = {r["category"]: r for r in M.intraday_read(con, night)["categories"]}
+    assert st["Rhythm"]["status"] == "normal" and st["Rhythm"]["demand_vs_usual"] < 1.5

@@ -134,6 +134,23 @@ orders metas by it and attaches `edge` (rank, tier); the readiness score above s
 meta as the baseline, and without the model file the old order returns. The backtest reports
 both models' top picks so the ranking keeps being checked on live history.
 
+### Macro, intraday and rotation (`docs/RESEARCH_MACRO.md`)
+
+`radar/analytics/macro.py`, run by `metamap_job` every 10 minutes (`EVERY_METAMAP_S`) and served
+at `GET /api/meta/map`.
+- **Inputs.**
+  - Each coin's first narrative and category (`token_narrative`, written by the narrative read).
+  - A one-row summary of each coin once its first day is over (`token_summary`).
+  - The hourly narrative history (`narrative_obs`).
+- **Week.** Per category: graduation rate against the market with its best coin left out, breadth
+  of creators, trend, crowding.
+- **Today.** Buyers, launches and graduations against the same time of day on the previous days.
+- **Links.** One finding per category from the week and the day together.
+- **Moving together.** Co-moving categories beyond the market.
+- **Rotation.** Signals per category and Tomorrow's watchlist (stage, evidence, risks,
+  confirm/invalidate).
+- **Track record.** How each signal did on replayed history, read from
+  `radar/data/macro_check.json`, written by `scripts/macro_check.py`.
 ### Launch-window score (fitted, validated — `docs/RESEARCH_QUANT.md`)
 
 Separate from the meta score above, and per token rather than per meta. `radar/early.py`

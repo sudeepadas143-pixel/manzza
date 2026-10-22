@@ -53,6 +53,9 @@ class Embedder:
     def embed(self, texts: list[str]):
         np = self.np
         todo = [t for t in dict.fromkeys(texts) if t not in self.cache]
+        if todo and len(self.cache) + len(todo) > 60000:
+            self.cache.clear()                    # full: start over, re-embedding this batch's cached texts too
+            todo = list(dict.fromkeys(texts))
         if todo:
             enc = self.tok.encode_batch(todo)
             ids = np.array([e.ids for e in enc], dtype=np.int64)
@@ -61,8 +64,6 @@ class Embedder:
             out = self.sess.run(None, {k: v for k, v in feeds.items() if k in self.inputs})[0]
             v = (out * am[..., None]).sum(1) / np.maximum(am.sum(1, keepdims=True), 1)
             v = v / np.linalg.norm(v, axis=1, keepdims=True)
-            if len(self.cache) + len(todo) > 60000:
-                self.cache.clear()
             for t, row in zip(todo, v):
                 self.cache[t] = row.astype(np.float16)    # 768 bytes per text
         return np.stack([self.cache[t] for t in texts]).astype(np.float32)
