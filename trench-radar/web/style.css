@@ -76,9 +76,11 @@ a:hover { text-decoration-color: var(--novel-ink); }
 .mast { position: sticky; top: 0; z-index: 40; background: var(--paper); padding: 0 var(--gutter); }
 .mast-in { max-width: var(--maxw); margin: 0 auto; display: grid; grid-template-columns: auto 1fr auto; align-items: end; gap: var(--s5);
   padding: 14px 0 0; }
-.wordmark { font: 400 34px/0.86 var(--display); letter-spacing: .01em; color: var(--ink); white-space: nowrap; text-transform: uppercase; display: flex; align-items: baseline; }
-.wordmark i { font-style: normal; color: var(--novel-ink); margin: 0 1px; letter-spacing: -.06em; }
-.wordmark small { font: 400 italic 13px var(--serif); text-transform: none; color: var(--ink-3); margin-left: 14px; letter-spacing: 0; }
+/* the brand lockup (web/brand, scripts/brand_assets.py): sized by the font-size the breakpoints set */
+.wordmark { font: 400 34px/0.86 var(--display); color: var(--ink); white-space: nowrap; display: flex; align-items: flex-end; padding-bottom: 9px; }
+.wordmark .brand { height: .82em; width: auto; flex: none; display: block; }
+.wordmark .b-ink { fill: currentColor; } .wordmark .b-signal { fill: var(--novel-ink); }
+.wordmark small { font: 400 italic 13px var(--serif); color: var(--ink-3); margin-left: 14px; letter-spacing: 0; }
 .sections { display: flex; gap: 0; align-self: end; justify-content: center; }
 .sections .tab { all: unset; cursor: pointer; position: relative; white-space: nowrap; padding: 4px 14px 10px; font: 400 19px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3);
   transition: color .15s ease; }

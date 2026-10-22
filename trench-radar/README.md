@@ -1,5 +1,7 @@
 # TRENCH//RADAR
 
+<img src="web/brand/lockup.svg" alt="TRENCH//RADAR" height="44">
+
 Launch research for Solana / pump.fun memecoins. It answers one question with
 evidence: **do current conditions favour launching a token into a given meta now,
 or is it better to wait?**

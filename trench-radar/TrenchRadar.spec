@@ -20,5 +20,6 @@ exe = EXE(
     pyz, a.scripts, a.binaries, a.datas,
     name="TrenchRadar",
     console=True,          # the console window is the "app is running" indicator and log
+    icon="web/icons/trench-radar.ico",    # scripts/brand_assets.py
     upx=False,
 )

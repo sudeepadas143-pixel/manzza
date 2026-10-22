@@ -14,6 +14,8 @@ between three worlds and borrows one discipline from each:
 - **Instrument plates**: radar scopes, seismographs and barometers. The flagship view is a scope;
   launch activity is a seismogram; the market regime is a barometer.
 
+The logo (`docs/BRAND.md`) is three slices of a signal cut by a `//` trench with the house pink running through it, drawn flat in ink like everything else.
+
 It is recognisable without the logo: newsprint paper, condensed all-caps headlines with a pink phrase,
 mono figures, `//` and ruled sections, halftone and hatching where other dashboards use gradients.
 There are no rounded cards, glow, glass or gradients-as-decoration.

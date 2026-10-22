@@ -301,6 +301,10 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
         async def manifest():
             return FileResponse(Path(WEB) / "manifest.webmanifest", media_type="application/manifest+json")
 
+        @app.get("/favicon.ico")
+        async def favicon():
+            return FileResponse(Path(WEB) / "icons" / "favicon.ico", media_type="image/x-icon")
+
         @app.get("/sw.js")
         async def service_worker():
             # served from the root so its scope covers the whole app
