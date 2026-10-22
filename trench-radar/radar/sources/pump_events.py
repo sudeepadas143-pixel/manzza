@@ -102,6 +102,8 @@ def decode_event(b: bytes) -> dict | None:
             if len(b) >= o + 32:
                 _, _, rtok, _ = struct.unpack_from("<QQQQ", b, o)
                 ev["initial_real_tokens"] = rtok / TOKEN_UNITS
+                if len(b) >= o + 66:
+                    ev["mayhem"], ev["cashback"] = bool(b[o + 64]), bool(b[o + 65])
                 o += 32 + 32 + 2                 # reserves, token_program, mayhem, cashback flags
                 if len(b) >= o + 32:
                     ev["sol_paired"] = _sol_paired(b58encode(b[o:o + 32]))

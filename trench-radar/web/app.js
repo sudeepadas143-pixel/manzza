@@ -814,6 +814,34 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet
   g.addEventListener("pointerup", end); g.addEventListener("pointercancel", end);
 })();
 
+// ---------------------------------------------------------------- launch window (radar/early.py)
+// The first minutes of a token born while the app listened on chain, and the fitted model's read of them.
+function launchHtml(t) {
+  const rows = (t.launch_window || []).filter((r) => r.age_s !== 900), card = t.launch_model;
+  if (!rows.length) return "";
+  const r = rows[rows.length - 1], f = r.features || {}, cr = f.creator || {};
+  const when = r.age_s >= 60 ? `${r.age_s / 60} min` : `${r.age_s} s`;
+  const lift = isNum(r.p_grad) && f.base_rate > 0 ? r.p_grad / f.base_rate : null;
+  const wf = card?.walk_forward?.["eligible/grad_1h"];
+  const li = (k, v, c = "", cls = "") => `<div class="li"><span class="k">${esc(k)}</span><span class="v ${cls}">${v}</span>${c ? `<span class="c">${esc(c)}</span>` : ""}</div>`;
+  const head = isNum(r.p_grad)
+    ? `<div class="facts"><div><div class="k">Chance it graduates within 1 hour</div><div class="v">${pct(r.p_grad, r.p_grad < 0.1 ? 1 : 0)}</div></div>
+       <div><div class="k">Against the current base rate</div><div class="v ${lift >= 2 ? "up" : lift < 0.5 ? "down" : ""}">${isNum(lift) ? `${nf(lift, lift < 10 ? 1 : 0)}×` : "—"}<small>base ${pct(f.base_rate, 2)}</small></div></div></div>
+       <p class="notes">${r.calibrated ? "Probability on the live cohort’s base rate." : `Ranking only: the live base rate rests on ${f.base_n ?? 0} matured launches, below the ${card?.min_base_n ?? 2000} needed to read this as a probability.`}
+       ${wf ? ` In walk-forward tests on ${esc(card.trained_on?.from || "")} to ${esc(card.trained_on?.to || "")} it ranked graduates above non-graduates ${pct(wf.auc_within_day, 0)} of the time within a day (cohort base rate alone: ${pct(wf.base_auc_within_day, 0)}).` : ""}
+       Graduation is not profit.</p>`
+    : `<p class="dek2">No fitted model is installed, so only the measurements are shown.</p>`;
+  return `<div class="dsec"><h3>Launch window<span class="note">first ${esc(when)}, read ${esc(ago(t.now - r.observed_at))}</span></h3>${head}
+    <div class="ledger">${li("Unique buyers", f.uniq_buyers ?? "—", `${f.n_trades ?? "—"} trades, ${f.uniq_sellers ?? "—"} sellers`)}
+      ${li("Proven wallets", f.proven_buyers ?? "—", "bought early into earlier graduates", f.proven_buyers ? "up" : "")}
+      ${li("Serial buyers", isNum(f.serial_share) ? pct(f.serial_share) : "—", "first-bought 10+ tokens in the past hour")}
+      ${li("Snipers", f.snipers ?? "—", "bought within 3 seconds", f.snipers >= 3 ? "down" : "")}
+      ${li("Price vs launch", isNum(f.mcap_ratio) ? `${nf(f.mcap_ratio, 2)}×` : "—")}
+      ${li("Creator sold", f.creator_sold ? "Yes" : "No", "", f.creator_sold ? "down" : "")}
+      ${li("Creator’s earlier launches", cr.prior ?? "—", isNum(cr.grads) ? `${cr.grads} graduated` : "")}
+      ${f.meta_term ? li(`Meta “${f.meta_term}”`, `${f.m_launch_1h ?? 0}<small> launches 1h</small>`, f.m_hist_n ? `${f.m_hist_grad} of ${f.m_hist_n} graduated in 7 days` : "no matured history yet") : ""}</div></div>`;
+}
+
 // ---------------------------------------------------------------- token dossier
 let tokState = { mint: null, metric: "mcap", hours: 24 };
 async function openToken(mint) {
@@ -849,6 +877,7 @@ async function openToken(mint) {
         ${fact("Smart / insider 1h", `${last.labelled_buyers_h1 ?? "—"}<small>/ ${last.insider_buyers_h1 ?? "—"}</small>`)}${fact("Launch-block wallets", `${last.launch_block_buyers ?? "—"}${isNum(last.launch_block_pct) ? `<small>${pct(last.launch_block_pct, 1)} supply</small>` : ""}`, last.launch_block_buyers >= 3 ? "down" : "")}
         ${fact("Top 10 / creator hold", `${isNum(last.top10_pct) ? pct(last.top10_pct) : "—"}<small>/ ${isNum(last.dev_holds_pct) ? pct(last.dev_holds_pct, 1) : "—"}</small>`)}` : ""}</div>
       ${last.sol_paired === 0 ? `<p class="notes">Paired with a token other than SOL: SOL and USD figures are left out.</p>` : ""}</div>
+    ${launchHtml(t)}
     <div class="dsec"><h3>Risk flags</h3>${flags.length ? `<ul class="ev cau">${flags.map(([c, f]) => `<li><span class="g" style="color:var(--${c === "neg" ? "sell" : "caution"})">▲</span><span>${esc(f)}</span></li>`).join("")}</ul>`
       : `<p class="dek2">None of the automatic checks fired. They do not detect every rug, bundle or insider wallet.</p>`}</div>
     <div class="dsec"><div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:8px">${seg("Metric", [["mcap", "Market cap"], ["buyers", "Buyers/h"], ["curve", "Curve"]], tokState.metric, "data-m")}

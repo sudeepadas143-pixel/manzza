@@ -34,6 +34,9 @@ import httpx
 from .db import insert, now, one, rows
 from .wallet_labels import WalletLabels
 from .sources.base import SourceUnavailable, record_run
+from .early import Context as EarlyContext
+from .early import Model as QuantModel
+from .early import capture as early_capture
 from .sources.pump_events import PUMP_PROGRAM, parse_notification, progress_from_real_tokens
 
 log = logging.getLogger("radar.stream")
@@ -47,6 +50,7 @@ SUPPLY = 1_000_000_000       # pump.fun tokens: 1B supply
 # Addresses that appear as the trader on pump.fun trades without being a market participant.
 # BwWK17... shows up on ~20% of trades (Pumpfun Memecoin Corpus KNOWN_ISSUES §3.3, also seen in
 # this stream). Left in, it adds a phantom buyer/seller to a third of all tokens.
+QUANT_MODEL = QuantModel.load()  # None until a model is fitted (scripts/quant_fit.py)
 NON_TRADERS = frozenset({"BwWK17cbHxwWBKZkUYvzxLcNQ1YVyaFezduWbtm2de6s"})
 
 
@@ -54,7 +58,7 @@ class MintState:
     __slots__ = ("mint", "name", "symbol", "creator", "created_at", "pool", "amm_pool", "init_tokens",
                  "sol_paired", "create_slot", "block_buyers", "block_tokens", "holdings", "trades", "hours", "price",
                  "price_hist", "real_sol", "real_tokens", "last_ts", "dev_sold", "early",
-                 "graduated", "snap_ts")
+                 "graduated", "snap_ts", "graduated_ts", "ew", "ew_first", "captured", "terms", "mayhem", "cashback")
 
     def __init__(self, mint: str):
         self.mint = mint
@@ -76,6 +80,14 @@ class MintState:
         self.early: list[str] = []
         self.graduated = False
         self.snap_ts = 0
+        self.graduated_ts = None
+        # launch window for the quantitative score (early.py): trades in the first 15 minutes as
+        # (ts, wallet, is_buy, sol, tokens, price), each buyer's first buy as (ts, serial count)
+        self.ew: list | None = []
+        self.ew_first: dict[str, tuple] = {}
+        self.captured: set = set()
+        self.terms: list | None = None
+        self.mayhem = self.cashback = None
 
 
 class Live:
@@ -107,6 +119,10 @@ class Live:
         self.meta_queue: deque = deque(maxlen=600)   # (mint, uri) awaiting a metadata fetch
         self.source = "chain"                        # provenance written on rows; "shrine_replay" when backfilling
         self.x_posts: dict[str, str] = {}            # mint -> X post its metadata links
+        self.early_ctx = EarlyContext()              # meta windows and matured outcomes (early.py)
+        self.firsts: dict[str, deque] = defaultdict(deque)   # wallet -> first-buy times, last hour
+        self.credits: dict[str, list] = defaultdict(list)    # wallet -> times its early buys graduated
+        self.credits_loaded = False
 
     def set_connected(self, on: bool, t: float | None = None) -> None:
         t = t or time.time()
@@ -172,6 +188,8 @@ class Live:
         if ms.created_at is not None:          # duplicate launch event (reconnects, archive merges)
             return
         ms.name, ms.symbol, ms.creator, ms.created_at = ev["name"], ev["symbol"], ev["creator"], ev["ts"]
+        ms.mayhem, ms.cashback = ev.get("mayhem"), ev.get("cashback")
+        ms.terms = self.early_ctx.on_launch(ev["mint"], ev["ts"], ev["name"], ev["symbol"], ev["creator"])
         ms.pool = ev["bonding_curve"]
         ms.init_tokens, ms.sol_paired, ms.create_slot = ev.get("initial_real_tokens"), ev.get("sol_paired", True), ev.get("slot")
         key = (ev["name"] or "").strip().lower()
@@ -206,6 +224,14 @@ class Live:
             ms.block_buyers.add(user)               # same block as the launch: bundled or sniped
             ms.block_tokens += ev["tokens"]
         ms.trades.append((ts, user, buy, sol))
+        if ms.ew is not None and ms.created_at is not None and ts - ms.created_at <= 900:
+            ms.ew.append((ts, user, buy, sol, ev["tokens"], ev["v_sol"] / ev["v_tokens"] if ev["v_tokens"] and ms.sol_paired else None))
+            if human and buy and user not in ms.ew_first:
+                fq = self.firsts[user]
+                while fq and fq[0] < ts - H:
+                    fq.popleft()
+                ms.ew_first[user] = (ts, len(fq))     # tokens this wallet first-bought in the hour before
+                fq.append(ts)
         if ev["v_tokens"] and ms.sol_paired:
             ms.price = ev["v_sol"] / ev["v_tokens"]
         b = ms.hours.setdefault(ts // H * H, [0, 0, 0.0, 0.0, ms.price])
@@ -242,6 +268,12 @@ class Live:
         if ms.graduated:
             return
         ms.graduated = True
+        ms.graduated_ts = ts
+        if ms.created_at is not None:                 # credit the first-minute buyers (proven wallets)
+            for w, (ft, _) in ms.ew_first.items():
+                if ft <= ms.created_at + 60:
+                    self.credits[w].append(ts)
+                    self.pending.setdefault("credits", []).append({"wallet": w, "mint": ms.mint, "at": ts})
         self.grads.append({"mint": ms.mint, "name": ms.name, "symbol": ms.symbol, "ts": ts})
         # replayed history: the graduation was knowable when it happened, not when replayed
         self.pending["grads"].append({"mint": ms.mint, "detected_at": now() if self.source == "chain" else ts,
@@ -251,7 +283,7 @@ class Live:
     # ------------------------------------------------------------------ persistence
     def flush(self, con) -> int:
         """Write buffered launches, early buyers and graduations in one transaction."""
-        p, self.pending = self.pending, {"tokens": [], "early": [], "grads": [], "pools": []}
+        p, self.pending = self.pending, {"tokens": [], "early": [], "grads": [], "pools": [], "credits": []}
         n = sum(len(v) for v in p.values())
         if not n:
             return 0
@@ -268,6 +300,8 @@ class Live:
                 insert(con, "early_buyers", r, or_ignore=True)
             for r in p["grads"]:
                 insert(con, "graduations", r, or_ignore=True)
+            for r in p.get("credits", []):
+                insert(con, "wallet_credits", r, or_ignore=True)
             for pool, mint in p["pools"]:
                 con.execute("UPDATE graduations SET pool=? WHERE mint=? AND pool IS NULL", (pool, mint))
             con.execute("COMMIT")
@@ -275,6 +309,29 @@ class Live:
             con.execute("ROLLBACK")
             raise
         return n
+
+    # ------------------------------------------------------------------ quantitative score support
+    def graduated_at(self, mint: str) -> int | None:
+        ms = self.mints.get(mint)
+        return ms.graduated_ts if ms is not None and ms.graduated else None
+
+    def credit_count(self, wallet: str, t: float) -> int:
+        """Tokens this wallet bought in their first minute that had graduated by t."""
+        return sum(1 for x in self.credits.get(wallet, ()) if x <= t)
+
+    def load_credits(self, con, days: int = 30) -> None:
+        for r in rows(con, "SELECT wallet, at FROM wallet_credits WHERE at > ?", (now() - days * 86400,)):
+            self.credits[r["wallet"]].append(r["at"])
+        self.credits_loaded = True
+
+    @staticmethod
+    def creator_history(con, creator: str | None, t0: int) -> dict:
+        if not creator:
+            return {"prior": 0, "24h": 0, "grads": 0}
+        r = one(con, """SELECT COUNT(*) AS n, SUM(created_at > ?) AS d,
+                               SUM(EXISTS (SELECT 1 FROM graduations g WHERE g.mint = tokens.mint AND g.graduated_at < ?)) AS g
+                        FROM tokens WHERE creator = ? AND created_at < ?""", (t0 - 86400, t0, creator, t0))
+        return {"prior": r["n"] or 0, "24h": r["d"] or 0, "grads": r["g"] or 0}
 
     @staticmethod
     def top10(ms: MintState) -> float | None:
@@ -647,6 +704,10 @@ async def run_maintenance(ctx, live: Live = LIVE, snapshot_every_s: int = 120) -
         try:
             live.flush(ctx.con)
             t = time.time()
+            if not live.credits_loaded:
+                live.load_credits(ctx.con)
+            if live.source == "chain":
+                early_capture(ctx.con, live, int(t), QUANT_MODEL)
             if t - last_beat >= 60:
                 last_beat = t
                 events, up_s, reconnects = live.take_window()
@@ -834,3 +895,5 @@ def prune(con, keep_obs_days: int = 21, keep_early_days: int = 30) -> None:
     con.execute("DELETE FROM curve_obs WHERE observed_at < ?", (t - keep_obs_days * 86400,))
     con.execute("DELETE FROM pool_obs WHERE observed_at < ?", (t - keep_obs_days * 86400,))
     con.execute("DELETE FROM early_buyers WHERE ts < ?", (t - keep_early_days * 86400,))
+    con.execute("DELETE FROM token_early WHERE launched_at < ?", (t - keep_early_days * 86400,))
+    con.execute("DELETE FROM wallet_credits WHERE at < ?", (t - 2 * keep_early_days * 86400,))

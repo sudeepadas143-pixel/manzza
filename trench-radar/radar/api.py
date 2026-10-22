@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import collectors as c
+from . import early
 from .analytics.backtest import run_backtest
 from .analytics.common import LAUNCH_SOURCES, OBS_SOURCES, RETIRED, in_list, source_freshness
 from .analytics.scoring import run_analysis
@@ -191,7 +192,8 @@ def create_app(settings: Settings | None = None, *, with_scheduler: bool = False
         return {"now": t, "token": tok[0], "observations": obs, "curve": curve,
                 "graduation": grad[0] if grad else None, "pool": pool, "same_x_post_24h": same_post,
                 "deployer": dep, "outcomes": outcome,
-                "attention": boosts}
+                "attention": boosts, "launch_window": early.latest(con, mint),
+                "launch_model": early.model_card()}
 
     @app.get("/api/narratives")
     async def narratives_now():

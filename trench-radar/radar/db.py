@@ -115,6 +115,18 @@ CREATE TABLE IF NOT EXISTS graduations (
   source TEXT NOT NULL, pool TEXT
 );
 
+CREATE TABLE IF NOT EXISTS token_early (         -- launch-window features at fixed ages (early.py)
+  mint TEXT NOT NULL, age_s INTEGER NOT NULL, observed_at INTEGER NOT NULL, launched_at INTEGER,
+  features TEXT NOT NULL, model TEXT, p_grad REAL, calibrated INTEGER, source TEXT,
+  PRIMARY KEY (mint, age_s)
+);
+CREATE INDEX IF NOT EXISTS ix_token_early_launch ON token_early(launched_at);
+CREATE TABLE IF NOT EXISTS wallet_credits (      -- first-minute buyers of tokens that later graduated
+  wallet TEXT NOT NULL, mint TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (wallet, mint)
+);
+CREATE INDEX IF NOT EXISTS ix_wallet_credits_at ON wallet_credits(at);
+CREATE INDEX IF NOT EXISTS ix_tokens_creator ON tokens(creator);
+
 CREATE TABLE IF NOT EXISTS early_buyers (       -- first 20 distinct buyers of each token
   mint TEXT NOT NULL, wallet TEXT NOT NULL, ts INTEGER NOT NULL, sol REAL, rank INTEGER,
   PRIMARY KEY (mint, wallet)
