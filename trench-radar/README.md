@@ -33,7 +33,7 @@ Design, data sources and what was reused from the reference repos:
 | AI analyst | Claude writes from an evidence pack and may only cite numbers in it. With no key, a deterministic rules analyst does the job. The pack is stored next to each report. |
 | Historical learning | Walk-forward backtest. Every step re-runs scoring `as_of` that moment and asserts nothing newer was read. Graduation lift and net-positive lift are measured separately, false positives are counted, and results are bootstrapped by day. |
 | Scheduled intelligence | Reports at configured UTC times. Telegram alerts fire on verdict changes, large score moves, new top metas, market regime flips and data outages, with cooldowns. |
-| Dashboard | Source freshness, market tiles, 30-day volume, the meta ranking, per-meta evidence (components, reasons, risks, top tokens, posts, saturation, score history), the analyst, backtest and alerts. |
+| Dashboard | "Signal Press": an intelligence broadsheet in Day (newsprint) and Night (blueprint) editions. Briefing with a barometer and launch seismograph; Live wire; the Metas atlas (a semantic radar of narratives, lifecycle, pulse ridgelines, category index, profiles with token constellations); token listings; analyst desk; system colophon. Design system in `docs/DESIGN.md`. |
 
 ## Layout
 

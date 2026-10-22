@@ -63,10 +63,12 @@ Apache-2.0. Stored in the data folder under `models/`.
 
 ## Shipped in the web app
 
-**Apache ECharts 5.6.0**, https://github.com/apache/echarts, Apache-2.0. The unmodified
-`dist/echarts.min.js` from the npm package is vendored as `web/vendor/echarts-5.6.0.min.js`
-(sha256 bf4a2235…07b1) with its LICENSE and NOTICE in `web/vendor/ECHARTS-LICENSE.txt`. Used for
-the narrative field, momentum lines, token clusters and trend charts.
+**League Gothic** (The League of Moveable Type, variable width), https://github.com/theleagueof/league-gothic,
+SIL Open Font License 1.1, from the `@fontsource-variable/league-gothic` 5.3.0 package; licence in
+`web/fonts/OFL-League-Gothic.txt`. Newsreader and IBM Plex are OFL as before.
+
+Apache ECharts was evaluated and briefly shipped (2026-10-22), then removed: the hand-written SVG
+charts in `web/charts.js` and `web/viz.js` draw the print style without a 1MB library.
 
 ## Libraries (installed from PyPI)
 
@@ -89,8 +91,8 @@ imagehash library (BSD-2-Clause) was considered but adds SciPy and PyWavelets fo
 | jito-foundation/jito-solana | Apache-2.0 | Validator software; not needed. Bundled launches are detected from same-block buys instead. |
 | mlfoundations/open_clip | MIT | Not integrated: needs PyTorch (~2 GB) and downloading every token image. Same-picture links use the difference hash instead, which catches reposted pictures but not two different pictures of the same subject. |
 | UKPLab/sentence-transformers | Apache-2.0 | Not installed (needs PyTorch); its MiniLM model runs through onnxruntime instead. |
-| magicuidesign/magicui | MIT | Ideas only (number ticker, one-time shine). It is React + Tailwind; the app's frontend is plain JS. |
-| ibelick/motion-primitives | MIT (stated in its README; the linked LICENSE.md was missing on 2026-10-22) | Ideas only: motion that follows data, interruptible transitions. Needs React and motion.dev. |
+| magicuidesign/magicui | MIT | Ideas only (number ticker). It is React + Tailwind; the app's frontend is plain JS with no build step. |
+| ibelick/motion-primitives | MIT (stated in its README; the linked LICENSE.md was missing on 2026-10-22) | Ideas only: motion that follows data, marks that glide between states. Needs React and motion.dev. |
 | tremorlabs/tremor | Apache-2.0 | Ideas only: the category bar and tracker. Needs React and Tailwind. |
 | DavidHDev/react-bits | MIT + Commons Clause | Reviewed; nothing used. Its effects are decorative rather than data-driven. |
 | JohannesBuchner/imagehash | BSD-2-Clause | The difference-hash idea, reimplemented in `radar/images.py` (see above). |

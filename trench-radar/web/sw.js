@@ -1,6 +1,6 @@
 // App-shell cache only. API responses are never cached: stale market data must look stale, not live.
-const CACHE = "radar-shell-v10";
-const SHELL = ["/", "/static/style.css", "/static/charts.js", "/static/nviz.js", "/static/app.js", "/manifest.webmanifest",
+const CACHE = "radar-shell-v11";
+const SHELL = ["/", "/static/style.css", "/static/charts.js", "/static/viz.js", "/static/fonts/league-gothic-latin-wdth-normal.woff2", "/static/app.js", "/manifest.webmanifest",
   "/static/icons/icon.svg", "/static/icons/icon-180.png", "/static/icons/icon-192.png",
   "/static/fonts/newsreader-latin-400-normal.woff2", "/static/fonts/newsreader-latin-500-normal.woff2", "/static/fonts/ibm-plex-sans-latin-400-normal.woff2",
   "/static/fonts/ibm-plex-sans-latin-500-normal.woff2"];

@@ -1,47 +1,62 @@
 <!doctype html>
-<html lang="en" data-perf="premium">
+<html lang="en" data-perf="premium" data-edition="day">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0e0f11">
-<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#eee8da">
+<meta name="color-scheme" content="light dark">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Radar">
 <meta name="robots" content="noindex, nofollow">
 <title>TRENCH//RADAR</title>
-<script>/* apply the display mode before first paint so Low visual never flashes Premium */
-(function () { try { var m = localStorage.getItem("radar-perf") || "auto", n = navigator, c = n.connection || {};
+<script>/* edition and display mode before first paint, so nothing flashes */
+(function () { var d = document.documentElement; try {
+  var e = localStorage.getItem("radar-edition") || "day"; d.dataset.edition = e;
+  var m = localStorage.getItem("radar-perf") || "auto", n = navigator, c = n.connection || {};
   var low = matchMedia("(prefers-reduced-motion: reduce)").matches || c.saveData || /(^|-)2g|3g/.test(c.effectiveType || "")
     || (n.deviceMemory && n.deviceMemory <= 4) || (n.hardwareConcurrency && n.hardwareConcurrency <= 4);
-  document.documentElement.dataset.perf = m === "auto" ? (low ? "low" : "premium") : m; } catch (e) {} })();</script>
+  d.dataset.perf = m === "auto" ? (low ? "low" : "premium") : m;
+  var tc = document.querySelector('meta[name="theme-color"]'); if (tc && e === "night") tc.content = "#121926"; } catch (x) {} })();</script>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/static/icons/icon-180.png">
-<link rel="preload" href="/static/fonts/newsreader-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/static/fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/league-gothic-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/newsreader-latin-400-italic.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/ibm-plex-mono-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+  <pattern id="halftone-ink" width="4" height="4" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="0.9" style="fill:var(--ink)"/></pattern>
+  <pattern id="halftone-buy" width="4" height="4" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" style="fill:var(--buy)"/></pattern>
+  <pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" style="stroke:var(--rule-2)" stroke-width="1.4"/></pattern>
+</defs></svg>
 <div class="app">
-  <aside class="rail" aria-label="Navigation">
-    <div class="wordmark" aria-label="TRENCH//RADAR">TRENCH<i>//</i>RADAR</div>
-    <nav class="navlist" aria-label="Sections">
-      <button class="tab" data-go="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4zM14 20h6v-9h-6zM14 4v4h6V4zM4 20h6v-3H4z"/></svg><span>Overview</span></button>
-      <button class="tab" data-go="live"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2"/></svg><span>Live</span></button>
-      <button class="tab" data-go="metas"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12l5.5-5.5"/></svg><span>Metas</span></button>
-      <button class="tab" data-go="tokens"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="19" cy="17" r="1.6"/></svg><span>Tokens</span></button>
-      <button class="tab" data-go="analyst"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h8l4 4v13H6z"/><path d="M14 3.5v4h4M9 12h6M9 15.5h6"/></svg><span>Analyst</span></button>
-      <button class="tab" data-go="system"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l2.5-6 5 12 2.5-6h4"/></svg><span>System</span></button>
-    </nav>
-    <div class="railstat" id="railstat" aria-live="polite"></div>
-  </aside>
+  <header class="mast">
+    <div class="mast-in">
+      <div class="wordmark" aria-label="TRENCH//RADAR">Trench<i>//</i>Radar<small>Narrative intelligence from the Solana trenches</small></div>
+      <nav class="sections" aria-label="Sections">
+        <button class="tab" data-go="overview"><sup>01</sup>Briefing</button>
+        <button class="tab" data-go="live"><sup>02</sup>Live wire</button>
+        <button class="tab" data-go="metas"><sup>03</sup>Metas</button>
+        <button class="tab" data-go="tokens"><sup>04</sup>Tokens</button>
+        <button class="tab" data-go="analyst"><sup>05</sup>Analyst</button>
+        <button class="tab" data-go="system"><sup>06</sup>System</button>
+      </nav>
+      <div class="edition">
+        <div class="dl" id="dateline"></div>
+        <span class="status" id="mstat"></span>
+        <button class="ibtn" id="edition" aria-label="Switch to the night edition"><svg viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg></button>
+        <button class="ibtn" id="mrefresh" data-refresh aria-label="Refresh data"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
+      </div>
+    </div>
+    <div class="mast-rule"></div>
+  </header>
   <main class="main">
-    <div class="mtop"><span class="wm">TRENCH<i>//</i>RADAR</span><span class="stat" id="mstat"></span>
-      <button class="iconbtn" id="mrefresh" aria-label="Refresh data"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button></div>
-    <header class="head"><div><h1 id="title">Overview</h1><div class="ctx" id="ctx"></div></div><div class="tools" id="tools"></div></header>
-    <div class="view">
+    <header class="folio"><div class="kicker" id="kicker"></div><div><h1 id="title"></h1><p class="dek" id="ctx"></p></div><div class="tools" id="tools"></div></header>
+    <div class="page">
       <div id="banner"></div>
       <section class="screen" data-screen="overview"></section>
       <section class="screen" data-screen="live" hidden></section>
@@ -52,12 +67,12 @@
     </div>
   </main>
   <nav class="tabbar" aria-label="Sections">
-      <button class="tab" data-go="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4zM14 20h6v-9h-6zM14 4v4h6V4zM4 20h6v-3H4z"/></svg><span>Overview</span></button>
-      <button class="tab" data-go="live"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2"/></svg><span>Live</span></button>
-      <button class="tab" data-go="metas"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12l5.5-5.5"/></svg><span>Metas</span></button>
-      <button class="tab" data-go="tokens"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="19" cy="17" r="1.6"/></svg><span>Tokens</span></button>
-      <button class="tab" data-go="analyst"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h8l4 4v13H6z"/><path d="M14 3.5v4h4M9 12h6M9 15.5h6"/></svg><span>Analyst</span></button>
-      <button class="tab" data-go="system"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l2.5-6 5 12 2.5-6h4"/></svg><span>System</span></button>
+    <button class="tab" data-go="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 9h16M4 13h7M4 17h7M14 13h6v6h-6z"/></svg><span>Brief</span></button>
+    <button class="tab" data-go="live"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12h4l2-5 3 10 3-14 2.5 9H22"/></svg><span>Live</span></button>
+    <button class="tab" data-go="metas"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5" stroke-dasharray="2 2"/><path d="M12 12l6-6"/><circle cx="15.5" cy="9.5" r="1.2"/></svg><span>Metas</span></button>
+    <button class="tab" data-go="tokens"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h16M4 14h16M4 18h10"/></svg><span>Tokens</span></button>
+    <button class="tab" data-go="analyst"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h8l4 4v13H6z"/><path d="M14 3.5v4h4M9 12h6M9 15.5h6"/></svg><span>Analyst</span></button>
+    <button class="tab" data-go="system"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V9M9 18V5M14 18v-6M19 18V8"/></svg><span>System</span></button>
   </nav>
 </div>
 <div class="backdrop" id="backdrop"></div>
@@ -70,7 +85,7 @@
 <div class="tip" id="tip" role="tooltip"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="/static/charts.js"></script>
-<script src="/static/nviz.js"></script>
+<script src="/static/viz.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>
