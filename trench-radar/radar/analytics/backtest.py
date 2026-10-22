@@ -60,6 +60,28 @@ def _bootstrap_lower(signals: list[dict], key: str, iters: int = 1000, q: float 
     return means[int(q * iters)]
 
 
+def _top_picks(signals: list[dict]) -> dict:
+    """Each step's top meta by the readiness score and by the launch-edge model: how its next
+    launches graduated against all launches then (pooled; ratio > 1 = beat the market)."""
+    by_t: dict[int, list[dict]] = {}
+    for s in signals:
+        if s["grad_rate"] is not None and s["base_grad_rate"]:
+            by_t.setdefault(s["t"], []).append(s)
+    out = {}
+    for name, key in (("readiness", lambda s: s["score"] if s["score"] is not None else -1.0),
+                      ("edge", lambda s: s["edge_lift"] if s["edge_lift"] is not None else float("-inf"))):
+        if name == "edge" and not any(s["edge_lift"] is not None for ss in by_t.values() for s in ss):
+            out[name] = None
+            continue
+        k = n = e = 0.0
+        for ss in by_t.values():
+            best = max(ss, key=key)
+            k += best["k_future"]; n += best["n_future"]; e += best["base_grad_rate"] * best["n_future"]
+        out[name] = {"steps": len(by_t), "grad_rate": round(k / n, 4) if n else None,
+                     "market_rate": round(e / n, 4) if n else None, "ratio": round(k / e, 3) if e else None}
+    return out
+
+
 def run_backtest(con, start: int, end: int, *, step_s: int = 3600, follow_h: int = 6, horizon_h: int = 24,
                  cost: float = 0.03, min_signals: int = 30, min_future: int = 3, persist: bool = True,
                  exclude: list[tuple[int, int]] | None = None, block_s: int = 86400) -> dict:
@@ -73,7 +95,7 @@ def run_backtest(con, start: int, end: int, *, step_s: int = 3600, follow_h: int
         if any(a < t + follow_h * H and t - 7 * H < b for a, b in exclude):
             skipped += 1
             continue
-        res = run_analysis(con, t, persist=False)
+        res = run_analysis(con, t, persist=False, max_metas=10_000)
         if res["lineage"]["max_ts"] > t:
             leaks += 1
             continue
@@ -88,6 +110,8 @@ def run_backtest(con, start: int, end: int, *, step_s: int = 3600, follow_h: int
                 "t": t, "meta": m["meta_key"], "score": m["score"], "verdict": m["verdict"],
                 "confidence": m["confidence"], "n_future": r["n"],
                 "accel_z": m["evidence"]["launch"].get("launch_accel_z"),
+                "edge_lift": (m.get("edge") or {}).get("lift_logit"), "edge_rank": (m.get("edge") or {}).get("rank"),
+                "k_future": sum(c["graduated"] or 0 for c in mine),
                 "grad_rate": r["grad_rate"], "base_grad_rate": base["grad_rate"],
                 "grad_lift": (r["grad_rate"] - base["grad_rate"]) if base["grad_rate"] is not None else None,
                 "net_positive_rate": r["net_positive_rate"], "base_net_positive_rate": base["net_positive_rate"],
@@ -121,6 +145,7 @@ def run_backtest(con, start: int, end: int, *, step_s: int = 3600, follow_h: int
                           "mean_grad_lift": round(sum(lifts) / len(lifts), 4) if lifts else None,
                           "grad_lift_lower90": _bootstrap_lower(ss, "grad_lift", block_s=block_s),
                           "grad_lift_upper90": _bootstrap_lower(ss, "grad_lift", q=0.95, block_s=block_s)}
+    top_pick = _top_picks(signals)
     scored = [s for s in signals if s["score"] is not None and s["grad_lift"] is not None]
     corr = None
     if len(scored) >= 10:
@@ -136,7 +161,7 @@ def run_backtest(con, start: int, end: int, *, step_s: int = 3600, follow_h: int
         "model_version": MODEL_VERSION, "validated": validated, "leaked_steps_skipped": leaks,
         "steps": len(range(start, end, step_s)) if end > start else 0, "steps_excluded": skipped,
         "signals": len(signals), "by_verdict": by, "by_acceleration": by_accel,
-        "spearman_score_vs_grad_lift": corr,
+        "spearman_score_vs_grad_lift": corr, "top_pick": top_pick,
         "verdict": ("validated: favorable calls beat the all-launch baseline on graduation (90% bootstrap)"
                     if validated else
                     f"not validated: need >= {min_signals} favorable signals with a positive lower bound "

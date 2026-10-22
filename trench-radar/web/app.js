@@ -68,7 +68,7 @@ const Edition = {
 
 // ---------------------------------------------------------------- api + state
 const S = { nar: null, narAsOf: null, metaView: "narratives", narSel: null, narState: "all", narCat: "all", ov: null, charts: {}, tokens: null, reports: null, report: null, range: 24, tab: "overview", sel: null,
-  metaFilter: "all", metaSort: "score", tok: { key: "vol_h1", dir: -1, filter: "all", q: "" }, cmp: null, error: null, lastOk: 0, sig: null };
+  metaFilter: "all", metaSort: "edge", tok: { key: "vol_h1", dir: -1, filter: "all", q: "" }, cmp: null, error: null, lastOk: 0, sig: null };
 let token = null;
 try { token = localStorage.getItem("radar-token"); } catch (_) { /* ignore */ }
 
@@ -270,7 +270,7 @@ function renderOverview() {
   const el = $(".screen[data-screen=overview]"), ov = S.ov, m = ov.market, x = m.metrics, ch = S.charts[S.range];
   const ins = briefing();
   const valid = ov.backtest?.validated ? "validated by the latest backtest" : ov.backtest ? `the latest backtest${ov.backtest.dataset ? ` (${esc(ov.backtest.dataset)})` : ""} found no edge` : "not yet validated against outcomes";
-  setHead(ins.head, `Scores are hand-weighted priors, ${valid}: read them as structure, not prediction.`, `<button class="btn ghost" data-goto="metas">Open the atlas</button>`, `Edition ${esc(hhmm(ov.as_of))}`);
+  setHead(ins.head, ov.metas.some((x) => x.edge) ? `Metas are ranked by launch edge, which picked better metas than the readiness score in back-tests and in two later months; a ranking, not a forecast. Readiness scores are hand-weighted priors, ${valid}.` : `Scores are hand-weighted priors, ${valid}: read them as structure, not prediction.`, `<button class="btn ghost" data-goto="metas">Open the atlas</button>`, `Edition ${esc(hhmm(ov.as_of))}`);
   $$("[data-goto]", $("#tools")).forEach((b) => b.addEventListener("click", () => go(b.dataset.goto)));
   const drivers = DRIVERS.map(([k, label]) => {
     const v = m.components[k];
@@ -316,11 +316,11 @@ function renderOverview() {
     </div>
     <div class="sect g12">
       <div class="span-7">
-        ${slug("Readiness ledger", "keyword scores; buyers are per-token sums", `<button class="linkbtn" data-goto="metas" data-kw="1">All ${ov.metas.length} →</button>`)}
+        ${slug("Meta ledger", "ranked by launch edge; readiness is the baseline score; buyers are per-token sums", `<button class="linkbtn" data-goto="metas" data-kw="1">All ${ov.metas.length} →</button>`)}
         <div class="ranks" id="lead-n">${metas.length ? metas.map((mm, i) => {
           const d = mm.evidence.demand, l = mm.evidence.launch;
           return `<button class="rank" data-meta="${esc(mm.meta_key)}"><span class="n">${String(i + 1).padStart(2, "0")}</span>
-            <span class="t">${esc(mm.meta_key)}<small>${esc(mm.terms.length > 1 ? `with ${mm.terms.slice(1, 5).join(", ")}` : `${l.launches_6h} launches in 6h, ${pct(d.buyer_share_h1)} of traders buying`)}</small></span>
+            <span class="t">${esc(mm.meta_key)}<small>${mm.edge ? `<b class="${edgeCls(mm)}">${esc(cap(mm.edge.tier))} edge</b> · ` : ""}${esc(mm.terms.length > 1 ? `with ${mm.terms.slice(1, 5).join(", ")}` : `${l.launches_6h} launches in 6h, ${pct(d.buyer_share_h1)} of traders buying`)}</small></span>
             <span class="s ${isProv(mm) ? "prov" : ""}">${isNum(mm.score) ? Math.round(mm.score) : "—"}<small>${isProv(mm) ? "provisional" : esc(vinfo(mm.verdict).label)}</small></span>
             <span class="b">${compact(d.unique_buyers_h1_sum)}<small>buyers/h</small></span></button>`;
         }).join("") : `<div class="chart-empty">No keyword cluster yet.</div>`}</div>
@@ -651,7 +651,11 @@ function bindProfile(root, n) {
 }
 
 // ---------------------------------------------------------------- keyword scores (the readiness model)
-const MSORT = { score: (m) => m.score ?? -1, confidence: (m) => m.confidence, buyers: (m) => m.evidence.demand.unique_buyers_h1_sum,
+// launch edge (radar/analytics/meta_model.py): a ranking of metas, validated walk-forward and in two
+// later months; the size of the lift did not hold up, so only rank and tier are shown
+const edgeCls = (m) => ({ strongest: "up", weakest: "down" }[m.edge?.tier] || "");
+const edgeTxt = (m) => (m.edge ? `#${m.edge.rank} of ${m.edge.of}` : "—");
+const MSORT = { edge: (m) => (m.edge ? -m.edge.rank : -1e9), score: (m) => m.score ?? -1, confidence: (m) => m.confidence, buyers: (m) => m.evidence.demand.unique_buyers_h1_sum,
   launches: (m) => m.evidence.launch.launches_1h, saturation: (m) => -(m.evidence.saturation.index ?? 1) };
 function pickMeta(key) {
   S.sel = key; S.metaView = "keywords";
@@ -661,7 +665,7 @@ function pickMeta(key) {
 }
 function renderKeywords() {
   const el = $(".screen[data-screen=metas]"), all = S.ov.metas;
-  setHead(`${plural(all.length, "keyword cluster")} <em>scored for readiness</em>`, "The readiness model: attention, buying demand, market and freshness, hand-weighted and not validated. Select one for its evidence.", VIEW_SEG(), "Keyword scores");
+  setHead(`${plural(all.length, "keyword cluster")} <em>ranked by launch edge</em>`, "Launch edge ranks metas by how their next launches graduated against the market in back-tests: real creators, live trading, little copycat crowding. The hand-weighted readiness score stays alongside as the baseline. Select one for its evidence.", VIEW_SEG(), "Keyword scores");
   bindView();
   if (!all.length) { el.innerHTML = `<div class="empty"><h3>No keyword cluster yet</h3><p>A cluster appears once several launches or posts share a term. The first ones show up within a few collection cycles.</p></div>`; return; }
   if (!S.sel || !all.some((m) => m.meta_key === S.sel)) S.sel = all[0].meta_key;
@@ -675,20 +679,21 @@ function renderKeywords() {
       <p class="notes">These scores come from the keyword model. The atlas reads the same launches by meaning and is usually the better guide to what a meta is.</p></div>
     <div class="span-12">
       <div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap;margin-bottom:10px"><div class="filters" role="group" aria-label="Filter by verdict">${filters.map(([v, l, n]) => `<button class="fil" data-f="${esc(v)}" aria-pressed="${S.metaFilter === v}">${l}<sup>${n}</sup></button>`).join("")}</div>
-        <span style="margin-left:auto"><label class="sr" for="msort">Sort</label><select id="msort">${[["score", "Readiness score"], ["confidence", "Confidence"], ["buyers", "Buyers"], ["launches", "Launches"], ["saturation", "Least crowded"]]
+        <span style="margin-left:auto"><label class="sr" for="msort">Sort</label><select id="msort">${[["edge", "Launch edge"], ["score", "Readiness score"], ["confidence", "Confidence"], ["buyers", "Buyers"], ["launches", "Launches"], ["saturation", "Least crowded"]]
           .map(([v, l]) => `<option value="${v}" ${S.metaSort === v ? "selected" : ""}>Sort by ${l.toLowerCase()}</option>`).join("")}</select></span></div>
-      <table class="tbl"><thead><tr><th>Cluster</th><th class="r">Score</th><th class="hide-s">Confidence</th><th>Launches 1h/6h</th><th class="r">Buyers/h</th><th class="r hide-m">Buyer share</th><th class="r hide-m">Curve SOL 1h</th><th class="r hide-s">Crowding</th></tr></thead>
+      <table class="tbl"><thead><tr><th>Cluster</th><th>Edge</th><th class="r">Readiness</th><th class="hide-s">Confidence</th><th>Launches 1h/6h</th><th class="r">Buyers/h</th><th class="r hide-m">Buyer share</th><th class="r hide-m">Curve SOL 1h</th><th class="r hide-s">Crowding</th></tr></thead>
         <tbody id="mrows">${list.map((m) => {
           const d = m.evidence.demand, l = m.evidence.launch, sat = m.evidence.saturation.index;
           return `<tr data-k="${esc(m.meta_key)}" class="${m.meta_key === S.sel ? "sel" : ""}">
             <td class="nmc"><span class="nm"><span>${esc(m.meta_key)}</span></span><small>${esc(m.terms.length > 1 ? `with ${m.terms.slice(1, 4).join(", ")}` : d.top_tokens?.[0]?.symbol ? `led by ${d.top_tokens[0].symbol}` : `${d.tokens_tracked} tokens trading`)}</small></td>
+            <td class="${edgeCls(m)}"><span class="mono" style="font-size:12.5px">${edgeTxt(m)}</span>${m.edge ? `<small style="display:block">${esc(m.edge.tier)}</small>` : ""}</td>
             <td class="r ${isProv(m) ? "i3" : ""}">${isNum(m.score) ? Math.round(m.score) : "—"}</td>
             <td class="hide-s">${meter(m.confidence, m.confidence < CONF_BAR ? "cau" : "", CONF_BAR)} <span class="mono" style="font-size:12px">${nf(m.confidence, 2)}</span></td>
             <td><span class="lc" style="justify-content:flex-start"><span class="hide-s">${Charts.spark(l.launch_hourly_12h, 52, 18)}</span><span class="mono" style="font-size:12.5px">${l.launches_1h}<span class="i4">/${l.launches_6h}</span></span></span></td>
             <td class="r">${compact(d.unique_buyers_h1_sum)}</td><td class="r hide-m">${pct(d.buyer_share_h1)}</td>
             <td class="r hide-m ${isNum(d.curve_net_sol_1h) ? (d.curve_net_sol_1h >= 0 ? "up" : "down") : ""}">${isNum(d.curve_net_sol_1h) ? signed(d.curve_net_sol_1h, 1) : "—"}</td>
             <td class="r hide-s ${isNum(sat) && sat >= 0.6 ? "warn" : ""}">${isNum(sat) ? nf(sat, 2) : "—"}</td></tr>`;
-        }).join("") || `<tr><td colspan="8" class="i3">No cluster has this verdict right now.</td></tr>`}</tbody></table></div></div>`;
+        }).join("") || `<tr><td colspan="9" class="i3">No cluster has this verdict right now.</td></tr>`}</tbody></table></div></div>`;
   const pts = all.filter((m) => isNum(m.components.attention) && isNum(m.components.demand)).map((m) => ({
     key: m.meta_key, label: m.meta_key, x: m.components.attention, y: m.components.demand, buyers: m.evidence.demand.unique_buyers_h1_sum,
     tone: { favorable: "pos", mixed: "warn", unfavorable: "neg" }[m.verdict] || "mute", verdict: vinfo(m.verdict).label, conf: m.confidence, confident: !isProv(m), score: m.score,
@@ -725,11 +730,14 @@ function dossierHtml(m) {
     .filter(([k]) => fresh[k]).map(([k, n]) => `${n} (${fresh[k].state}${isNum(fresh[k].age_s) ? `, ${ago(fresh[k].age_s)}` : ""})`);
   const toks = d.top_tokens || [];
   return `
-    <header class="prof-head"><div class="cat label">${vst(m.verdict)}<span style="margin-left:auto">keyword cluster</span></div><h2>${esc(m.meta_key)}</h2>
+    <header class="prof-head"><div class="cat label">${m.edge ? `<span class="stamp ${{ strongest: "accelerating", weakest: "fading" }[m.edge.tier] || "steady"}">${esc(cap(m.edge.tier))} edge</span><span class="i3" style="margin:0 10px">·</span>` : ""}<span class="i3" style="margin-right:6px">readiness</span>${vst(m.verdict)}<span style="margin-left:auto">keyword cluster</span></div><h2>${esc(m.meta_key)}</h2>
       <p class="dek">${esc(cap(m.hype_check))}.</p>
       <div class="by"><span>${esc(m.terms.length > 1 ? `matches ${m.terms.join(", ")}` : `${l.launches_6h} launches in 6h`)}</span>${e.merged_by_meaning?.length ? `<span>grouped by meaning: ${esc(e.merged_by_meaning.map(([w]) => w).join(", "))}</span>` : ""}</div></header>
+    ${m.edge ? `<div class="verdict"><div><div class="k">Launch edge</div><div class="big ${edgeCls(m)}">#${m.edge.rank}<small> of ${m.edge.of}</small></div>
+        <div class="c">${esc(cap(m.edge.tier))} in this read. In back-tests the edge model's top meta each hour saw its next launches graduate 1.7× as often as all launches (the readiness score's top pick: 1.3×), and it also picked better in September and October. A ranking, not a probability.</div></div>
+      <div><div class="k">What it rewards</div><div class="c" style="margin-top:6px">Many distinct creators launching and many tokens trading; it marks down metas crowded with launches, reused tickers and late growth. Acceleration alone carried no edge. Graduation is not profit.</div></div></div>` : ""}
     <div class="verdict">
-      <div class="${isProv(m) ? "prov" : ""}"><div class="k">Readiness score</div><div class="big">${isNum(m.score) ? Math.round(m.score) : "—"}<small> / 100</small></div>
+      <div class="${isProv(m) ? "prov" : ""}"><div class="k">Readiness score <small style="text-transform:none;letter-spacing:0">(baseline)</small></div><div class="big">${isNum(m.score) ? Math.round(m.score) : "—"}<small> / 100</small></div>
         <div class="c">${isProv(m) ? "Provisional. Not a call: confidence is below the bar." : `${vinfo(m.verdict).label}.`}${m.validated ? "" : " The weights have not been validated against outcomes."}</div></div>
       <div><div class="k">Confidence</div><div class="big ${lowConf ? "warn" : ""}">${nf(m.confidence, 2)}</div>${meter(m.confidence, lowConf ? "cau" : "", CONF_BAR)}
         <div class="c" style="margin-top:8px">A call needs ${CONF_BAR}. Coverage ${pct(cf.weight_coverage)}, sample ${nf(cf.sample, 2)}, freshness ${nf(cf.freshness, 2)}, history ${nf(cf.history, 2)}.</div></div>
@@ -1086,6 +1094,7 @@ async function renderSystem() {
         ${bt ? `<p class="dek2" style="margin:0 0 10px">${esc(cap(bt.verdict))}. ${bt.signals} signals over ${bt.steps} steps${bt.steps_excluded ? ` (${bt.steps_excluded} skipped for collection gaps)` : ""}${bt.dataset ? `, on ${esc(bt.dataset)}` : ""}, run ${esc(ago(nowS() - bt.created_at))}.</p>
           <table class="tbl static"><thead><tr><th>Verdict</th><th class="r">Signals</th><th class="r">Grad lift</th><th class="r hide-s">Net+ lift</th><th class="r">False pos</th></tr></thead><tbody>
           ${Object.entries(bt.by_verdict).map(([v, r]) => `<tr><td>${esc(vinfo(v).label)}</td><td class="r">${r.signals}</td><td class="r">${isNum(r.mean_grad_lift) ? signed(r.mean_grad_lift * 100, 2, " pts") : "—"}</td><td class="r hide-s">${isNum(r.mean_net_positive_lift) ? signed(r.mean_net_positive_lift * 100, 1, " pts") : "—"}</td><td class="r">${isNum(r.false_positive_rate) ? pct(r.false_positive_rate) : "—"}</td></tr>`).join("")}</tbody></table>
+          ${bt.top_pick?.edge ? `<p class="notes">Top meta each step, next launches' graduation against all launches: launch edge ${nf(bt.top_pick.edge.ratio, 2)}×, readiness score ${nf(bt.top_pick.readiness.ratio, 2)}× (${bt.top_pick.edge.steps} steps).</p>` : ""}
           <p class="notes">Lift compares later launches in a narrative with all launches in the same window. Validation needs at least 30 favorable signals.</p>`
           : `<p class="dek2">No backtest yet. It needs labelled outcomes, which start about 13 hours after collection begins.</p>`}
         <button class="btn" id="runbt" style="margin-top:14px">Run a 3-day backtest</button></div>

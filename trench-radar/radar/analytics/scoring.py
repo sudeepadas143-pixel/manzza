@@ -10,6 +10,7 @@ import math
 from ..db import dumps, insert, now, rows
 from . import demand as dm
 from . import market as mk
+from . import meta_model as mm
 from . import metas as mt
 from .common import Lineage, clip01, launch_coverage, logistic, source_freshness
 from .saturation import saturation
@@ -17,6 +18,7 @@ from .saturation import saturation
 MODEL_VERSION = "v1-priors-2026-10"
 WEIGHTS = {"attention": 0.25, "demand": 0.35, "market": 0.15, "freshness": 0.25}
 H = 3600
+EDGE_MODEL = mm.EdgeModel.load()   # launch-edge ranking (docs/RESEARCH_META.md); None = readiness order only
 
 
 def _wavg(parts: dict[str, tuple[float | None, float]]) -> tuple[float | None, dict]:
@@ -260,11 +262,18 @@ def run_analysis(con, as_of: int | None = None, *, persist: bool = True, max_met
         meta["creators"] = dm.creator_history(con, meta["launch"]["mints_6h"], as_of, lineage)
         meta["saturation"] = saturation(meta["launch"], meta["social"], meta["demand"], prev)
         scored.append(score_meta(meta, mkt, fresh, social_measured, validated, hist))
-    scored.sort(key=lambda s: (s["verdict"] != "insufficient data", s["score"] or 0), reverse=True)
+    # The launch-edge model orders the metas: it beat this readiness score walk-forward and in two
+    # later months (docs/RESEARCH_META.md). The readiness score and verdict stay as the baseline.
+    mm.rank(scored, mkt, EDGE_MODEL)
+    if EDGE_MODEL is not None:
+        scored.sort(key=lambda s: s["edge"]["rank"])
+    else:
+        scored.sort(key=lambda s: (s["verdict"] != "insufficient data", s["score"] or 0), reverse=True)
     scored = scored[:max_metas]
     if lineage.max_ts > as_of:
         raise AssertionError(f"look-ahead: read data from {lineage.max_ts} > as_of {as_of}")
-    result = {"as_of": as_of, "model_version": MODEL_VERSION, "market": mkt, "metas": scored,
+    result = {"as_of": as_of, "model_version": MODEL_VERSION,
+              "edge_model": EDGE_MODEL.version if EDGE_MODEL else None, "market": mkt, "metas": scored,
               "context": ctx, "social_measured": social_measured, "freshness": fresh,
               "lineage": {"max_ts": lineage.max_ts, "reads": lineage.reads}}
     if persist:

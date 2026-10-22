@@ -1,5 +1,12 @@
 # Tuning meta detection out of sample
 
+> **Correction (2026-10-22, `RESEARCH_META.md`).** The October lift below was measured against
+> *all* launches, a baseline dragged down by launch-factory spam. Other detected metas beat it
+> by about as much: accelerating minus other metas was −1.74 pts in September (90% −3.02 to
+> −0.42), +0.65 in October (−0.82 to +2.54) and +0.08 in the June–July corpus (−0.02 to +0.21).
+> Acceleration itself has no reliable edge. Excluding factory creators from detection is kept;
+> the claim that it made *accelerating* narratives graduate more often is withdrawn.
+
 **Change made:** narrative detection now ignores launches by creators with 10+ launches in the
 7-hour lookback (`metas.SPAM_MODE = "exclude"`). Launch factories (two wallets made ~700 of
 3,000 launches in one hour) were drowning out real narratives.

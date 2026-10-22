@@ -125,6 +125,15 @@ Weights are priors. The backtest exists to check them; until it has enough
 resolved outcomes (default ≥ 30 metas-windows per bucket) the dashboard says
 "unvalidated" next to every score.
 
+### Launch edge (fitted ranking of metas — `docs/RESEARCH_META.md`)
+
+`radar/analytics/meta_model.py` reads the evidence `score_meta` already gathered for each meta
+(launch momentum, demand, saturation, market) and ranks the metas with an L2 logistic model
+fitted on the corpus (`radar/data/meta_model.json`, `scripts/meta_fit.py`). `run_analysis`
+orders metas by it and attaches `edge` (rank, tier); the readiness score above stays on every
+meta as the baseline, and without the model file the old order returns. The backtest reports
+both models' top picks so the ranking keeps being checked on live history.
+
 ### Launch-window score (fitted, validated — `docs/RESEARCH_QUANT.md`)
 
 Separate from the meta score above, and per token rather than per meta. `radar/early.py`
