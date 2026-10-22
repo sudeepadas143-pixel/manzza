@@ -2,7 +2,11 @@
 from PyInstaller.utils.hooks import collect_submodules
 
 hidden = (collect_submodules("uvicorn") + collect_submodules("radar") + collect_submodules("websockets")
-          + collect_submodules("tokenizers"))
+          + collect_submodules("tokenizers")
+          # numpy 2.x imports parts of numpy._core from C code, which PyInstaller's analysis misses
+          # ("No module named 'numpy._core._exceptions'"); without them numpy, and with it onnxruntime,
+          # fail inside the exe and the launch-edge model and semantic narratives switch off
+          + collect_submodules("numpy") + collect_submodules("onnxruntime"))
 
 a = Analysis(
     ["launcher.py"],

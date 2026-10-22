@@ -41,6 +41,9 @@ jobs:
           if ($ok) {
             $ov = (Invoke-WebRequest http://127.0.0.1:8899/api/overview -UseBasicParsing).Content | ConvertFrom-Json
             if (-not $ov.edge_model) { Write-Host "launch-edge model is not loaded in the exe"; $ok = $false }
+            Start-Sleep 3
+            $log = (Get-Content "$env:RUNNER_TEMP\exe-out.txt", "$env:RUNNER_TEMP\exe-err.txt" -ErrorAction SilentlyContinue) -join "`n"
+            if ($log -match "not installed|numpy C-extensions failed|model not loaded") { Write-Host "a bundled library failed to load in the exe"; $ok = $false }
           }
           Stop-Process $p -Force -ErrorAction SilentlyContinue
           if (-not $ok) {
