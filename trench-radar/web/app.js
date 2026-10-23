@@ -596,7 +596,7 @@ function renderMap() {
         ${pairs ? `<ul class="ev">${pairs}</ul>` : `<p class="dek2">${esc(C.note && !C.tested ? C.note : "No pair of categories moved together beyond what the whole market did.")}</p>`}
         ${C.tested ? `<p class="notes">${esc(C.note)}</p>` : ""}</div>
       <div class="span-5 colrule"><div class="slug thin"><h3 class="h3">How much to trust this</h3></div>
-        ${ck?.signals ? `<p class="notes" style="margin:0 0 10px">${PRELIM} ${esc(ck.caveat)} Period ${esc(ck.period.join(" to "))}; ${ck.comparisons_run} comparisons run.</p>`
+        ${ck?.signals ? `<p class="notes" style="margin:0 0 10px">${PRELIM} ${esc(ck.caveat.replace(/^Preliminary: /, ""))} Period ${esc(ck.period.join(" to "))}; ${ck.comparisons_run} comparisons run.</p>`
             + [ck.text_week, ck.signals.working?.text, ck.signals.heating?.text, ck.signals.watch?.text].filter(Boolean).map((t) => `<p class="prose" style="margin:0 0 10px">${esc(t)}</p>`).join("")
             + `<details class="more"><summary>Every signal's record, including the ones that did not work</summary><ul class="ev tight">${Object.values(ck.signals).map((r) => `<li><span class="g">${r.verdict === "better" ? "▲" : r.verdict === "worse" ? "▼" : "·"}</span><span>${esc(r.text)}</span></li>`).join("")}</ul>
               <p class="notes">${esc(ck.method)} ${esc(ck.source)}.</p></details>`
