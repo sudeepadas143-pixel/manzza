@@ -311,3 +311,28 @@ def test_a_market_wide_fall_is_not_a_meta_decaying(tmp_path):
     st = {r["category"]: r for r in dec["categories"]}
     assert st["Steady"]["status"] == "healthy" and not st["Steady"]["families_on"]
     assert "whole market is down" in dec["market"]["text"]
+
+
+def test_summaries_never_aggregate_inside_a_write_transaction(market, monkeypatch):
+    """The live stream writes on the event loop; a write lock held through a long aggregation stalled
+    it until its sources expired. Every write transaction must only insert, and briefly."""
+    monkeypatch.setattr(M, "WRITE_CHUNK", 100)
+    trace, open_tx = [], [False]
+
+    def cb(sql):
+        s = sql.strip().upper()
+        if s.startswith("BEGIN"):
+            open_tx[0] = True
+            trace.append([])
+        elif s.startswith(("COMMIT", "ROLLBACK")):
+            open_tx[0] = False
+        elif open_tx[0]:
+            trace[-1].append(s)
+    market.set_trace_callback(cb)
+    n = M.summarize(market, NOW, limit=None)
+    market.set_trace_callback(None)
+    assert n > 100 and len(trace) >= n // 100
+    for tx in trace:
+        assert tx and all(s.startswith("INSERT OR REPLACE INTO TOKEN_SUMMARY") and "SELECT" not in s for s in tx)
+        assert len(tx) <= 100
+    assert market.execute("SELECT COUNT(*) FROM token_summary").fetchone()[0] == n

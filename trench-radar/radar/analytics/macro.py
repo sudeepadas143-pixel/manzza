@@ -21,6 +21,9 @@ D = 86400
 FACTORY_N, FACTORY_S = 10, 7 * H
 
 
+WRITE_CHUNK = 500        # rows per write transaction: keeps the database's write lock brief for the live stream
+
+
 def summarize(con, now_t: int | None = None, *, limit: int | None = 5000, lookback: int = 30 * D) -> int:
     """Summarise every coin whose first 24 hours have passed and that has no summary yet."""
     now_t = now_t or _now()
@@ -34,15 +37,13 @@ def summarize(con, now_t: int | None = None, *, limit: int | None = 5000, lookba
         ).fetchall()
         if not batch:
             return done
-        con.execute("BEGIN")
-        try:
-            con.execute("CREATE TEMP TABLE IF NOT EXISTS _sb (mint TEXT PRIMARY KEY, created_at INTEGER, creator TEXT)")
-            con.execute("DELETE FROM _sb")
-            con.executemany("INSERT INTO _sb VALUES (?,?,?)", batch)
-            con.execute(f"""
-                INSERT OR REPLACE INTO token_summary (mint, created_at, creator, factory, narrative_id, label, category,
-                    peak_buyers_h1, peak_holders, holders_end, peak_mcap_usd, peak_liq_usd, peak_net_sol_h1, max_progress,
-                    graduated, graduated_at, ret_max, obs, summarized_at)
+        # Read first, write after: under WAL a read never blocks the live stream's writes, while an
+        # INSERT ... SELECT over a batch would hold the write lock for the whole aggregation and stall
+        # the stream (its writes run on the event loop).
+        con.execute("CREATE TEMP TABLE IF NOT EXISTS _sb (mint TEXT PRIMARY KEY, created_at INTEGER, creator TEXT)")
+        con.execute("DELETE FROM _sb")
+        con.executemany("INSERT INTO _sb VALUES (?,?,?)", batch)
+        rows_ = con.execute(f"""
                 SELECT b.mint, b.created_at, b.creator,
                     (SELECT COUNT(*) FROM tokens t2 WHERE b.creator IS NOT NULL AND t2.creator = b.creator
                         AND t2.created_at > b.created_at - {FACTORY_S} AND t2.created_at <= b.created_at) >= {FACTORY_N},
@@ -63,11 +64,18 @@ def summarize(con, now_t: int | None = None, *, limit: int | None = 5000, lookba
                            FROM curve_obs x JOIN _sb y ON y.mint = x.mint
                            WHERE x.observed_at <= y.created_at + {D} GROUP BY x.mint) c ON c.mint = b.mint
                 LEFT JOIN (SELECT mint, COALESCE(graduated_at, detected_at) AS at FROM graduations) g ON g.mint = b.mint
-                LEFT JOIN token_outcomes oc ON oc.mint = b.mint AND oc.horizon_h = 24""", (now_t,))
-            con.execute("COMMIT")
-        except Exception:
-            con.execute("ROLLBACK")
-            raise
+                LEFT JOIN token_outcomes oc ON oc.mint = b.mint AND oc.horizon_h = 24""", (now_t,)).fetchall()
+        for i in range(0, len(rows_), WRITE_CHUNK):
+            con.execute("BEGIN")
+            try:
+                con.executemany("""INSERT OR REPLACE INTO token_summary (mint, created_at, creator, factory, narrative_id,
+                                   label, category, peak_buyers_h1, peak_holders, holders_end, peak_mcap_usd, peak_liq_usd,
+                                   peak_net_sol_h1, max_progress, graduated, graduated_at, ret_max, obs, summarized_at)
+                                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", rows_[i:i + WRITE_CHUNK])
+                con.execute("COMMIT")
+            except Exception:
+                con.execute("ROLLBACK")
+                raise
         done += len(batch)
         if limit is not None and done >= limit:
             return done
@@ -1250,19 +1258,19 @@ def backfill_token_narrative(con) -> int:
     import json
     if con.execute("SELECT value FROM meta_info WHERE key='token_narrative_backfill'").fetchone():
         return 0
-    n = 0
-    con.execute("BEGIN")
-    try:
-        for nid, at, members, label, cat in con.execute(
-                """SELECT o.narrative_id, o.observed_at, o.members, n.label, n.category FROM narrative_obs o
-                   JOIN narratives n ON n.id = o.narrative_id ORDER BY o.observed_at""").fetchall():
-            ms = json.loads(members or "[]")
+    rows_ = []
+    for nid, at, members, label, cat in con.execute(
+            """SELECT o.narrative_id, o.observed_at, o.members, n.label, n.category FROM narrative_obs o
+               JOIN narratives n ON n.id = o.narrative_id ORDER BY o.observed_at""").fetchall():
+        rows_ += [(m, nid, label, cat, at) for m in json.loads(members or "[]")]
+    for i in range(0, len(rows_), WRITE_CHUNK):      # short transactions, in order: the first narrative wins
+        con.execute("BEGIN")
+        try:
             con.executemany("INSERT OR IGNORE INTO token_narrative (mint, narrative_id, label, category, at) VALUES (?,?,?,?,?)",
-                            [(m, nid, label, cat, at) for m in ms])
-            n += len(ms)
-        con.execute("INSERT OR REPLACE INTO meta_info VALUES ('token_narrative_backfill', ?)", (str(_now()),))
-        con.execute("COMMIT")
-    except Exception:
-        con.execute("ROLLBACK")
-        raise
-    return n
+                            rows_[i:i + WRITE_CHUNK])
+            con.execute("COMMIT")
+        except Exception:
+            con.execute("ROLLBACK")
+            raise
+    con.execute("INSERT OR REPLACE INTO meta_info VALUES ('token_narrative_backfill', ?)", (str(_now()),))
+    return len(rows_)
