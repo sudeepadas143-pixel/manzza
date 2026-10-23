@@ -1,0 +1,881 @@
+{
+ "version": "meta-edge-v1-20261022",
+ "target": "log-odds that a meta's launches in the next 6 h graduate within 1 h, against all launches then",
+ "use": "ranking only: the ordering held in later months, the size of the lift did not",
+ "features": [
+  "launches_1h",
+  "launches_6h",
+  "accel_z",
+  "share_6h",
+  "growth_3h",
+  "hours_above_base",
+  "age_h",
+  "creators_1h",
+  "buyers_1h",
+  "buyer_share",
+  "net_sol_1h",
+  "top_progress",
+  "grads_24h",
+  "vol_1h",
+  "tracked",
+  "smart_1h",
+  "sat_index",
+  "dup_share",
+  "winner_share",
+  "buyers_per_launch",
+  "outpacing",
+  "serial_share",
+  "market"
+ ],
+ "missing_indicators": [
+  2,
+  9,
+  10,
+  11,
+  15,
+  18,
+  19,
+  20,
+  22
+ ],
+ "median": [
+  1.6094379124341003,
+  3.6375861597263857,
+  -1.06,
+  2.517696472610991,
+  0.0,
+  1.0,
+  6.4,
+  1.3862943611198906,
+  2.995732273553991,
+  0.5,
+  0.004987541511039074,
+  0.396,
+  0.0,
+  7.437229923719858,
+  1.0986122886681098,
+  0.0,
+  0.713,
+  0.893,
+  0.0,
+  2.6878474937846906,
+  -0.06,
+  0.219,
+  0.437
+ ],
+ "mean": [
+  1.5894979016014958,
+  3.7529602246010114,
+  0.9104295214215691,
+  2.6743982732249827,
+  0.12101165653854244,
+  1.0829608634034666,
+  5.759805952251313,
+  1.366235834088407,
+  2.91342180724395,
+  0.5059618445437696,
+  0.4602658797976526,
+  0.4532834405320212,
+  0.33776811174265786,
+  5.683285533976756,
+  1.0858226805041047,
+  0.0,
+  0.7184531778044266,
+  0.8141561103237778,
+  0.0,
+  2.6602055808689027,
+  -0.18186634688759123,
+  0.24105276354518806,
+  0.5045821432464911,
+  0.005559795050692249,
+  0.34525237108906576,
+  0.35113921290744576,
+  0.3526654311566554,
+  1.0,
+  1.0,
+  0.5457320396816745,
+  0.5074675678622043,
+  0.06148479232530252
+ ],
+ "sd": [
+  1.2642066435359918,
+  0.6893657624275262,
+  5.434441341938823,
+  0.5994974293577969,
+  1.825251186365718,
+  0.8774129976252664,
+  1.5320846520588625,
+  1.0992212965651258,
+  2.52999864056259,
+  0.07348274636588693,
+  1.8626560707668087,
+  0.15216732538533542,
+  0.6013776411554432,
+  4.50482491656131,
+  1.0442939893032226,
+  1.0,
+  0.19135381717322456,
+  0.19532223693182987,
+  1.0,
+  0.8942424160458196,
+  1.5981274488818176,
+  0.16091223798523854,
+  0.22402347833184114,
+  0.07435646394017154,
+  0.47545049305517345,
+  0.4773263726908533,
+  0.47779967017958624,
+  1.0,
+  1.0,
+  0.49790418811910536,
+  0.49994423232016577,
+  0.2402174278399004
+ ],
+ "coef": [
+  -0.7488325419469861,
+  -0.5927675044094947,
+  -0.12324676060496788,
+  0.0956137417419615,
+  0.0501378263087955,
+  -0.12499333735089725,
+  -0.011977308330519984,
+  -0.0957036547379335,
+  0.3787983553007718,
+  -0.16734149293916634,
+  0.0876047398566653,
+  -0.011255518992249308,
+  -0.0012207391777351462,
+  0.09393901316021443,
+  -0.21106460980224342,
+  0.4661746337850655,
+  0.0,
+  -0.015898050878608527,
+  -0.28412405985751177,
+  0.0,
+  -0.08952365056466048,
+  0.0002231106456194486,
+  0.08994724142568049,
+  -0.09629909163268881,
+  0.001410129762140012,
+  -0.08029087164330088,
+  -0.015048137205006999,
+  -0.21109989800079773,
+  0.0,
+  0.0,
+  -0.11070816584559254,
+  -0.10281722846236376,
+  -0.029663554581768996
+ ],
+ "coef_names": [
+  "intercept",
+  "launches_1h",
+  "launches_6h",
+  "accel_z",
+  "share_6h",
+  "growth_3h",
+  "hours_above_base",
+  "age_h",
+  "creators_1h",
+  "buyers_1h",
+  "buyer_share",
+  "net_sol_1h",
+  "top_progress",
+  "grads_24h",
+  "vol_1h",
+  "tracked",
+  "smart_1h",
+  "sat_index",
+  "dup_share",
+  "winner_share",
+  "buyers_per_launch",
+  "outpacing",
+  "serial_share",
+  "market",
+  "accel_z_missing",
+  "buyer_share_missing",
+  "net_sol_1h_missing",
+  "top_progress_missing",
+  "smart_1h_missing",
+  "winner_share_missing",
+  "buyers_per_launch_missing",
+  "outpacing_missing",
+  "market_missing"
+ ],
+ "lambda": 10.0,
+ "trained_on": {
+  "dataset": "Pump.fun Memecoin Corpus (jocry/Pumpfun_Memecoin_Corpus @ bd8aed6), CC BY 4.0",
+  "from": "2026-06-20",
+  "to": "2026-07-14",
+  "meta_steps": 9173,
+  "launches": 694567,
+  "graduations": 6601
+ },
+ "validation": {
+  "all_launches": {
+   "test_days": 15,
+   "meta_steps": 7333,
+   "launches": 608553,
+   "graduations": 6385,
+   "top1_ratio": {
+    "null": 0.886,
+    "existing": 1.337,
+    "accelerating": 0.777,
+    "full_nohist": 1.691,
+    "full": 1.615
+   },
+   "top1_ratio_by_regime": {
+    "jun25_jul1": {
+     "null": 1.025,
+     "existing": 1.409,
+     "accelerating": 0.599,
+     "full_nohist": 1.623,
+     "full": 1.49
+    },
+    "jul5_14": {
+     "null": 0.833,
+     "existing": 1.304,
+     "accelerating": 0.816,
+     "full_nohist": 1.714,
+     "full": 1.645
+    }
+   },
+   "ll_gain_per_1000_launches": {
+    "null": 0.0,
+    "existing": 0.551,
+    "accelerating": -0.034,
+    "full_nohist": 1.419,
+    "full": 1.594
+   },
+   "top1_minus_existing_ci90": [
+    0.11309548336347269,
+    0.3394033058666923,
+    0.5353321965947918
+   ],
+   "ll_minus_existing_ci90": [
+    0.24359055097629073,
+    0.8713068816260144,
+    1.5300873955626284
+   ],
+   "history_adds_ll_ci90": [
+    -0.024233578772526417,
+    0.17535567154450224,
+    0.3826904343284553
+   ],
+   "tiers": {
+    "corpus_walk_forward": {
+     "strongest": {
+      "meta_hours": 1528,
+      "launches": 288416,
+      "graduations": 4387,
+      "ratio": 1.305,
+      "ci90": [
+       1.163,
+       1.42
+      ]
+     },
+     "above average": {
+      "meta_hours": 2063,
+      "launches": 152611,
+      "graduations": 1492,
+      "ratio": 0.849,
+      "ci90": [
+       0.761,
+       0.974
+      ]
+     },
+     "below average": {
+      "meta_hours": 2170,
+      "launches": 86776,
+      "graduations": 398,
+      "ratio": 0.421,
+      "ci90": [
+       0.34,
+       0.533
+      ]
+     },
+     "weakest": {
+      "meta_hours": 1572,
+      "launches": 80750,
+      "graduations": 108,
+      "ratio": 0.124,
+      "ci90": [
+       0.085,
+       0.175
+      ]
+     }
+    },
+    "readiness_corpus_walk_forward": {
+     "strongest": {
+      "meta_hours": 1528,
+      "launches": 315955,
+      "graduations": 4314,
+      "ratio": 1.203,
+      "ci90": [
+       1.11,
+       1.283
+      ]
+     },
+     "above average": {
+      "meta_hours": 2063,
+      "launches": 129255,
+      "graduations": 1163,
+      "ratio": 0.767,
+      "ci90": [
+       0.705,
+       0.853
+      ]
+     },
+     "below average": {
+      "meta_hours": 2170,
+      "launches": 99318,
+      "graduations": 636,
+      "ratio": 0.56,
+      "ci90": [
+       0.439,
+       0.703
+      ]
+     },
+     "weakest": {
+      "meta_hours": 1572,
+      "launches": 64025,
+      "graduations": 272,
+      "ratio": 0.389,
+      "ci90": [
+       0.293,
+       0.526
+      ]
+     }
+    },
+    "meta_sep": {
+     "strongest": {
+      "meta_hours": 141,
+      "launches": 15277,
+      "graduations": 616,
+      "ratio": 2.271,
+      "ci90": [
+       2.044,
+       2.519
+      ]
+     },
+     "above average": {
+      "meta_hours": 198,
+      "launches": 9880,
+      "graduations": 268,
+      "ratio": 1.478,
+      "ci90": [
+       1.335,
+       1.596
+      ]
+     },
+     "below average": {
+      "meta_hours": 205,
+      "launches": 6511,
+      "graduations": 108,
+      "ratio": 0.928,
+      "ci90": [
+       0.793,
+       1.066
+      ]
+     },
+     "weakest": {
+      "meta_hours": 148,
+      "launches": 3490,
+      "graduations": 21,
+      "ratio": 0.334,
+      "ci90": [
+       0.136,
+       0.597
+      ]
+     }
+    },
+    "meta_oct": {
+     "strongest": {
+      "meta_hours": 147,
+      "launches": 23969,
+      "graduations": 560,
+      "ratio": 1.196,
+      "ci90": [
+       1.089,
+       1.298
+      ]
+     },
+     "above average": {
+      "meta_hours": 202,
+      "launches": 23232,
+      "graduations": 561,
+      "ratio": 1.237,
+      "ci90": [
+       1.046,
+       1.44
+      ]
+     },
+     "below average": {
+      "meta_hours": 211,
+      "launches": 12996,
+      "graduations": 328,
+      "ratio": 1.282,
+      "ci90": [
+       1.162,
+       1.454
+      ]
+     },
+     "weakest": {
+      "meta_hours": 152,
+      "launches": 4194,
+      "graduations": 91,
+      "ratio": 1.113,
+      "ci90": [
+       0.727,
+       1.522
+      ]
+     }
+    }
+   },
+   "later_periods": {
+    "meta_sep": {
+     "top1_ratio": {
+      "existing": 1.782,
+      "full_nohist": 3.591
+     },
+     "top1_minus_existing_ci90": [
+      -0.057936978065713025,
+      1.849950344748859,
+      3.822776892561147
+     ],
+     "ll_minus_existing_ci90": [
+      -5.084845251190206,
+      -3.005014752083257,
+      -1.1832284935612298
+     ]
+    },
+    "meta_oct": {
+     "top1_ratio": {
+      "existing": 0.974,
+      "full_nohist": 1.38
+     },
+     "top1_minus_existing_ci90": [
+      0.08427338996337118,
+      0.4163460031671133,
+      0.8281940115587115
+     ],
+     "ll_minus_existing_ci90": [
+      -6.26915971692347,
+      -4.734770616617885,
+      -3.371209213157065
+     ]
+    }
+   }
+  },
+  "non_factory_launches": {
+   "test_days": 15,
+   "meta_steps": 7160,
+   "launches": 367916,
+   "graduations": 4688,
+   "top1_ratio": {
+    "null": 0.965,
+    "existing": 1.465,
+    "accelerating": 0.973,
+    "full_nohist": 1.889,
+    "full": 1.844
+   },
+   "top1_ratio_by_regime": {
+    "jun25_jul1": {
+     "null": 1.156,
+     "existing": 1.48,
+     "accelerating": 0.692,
+     "full_nohist": 1.679,
+     "full": 1.518
+    },
+    "jul5_14": {
+     "null": 0.88,
+     "existing": 1.457,
+     "accelerating": 1.046,
+     "full_nohist": 1.947,
+     "full": 1.919
+    }
+   },
+   "ll_gain_per_1000_launches": {
+    "null": 0.0,
+    "existing": 0.646,
+    "accelerating": -0.132,
+    "full_nohist": 2.058,
+    "full": 1.997
+   },
+   "top1_minus_existing_ci90": [
+    0.18392390223168262,
+    0.41233452015416955,
+    0.6249348175871686
+   ],
+   "ll_minus_existing_ci90": [
+    0.6156437576470035,
+    1.4293632230222688,
+    2.413308153971409
+   ],
+   "history_adds_ll_ci90": [
+    -0.300866439440495,
+    -0.05173115839983878,
+    0.1941434547078881
+   ],
+   "tiers": {
+    "corpus_walk_forward": {
+     "strongest": {
+      "meta_hours": 1494,
+      "launches": 167361,
+      "graduations": 3173,
+      "ratio": 1.43,
+      "ci90": [
+       1.314,
+       1.534
+      ]
+     },
+     "above average": {
+      "meta_hours": 2014,
+      "launches": 94521,
+      "graduations": 1165,
+      "ratio": 0.946,
+      "ci90": [
+       0.82,
+       1.081
+      ]
+     },
+     "below average": {
+      "meta_hours": 2119,
+      "launches": 56979,
+      "graduations": 274,
+      "ratio": 0.392,
+      "ci90": [
+       0.312,
+       0.497
+      ]
+     },
+     "weakest": {
+      "meta_hours": 1533,
+      "launches": 49055,
+      "graduations": 76,
+      "ratio": 0.123,
+      "ci90": [
+       0.081,
+       0.166
+      ]
+     }
+    },
+    "readiness_corpus_walk_forward": {
+     "strongest": {
+      "meta_hours": 1494,
+      "launches": 187942,
+      "graduations": 3198,
+      "ratio": 1.313,
+      "ci90": [
+       1.214,
+       1.397
+      ]
+     },
+     "above average": {
+      "meta_hours": 2014,
+      "launches": 77882,
+      "graduations": 812,
+      "ratio": 0.792,
+      "ci90": [
+       0.701,
+       0.902
+      ]
+     },
+     "below average": {
+      "meta_hours": 2119,
+      "launches": 61737,
+      "graduations": 485,
+      "ratio": 0.606,
+      "ci90": [
+       0.479,
+       0.76
+      ]
+     },
+     "weakest": {
+      "meta_hours": 1533,
+      "launches": 40355,
+      "graduations": 193,
+      "ratio": 0.38,
+      "ci90": [
+       0.282,
+       0.52
+      ]
+     }
+    },
+    "meta_sep": {
+     "strongest": {
+      "meta_hours": 141,
+      "launches": 9070,
+      "graduations": 577,
+      "ratio": 2.659,
+      "ci90": [
+       2.406,
+       2.974
+      ]
+     },
+     "above average": {
+      "meta_hours": 196,
+      "launches": 7212,
+      "graduations": 255,
+      "ratio": 1.427,
+      "ci90": [
+       1.29,
+       1.574
+      ]
+     },
+     "below average": {
+      "meta_hours": 204,
+      "launches": 4884,
+      "graduations": 105,
+      "ratio": 0.894,
+      "ci90": [
+       0.744,
+       1.062
+      ]
+     },
+     "weakest": {
+      "meta_hours": 148,
+      "launches": 3021,
+      "graduations": 23,
+      "ratio": 0.316,
+      "ci90": [
+       0.131,
+       0.555
+      ]
+     }
+    },
+    "meta_oct": {
+     "strongest": {
+      "meta_hours": 147,
+      "launches": 14068,
+      "graduations": 408,
+      "ratio": 1.114,
+      "ci90": [
+       0.983,
+       1.244
+      ]
+     },
+     "above average": {
+      "meta_hours": 202,
+      "launches": 16538,
+      "graduations": 424,
+      "ratio": 1.008,
+      "ci90": [
+       0.904,
+       1.147
+      ]
+     },
+     "below average": {
+      "meta_hours": 209,
+      "launches": 7710,
+      "graduations": 224,
+      "ratio": 1.131,
+      "ci90": [
+       0.932,
+       1.345
+      ]
+     },
+     "weakest": {
+      "meta_hours": 152,
+      "launches": 2968,
+      "graduations": 61,
+      "ratio": 0.806,
+      "ci90": [
+       0.411,
+       1.305
+      ]
+     }
+    }
+   },
+   "later_periods": {
+    "meta_sep": {
+     "top1_ratio": {
+      "existing": 1.875,
+      "full_nohist": 4.863
+     },
+     "top1_minus_existing_ci90": [
+      1.0473394002477563,
+      2.95841346005545,
+      4.7995309823324765
+     ],
+     "ll_minus_existing_ci90": [
+      -2.618740057160107,
+      0.3756030704716958,
+      3.1725597199834943
+     ]
+    },
+    "meta_oct": {
+     "top1_ratio": {
+      "existing": 0.877,
+      "full_nohist": 1.109
+     },
+     "top1_minus_existing_ci90": [
+      -0.28360234992998556,
+      0.19907489032559467,
+      0.6207885891344708
+     ],
+     "ll_minus_existing_ci90": [
+      -3.868077457335754,
+      -1.6405902060801547,
+      -0.1321861529847812
+     ]
+    }
+   }
+  },
+  "reasons_out_of_period": {
+   "meta_sep": {
+    "crowding": {
+     "for": {
+      "meta_hours": 299,
+      "ratio": 1.669
+     },
+     "against": {
+      "meta_hours": 345,
+      "ratio": 1.578
+     },
+     "difference_ci90": [
+      -0.373,
+      0.664
+     ],
+     "holds": false
+    },
+    "creators": {
+     "for": {
+      "meta_hours": 319,
+      "ratio": 1.579
+     },
+     "against": {
+      "meta_hours": 295,
+      "ratio": 1.558
+     },
+     "difference_ci90": [
+      -0.73,
+      0.605
+     ],
+     "holds": false
+    },
+    "spread": {
+     "for": {
+      "meta_hours": 331,
+      "ratio": 1.752
+     },
+     "against": {
+      "meta_hours": 292,
+      "ratio": 1.059
+     },
+     "difference_ci90": [
+      0.102,
+      1.132
+     ],
+     "holds": true
+    },
+    "copycats": {
+     "for": {
+      "meta_hours": 330,
+      "ratio": 1.894
+     },
+     "against": {
+      "meta_hours": 309,
+      "ratio": 0.731
+     },
+     "difference_ci90": [
+      0.891,
+      1.394
+     ],
+     "holds": true
+    },
+    "money_in": {
+     "for": {
+      "meta_hours": 302,
+      "ratio": 2.675
+     },
+     "against": {
+      "meta_hours": 297,
+      "ratio": 0.858
+     },
+     "difference_ci90": [
+      1.126,
+      2.437
+     ],
+     "holds": true
+    }
+   },
+   "meta_oct": {
+    "crowding": {
+     "for": {
+      "meta_hours": 286,
+      "ratio": 1.614
+     },
+     "against": {
+      "meta_hours": 373,
+      "ratio": 1.138
+     },
+     "difference_ci90": [
+      0.181,
+      0.788
+     ],
+     "holds": true
+    },
+    "creators": {
+     "for": {
+      "meta_hours": 342,
+      "ratio": 1.167
+     },
+     "against": {
+      "meta_hours": 279,
+      "ratio": 1.505
+     },
+     "difference_ci90": [
+      -0.761,
+      0.038
+     ],
+     "holds": false
+    },
+    "spread": {
+     "for": {
+      "meta_hours": 342,
+      "ratio": 1.121
+     },
+     "against": {
+      "meta_hours": 318,
+      "ratio": 1.54
+     },
+     "difference_ci90": [
+      -0.669,
+      -0.127
+     ],
+     "holds": false
+    },
+    "copycats": {
+     "for": {
+      "meta_hours": 305,
+      "ratio": 1.201
+     },
+     "against": {
+      "meta_hours": 328,
+      "ratio": 1.251
+     },
+     "difference_ci90": [
+      -0.328,
+      0.206
+     ],
+     "holds": false
+    },
+    "money_in": {
+     "for": {
+      "meta_hours": 294,
+      "ratio": 1.377
+     },
+     "against": {
+      "meta_hours": 327,
+      "ratio": 1.147
+     },
+     "difference_ci90": [
+      0.043,
+      0.439
+     ],
+     "holds": true
+    }
+   }
+  }
+ }
+}
