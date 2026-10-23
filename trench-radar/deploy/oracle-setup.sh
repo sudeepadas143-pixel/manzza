@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# TRENCH//RADAR on a free Oracle Cloud (or any Ubuntu) server.
+# TRENCH//RADAR on any Ubuntu 24.04 server: a cheap VPS (e.g. RackNerd 1 GB), Oracle Cloud, etc.
 # Installs the app, runs it as a service that survives reboots, sets a dashboard password,
 # and makes it reachable privately from your devices through Tailscale (HTTPS, no open ports).
 #
@@ -14,6 +14,17 @@ APP="$DIR/trench-radar"
 SVC=trench-radar
 
 say() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
+# cheap VPSs often log you in as root, and minimal images may not have sudo
+if [ "$(id -u)" -eq 0 ]; then sudo() { "$@"; }; fi
+
+# the app peaks around 0.5-0.9 GB; on a 1 GB server a swap file keeps a busy moment from killing it
+MEM_MB=$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)
+if [ "$MEM_MB" -lt 2000 ] && ! swapon --show | grep -q .; then
+  say "Adding a 2 GB swap file (this server has ${MEM_MB} MB of memory)"
+  sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none
+  sudo chmod 600 /swapfile && sudo mkswap -q /swapfile && sudo swapon /swapfile
+  grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab >/dev/null
+fi
 
 say "Installing system packages"
 sudo apt-get update -qq
@@ -42,7 +53,7 @@ if [ ! -f "$ENV" ]; then
   TOKEN=$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')
   {
     echo ""
-    echo "# written by oracle-setup.sh"
+    echo "# written by deploy/oracle-setup.sh"
     echo "# Tailscale serves the dashboard; nothing listens publicly"
     echo "DASHBOARD_HOST=127.0.0.1"
     echo "DASHBOARD_PORT=8787"
@@ -95,5 +106,6 @@ echo "Dashboard password:"
 echo "    $TOKEN"
 echo
 echo "iPhone: open the link in Safari, enter the password, then Share > Add to Home Screen."
+echo "Android: open it in Chrome, enter the password, then menu > Add to Home screen."
 echo "Add API keys later by editing $ENV, then: sudo systemctl restart $SVC"
 echo "Logs: sudo journalctl -u $SVC -f"

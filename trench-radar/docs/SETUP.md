@@ -237,7 +237,34 @@ sends is discarded. `LIVE_STREAM=0` turns it off (and with it most of the app). 
 12. **Out of scope by design:** launching tokens, signing transactions, trading, and
     browser-scraping X with a personal session.
 
+## Cheap 24/7 server (about $2 a month) with phone access
+
+The app peaks at roughly 0.5–0.9 GB of memory: the language model, the narrative read, the weekly
+macro read, and the live stream's last 24 hours of coins. A 1 GB server works, because the setup
+script adds a 2 GB swap file on servers with under 2 GB. 2 GB of memory is more comfortable.
+
+1. **Buy a small KVM VPS** with Ubuntu 24.04. Example: RackNerd's 1 GB KVM plan, about $22 a
+   year (checked 2026-10-23; confirm the current price). RackNerd takes PayPal, crypto and
+   several local methods as well as cards. Choose a location near you. When it's ready you'll
+   get an IP address and a root password by email.
+2. **Connect:** `ssh root@<server-ip>` (on Windows: PowerShell; on a phone: an SSH app such as
+   Termius).
+3. **Run:**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/sudeepadas143-pixel/manzza/claude/trench-radar/trench-radar/deploy/oracle-setup.sh -o setup.sh
+   bash setup.sh
+   ```
+   When it prints a Tailscale link, open it and sign in.
+4. **On your phone,** install Tailscale with the same account. Open the `https://…ts.net` address
+   the script printed, enter the password, then use **Add to Home Screen**.
+
+No port is opened to the internet. The dashboard is reachable only from your Tailscale devices,
+and it asks for the password too.
+
 ## Free 24/7 server (Oracle Cloud) with phone access
+
+Oracle's free tier needs a card to verify you.
+
 
 1. Create an Oracle Cloud account (cloud.oracle.com, Free Tier). It asks for a card to verify you;
    Always Free resources aren't charged.
