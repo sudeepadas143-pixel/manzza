@@ -462,17 +462,17 @@ const LKIND = { confirmed: ["Week and day agree", "accelerating"], "lagging new 
 const xf = (v, d = 1) => (isNum(v) ? `${nf(v, d)}×` : "—");
 const chance = (p) => (isNum(p) ? `${pct(p)} chance` : "—");
 const TREND = { gaining: "▲ gaining", losing: "▼ losing", steady: "● steady", new: "○ new" };
-const WSTAGE = { confirmed: ["Confirmed", "accelerating", "its week already shows it working"],
-  emerging: ["Emerging", "heating", "its record is improving or its new coins are already graduating"],
-  speculative: ["Speculative", "new", "buyers are moving in, with nothing behind it yet"] };
-const HEALTH = { confirmed: ["Decay confirmed", "fading", "decay confirmed"], early: ["Early weakening", "saturating", "early weakening"],
-  recovering: ["Recovering", "heating", "recovering"], cooldown: ["Cooling off", "steady", "cooling off"], healthy: ["Healthy", "accelerating", "healthy"],
+const WSTAGE = { confirmed: ["Week working", "accelerating"], emerging: ["Record improving", "heating"], speculative: ["No record", "new"] };
+// Meta health describes what has already happened; on history its warnings did not reliably anticipate declines.
+const HEALTH = { confirmed: ["Deteriorated", "fading", "confirmed"], early: ["Weakening signs", "saturating", "early"],
+  recovering: ["Improving", "heating", "recovering"], cooldown: ["Quiet today", "steady", "cooldown"], healthy: ["Holding up", "accelerating", "healthy"],
   thin: ["Too little data", "steady", null] };
 const FAM = { demand: "buyers & money in", crowding: "crowding", concentration: "concentration", results: "results", breadth: "breadth", follow_through: "follow-through" };
+const PRELIM = `<span class="stamp new" title="About two weeks of replayed history from one period; not proof">Preliminary</span>`;
 function healthRecord(ck, st) {
   const k = HEALTH[st]?.[2], r = k && ck?.decay?.all?.[k];
-  if (!r || !r.flagged) return "";
-  return `On history, ${r.flagged} reads with this status were followed by a decline ${pct(r.declined_after_flag)} of the time (all tracked categories: ${pct(ck.decay.base_rate)}).`;
+  if (!r || !r.flagged_obs) return "";
+  return `Preliminary record: of ${r.flagged_obs} readings with this status, ${pct(r.flagged)} were followed by a decline within 3 days, against ${pct(r.rest)} of other readings${r.ci90 ? ` (difference ${signed(r.difference, 2)}, 90% range ${signed(r.ci90[0], 2)} to ${signed(r.ci90[1], 2)})` : ""}.`;
 }
 function healthHtml(Dc, ck) {
   const rows = (Dc.categories || []).filter((r) => r.status !== "thin");
@@ -481,39 +481,55 @@ function healthHtml(Dc, ck) {
       <h4>${esc(r.category)}</h4><p class="prose">${esc(r.why)}</p>
       ${r.evidence.length ? `<ul class="ev tight">${r.evidence.map((t) => `<li><span class="g">−</span><span>${esc(t)}</span></li>`).join("")}</ul>` : ""}
       ${r.against.length ? `<p class="notes"><b>Against it:</b> ${esc(r.against.join(" "))}</p>` : ""}
-      <div class="ci-grid"><div><b>Recovery if</b><ul>${r.watch_recovery.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>
-        <div><b>Worse if</b><ul>${r.watch_decay.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div></div>
+      <div class="ci-grid"><div><b>Would read as improving if</b><ul>${r.watch_recovery.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>
+        <div><b>Would read as worse if</b><ul>${r.watch_decay.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div></div>
       <p class="notes">${r.window.recent_coins} coins in the last ${r.window.recent_days} days against ${r.window.baseline_coins} in the ${r.window.baseline_days} before. ${esc(healthRecord(ck, r.status))}</p></article>`;
   const flagged = rows.filter((r) => ["confirmed", "early", "recovering", "cooldown"].includes(r.status));
   const fine = rows.filter((r) => r.status === "healthy");
-  return `<section class="sect"><div class="slug"><h3 class="h3">Meta health</h3><span class="note">is a category that had an edge losing it? judged against its own past and the market</span></div>
+  const d = ck?.decay;
+  return `<section class="sect"><div class="slug"><h3 class="h3">Meta health</h3><span class="note">what has already changed in categories that had an edge: a description, not a forecast</span></div>
     ${Dc.market ? `<p class="dek2">${esc(Dc.market.text)}</p>` : ""}
-    ${flagged.length ? `<div class="link-grid">${flagged.map(card).join("")}</div>` : `<p class="dek2">${esc((Dc.notes || []).join(" ") || "No category with an edge shows signs of losing it.")}</p>`}
-    ${fine.length ? `<p class="notes" style="margin-top:12px"><b>Holding their edge:</b> ${fine.map((r) => `<button class="linkbtn" data-cat="${esc(r.category)}">${esc(r.category)}</button>`).join(", ")}.</p>` : ""}
-    <p class="notes">A warning needs two independent kinds of evidence (out of ${Object.values(FAM).join(", ")}); “decay confirmed” also needs its coins' results to have turned, two days running. ${ck?.decay?.text ? esc(ck.decay.text) : "Not yet measured on history."}</p></section>`;
+    ${flagged.length ? `<div class="link-grid">${flagged.map(card).join("")}</div>` : `<p class="dek2">${esc((Dc.notes || []).join(" ") || "No category with an edge shows signs of weakening.")}</p>`}
+    ${fine.length ? `<p class="notes" style="margin-top:12px"><b>Holding up:</b> ${fine.map((r) => `<button class="linkbtn" data-cat="${esc(r.category)}">${esc(r.category)}</button>`).join(", ")}.</p>` : ""}
+    <div class="notes" style="margin-top:12px">${PRELIM} <b>Can it see a collapse coming? Not reliably.</b> “Deteriorated” needs two kinds of evidence (of ${Object.values(FAM).join(", ")}) including its coins' results, two days running, so it reports decline already under way. “Weakening signs” needs two kinds, results or not.
+      ${d?.text_early ? ` ${esc(d.text_early)}` : ""}${d?.text ? ` ${esc(d.text)}` : ""}${d?.text_results ? ` ${esc(d.text_results)}` : ""}${d ? "" : " Not yet measured on history."}</div></section>`;
 }
-function watchHtml(R, ck) {
-  const rec = (k) => ck?.rotation?.[k];
-  const cards = (R.watchlist || []).map((w) => { const h = rec(`watch_${w.stage}`) || rec("watch"); return `<article class="link-card">
+function outlookHtml(O, R, ck) {
+  const rw = O?.record?.working, rb = O?.record?.busy;
+  const working = (O?.working || []).map((w) => `<li><span class="g">✓</span><span><button class="linkbtn" data-cat="${esc(w.category)}">${esc(w.category)}</button> ${esc(w.sentence.slice(w.category.length + 1))}
+      <small class="i3" style="display:block">${w.today ? `Today: ${esc(ISTAT[w.today]?.[0].toLowerCase() || w.today)}${isNum(w.demand_vs_usual) ? ` (${xf(w.demand_vs_usual)} usual buyers)` : ""}. ` : ""}${w.health ? `Health: ${esc(w.health.toLowerCase())}.` : ""}</small></span></li>`).join("");
+  const busy = (O?.busy || []).map((w) => `<article class="link-card">
       <div class="label"><span class="stamp ${WSTAGE[w.stage][1]}">${esc(WSTAGE[w.stage][0])}</span><button class="linkbtn" data-cat="${esc(w.category)}" style="margin-left:auto">${esc(w.category)} →</button></div>
-      <h4>${esc(w.category)}</h4><p class="i3" style="margin:0 0 8px">${w.health && HEALTH[w.health] ? `Health: ${esc(HEALTH[w.health][0].toLowerCase())}. ` : ""}${esc(WSTAGE[w.stage][2])}.${w.emergent ? " A category the app formed from recent narratives, not one of its described ones." : ""}</p>
+      <h4>${esc(w.category)}</h4>${w.emergent ? `<p class="i3" style="margin:0 0 8px">A category the app formed from recent narratives.</p>` : ""}
       <ul class="ev tight">${w.evidence.map((t) => `<li><span class="g">+</span><span>${esc(t)}</span></li>`).join("")}</ul>
-      ${w.risks.length ? `<p class="notes"><b>Against it:</b> ${esc(w.risks.join(" "))}</p>` : ""}
-      <div class="ci-grid"><div><b>Confirms if</b><ul>${w.confirm.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>
-        <div><b>Invalidates if</b><ul>${w.invalidate.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div></div>
-      ${h ? `<p class="notes"><b>Track record:</b> ${esc(h.text)}</p>` : ""}</article>`; }).join("");
+      ${w.risks.length ? `<p class="notes"><b>Against it:</b> ${esc(w.risks.join(" "))}</p>` : ""}</article>`).join("");
   const line = (xs, g) => xs.map((x) => `<li><span class="g">${g}</span><span><button class="linkbtn" data-cat="${esc(x.category)}">${esc(x.category)}</button> ${esc(x.text.slice(x.category.length + 2))}</span></li>`).join("");
   const moves = line(R.gaining || [], "▲") + line(R.losing || [], "▼");
   const warn = line(R.weakening || [], "↘") + line(R.single_coin || [], "①") + line(R.crowding || [], "≡");
-  return `<section class="sect"><div class="slug"><h3 class="h3">Tomorrow's watchlist</h3><span class="note">categories where buying is spreading now; a watchlist, not a forecast</span></div>
-    ${(R.notes || []).length ? `<p class="dek2">${esc(R.notes.join(" "))}</p>`
-      : cards ? `<div class="link-grid">${cards}</div>` : `<p class="dek2">No category meets the bar right now: buyers at 1.5× usual, a rising share of all buying, spread over 3+ coins with no coin above 60%, and launches not outrunning buyers.</p>`}
+  return `<section class="sect"><div class="slug"><h3 class="h3">Tomorrow's outlook</h3><span class="note">${esc(O?.note || "two lists with different records; neither is a prediction")}</span></div>
+    <div class="g12">
+      <div class="span-6"><div class="slug thin"><h3 class="h3">Working this week</h3><span class="note">the only signal with a positive next-day record so far</span></div>
+        ${working ? `<ul class="ev">${working}</ul>` : `<p class="dek2">No category is working this week: none beat the market with its best coin left out, from 3+ creators.</p>`}
+        <p class="notes">${PRELIM} ${rw?.text ? esc(rw.text) : "Not yet measured on history."}</p></div>
+      <div class="span-6 colrule"><div class="slug thin"><h3 class="h3">Busy today</h3><span class="note">buying spreading now; on history, worse next days</span></div>
+        ${(R.notes || []).length ? `<p class="dek2">${esc(R.notes.join(" "))}</p>` : busy ? `<div class="link-grid">${busy}</div>` : `<p class="dek2">No category is busy by this rule right now: buyers at 1.5× usual, a rising share of all buying, 3+ coins with no coin above 60%, launches not outrunning buyers.</p>`}
+        <p class="notes">${PRELIM} ${rb?.text ? esc(rb.text) : "Not yet measured on history."} Treat “busy” as what is happening now, not as tomorrow's pick.</p></div>
+    </div>
     <div class="g12" style="margin-top:18px">
       <div class="span-6"><div class="slug thin"><h3 class="h3">Where buying is moving</h3><span class="note">share of all category buying, now against a usual day</span></div>
         ${moves ? `<ul class="ev">${moves}</ul>` : `<p class="dek2">No large shift in where buyers are going.</p>`}</div>
       <div class="span-6 colrule"><div class="slug thin"><h3 class="h3">Weakening, one coin, crowding</h3></div>
         ${warn ? `<ul class="ev">${warn}</ul>` : `<p class="dek2">Nothing flagged.</p>`}</div>
     </div></section>`;
+}
+function forwardHtml(F) {
+  if (!F || !F.resolved) return `<p class="notes">Forward record: the app logs what it says about every category every 6 hours and scores it once the coins that follow have finished their first day.${F?.pending ? ` ${F.pending} calls waiting for their outcomes.` : " Nothing logged yet."}</p>`;
+  const K = { working: "Working this week", busy_today: "Busy today", decay_warning: "Weakening or deteriorated" };
+  const row = (k, v) => k === "decay_warning"
+    ? `${K[k]}: ${v.flagged} warnings, ${pct(v.declined_after_flag)} followed by a decline (others ${pct(v.declined_otherwise)}); ${pct(v.false_alarms)} false alarms; ${v.declines} declines, ${pct(v.declines_caught)} warned of.`
+    : `${K[k]}: flagged categories' next-day coins graduated ${xf(v.flagged_vs_market, 2)} the market against ${xf(v.rest_vs_market, 2)} for the rest (${v.flagged} flagged calls, ${v.flagged_successes} graduations).`;
+  return `<p class="notes"><b>Forward record</b> since ${esc(dayhm(F.first))}, on coins the app had not seen when it made each call (${F.resolved} scored, ${F.pending} waiting):</p>
+    <ul class="ev tight">${Object.entries(F.kinds).map(([k, v]) => `<li><span class="g">${v.enough ? "·" : "…"}</span><span>${esc(row(k, v))} ${v.days} day${v.days > 1 ? "s" : ""}${v.enough ? "" : "; too early to judge (needs 14+ days)"}.${Object.keys(v.by_market || {}).length > 1 ? ` By market: ${Object.entries(v.by_market).map(([m, x]) => `${m} ${k === "decay_warning" ? `${x.flagged} warnings, ${pct(x.declined_after_flag)} declined` : `${xf(x.flagged_vs_market, 2)} vs ${xf(x.rest_vs_market, 2)}`}`).join("; ")}.` : ""}</span></li>`).join("")}</ul>`;
 }
 function coinBtn(c) { return `<button class="linkbtn" data-coin="${esc(c.mint)}">${esc(c.symbol ? "$" + c.symbol : c.name || short(c.mint))}</button>`; }
 function bindCoins(root) { $$("[data-coin]", root).forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); openToken(b.dataset.coin); })); }
@@ -529,7 +545,7 @@ function renderMap() {
   const working = cats7.filter((r) => r.status === "working"), heating = I.categories.filter((r) => r.status === "heating");
   setHead(w7.available ? `${working.length ? `<em>${esc(working.slice(0, 2).map((r) => r.category).join(" and "))}</em> ${working.length > 2 ? `and ${working.length - 2} more ` : ""}worked this week.` : "No category clearly worked this week."} ${heating.length ? `${esc(heating[0].category)} is heating today.` : ""}`
     : "Not a full week of history yet.",
-    `The week judges categories by how their coins ended up, best coin left out, against every coin launched in the same days. Today compares each category with its own usual day. ${M.check?.text_week ? esc(M.check.text_week) : ""}`,
+    `The week judges categories by how their coins ended up, best coin left out, against every coin launched in the same days. Today compares each category with its own usual day. Tested on about two weeks of history: preliminary.`,
     VIEW_SEG(), "Macro · Today");
   bindView();
   const cov = ["7", "14", "30"].map((k) => { const w = W[k] || {}; return `<span class="cov-w ${w.available ? "" : "i3"}"><b>${k} days</b> ${w.available ? `${compact(w.coins)} coins · ${pct(w.coverage)} of hours collected` : `not enough history (${pct(w.coverage || 0)} of hours)`}</span>`; }).join("");
@@ -573,15 +589,19 @@ function renderMap() {
     </div>
     <section class="sect"><div class="slug"><h3 class="h3">How today connects to the week</h3><span class="note">where they agree, and where today breaks from the trend</span></div>
       ${links ? `<div class="link-grid">${links}</div>` : `<p class="dek2">No category shows a clear link or break between its week and today yet.</p>`}</section>
-    ${M.rotation ? watchHtml(M.rotation, ck) : ""}
+    ${M.rotation ? outlookHtml(M.outlook, M.rotation, ck) : ""}
     ${M.decay ? healthHtml(M.decay, ck) : ""}
     <section class="sect g12">
       <div class="span-7"><div class="slug thin"><h3 class="h3">Moving together</h3><span class="note">${C.tested ? `${C.tested} pairs tested over ${C.hours} hours` : ""}</span></div>
         ${pairs ? `<ul class="ev">${pairs}</ul>` : `<p class="dek2">${esc(C.note && !C.tested ? C.note : "No pair of categories moved together beyond what the whole market did.")}</p>`}
         ${C.tested ? `<p class="notes">${esc(C.note)}</p>` : ""}</div>
       <div class="span-5 colrule"><div class="slug thin"><h3 class="h3">How much to trust this</h3></div>
-        ${ck ? [ck.text_week, ck.text_working, ck.text_heating].filter(Boolean).map((t) => `<p class="prose" style="margin:0 0 10px">${esc(t)}</p>`).join("") + `<p class="notes">${esc(ck.source)}. These describe what has been working; they are not forecasts.</p>`
-          + (ck.rotation ? `<details class="more"><summary>How each rotation signal did on history</summary><ul class="ev tight">${Object.values(ck.rotation).map((r) => `<li><span class="g">${r.verdict === "came before better outcomes" ? "▲" : r.verdict === "came before worse outcomes" ? "▼" : "·"}</span><span>${esc(r.text)}</span></li>`).join("")}</ul></details>` : "") : `<p class="dek2">Not yet measured.</p>`}</div>
+        ${ck?.signals ? `<p class="notes" style="margin:0 0 10px">${PRELIM} ${esc(ck.caveat)} Period ${esc(ck.period.join(" to "))}; ${ck.comparisons_run} comparisons run.</p>`
+            + [ck.text_week, ck.signals.working?.text, ck.signals.heating?.text, ck.signals.watch?.text].filter(Boolean).map((t) => `<p class="prose" style="margin:0 0 10px">${esc(t)}</p>`).join("")
+            + `<details class="more"><summary>Every signal's record, including the ones that did not work</summary><ul class="ev tight">${Object.values(ck.signals).map((r) => `<li><span class="g">${r.verdict === "better" ? "▲" : r.verdict === "worse" ? "▼" : "·"}</span><span>${esc(r.text)}</span></li>`).join("")}</ul>
+              <p class="notes">${esc(ck.method)} ${esc(ck.source)}.</p></details>`
+          : `<p class="dek2">Not yet measured.</p>`}
+        ${forwardHtml(M.forward)}</div>
     </section>`;
   $$("[data-cat]", el).forEach((b) => b.addEventListener("click", () => openCategory(b.dataset.cat)));
   bindCoins(el);
@@ -626,7 +646,7 @@ function openCategory(cat) {
       <p class="prose" style="margin:0 0 6px">${isNum(rot.share_now) ? `${pct(rot.share_now)} of all category buying in the last hour, against ${pct(rot.share_usual)} on a usual day.` : "No share history yet."}
         ${rot.early?.launched_24h ? ` Of ${rot.early.launched_24h} coins launched in the last day, ${rot.early.graduated_24h} graduated (about ${nf(rot.early.expected, 1)} expected).` : ""}
         ${isNum(rot.sol_now) ? ` Net SOL into its coins this hour ${signed(rot.sol_now, 1)} (usual ${signed(rot.sol_usual, 1)}).` : ""}</p>
-      <p class="notes">${[rot.watch ? `On the watchlist (${WSTAGE[rot.stage][0].toLowerCase()})` : "Not on the watchlist", rot.signals.single_coin ? "buying sits on one coin" : "",
+      <p class="notes">${[rot.watch ? `Busy today (${WSTAGE[rot.stage][0].toLowerCase()}; on history, busy days were followed by worse ones)` : "Not busy by the rule", rot.signals.single_coin ? "buying sits on one coin" : "",
         rot.signals.crowding ? "launches outpacing buyers" : "", rot.signals.holders_up === null ? "holder growth not measured" : rot.signals.holders_up ? "most coins adding holders" : "most coins not adding holders"].filter(Boolean).join(" · ")}.</p></div>` : ""}
     ${nars.length ? `<div class="dsec"><h3>Its narratives now</h3><table class="tbl static wrap"><thead><tr><th>Narrative</th><th>State</th><th class="r">Buyers 1h</th><th>Leading coins</th></tr></thead><tbody>
       ${nars.slice(0, 10).map((n) => `<tr><td>${esc(n.title)}<small class="i4" style="display:block">${n.age_h < 24 ? `new · ${nf(n.age_h, 0)} h old` : `${nf(n.age_h / 24, 1)} days old`}</small></td><td>${Viz.stamp(n.state)}</td><td class="r mono">${compact(n.buyers_h1)}</td><td>${n.coins.slice(0, 3).map((c) => `${coinBtn(c)}<small class="i4"> ${compact(c.buyers_h1)}</small>`).join(" ")}</td></tr>`).join("")}</tbody></table></div>` : ""}

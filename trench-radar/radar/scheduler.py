@@ -50,7 +50,12 @@ async def metamap_job(ctx: c.Ctx) -> None:
         try:
             macro.backfill_token_narrative(con)
             macro.summarize(con, now(), limit=20000)
-            return macro.read(con, now(), State.narratives)
+            m = macro.read(con, now(), State.narratives)
+            # forward validation: what the app says now, scored later on coins it has not seen
+            macro.log_forecasts(con, m, now())
+            macro.resolve_forecasts(con, now())
+            m["forward"] = macro.forward_summary(con)
+            return m
         finally:
             con.close()
     State.meta_map = await asyncio.to_thread(go)

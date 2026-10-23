@@ -1,14 +1,23 @@
-# Macro, intraday and rotation: what has worked, what is moving, what to watch
+# Macro, intraday, rotation and meta health
 
-The **Macro · Today** view of the Meta screen answers three questions:
+The **Macro · Today** view of the Meta screen answers four questions:
 - **This week (macro):** which categories have actually produced successful coins.
 - **Today (intraday):** which categories are busier or quieter than usual right now.
-- **Tomorrow's watchlist (rotation):** where buying is moving, and which categories might work next.
-- **Meta health:** whether a category that had an edge is losing it, early enough to react.
+- **Tomorrow's outlook (rotation):** where buying is moving. It shows two lists with different
+  records: *working this week* and *busy today*.
+- **Meta health:** what has already changed in categories that had an edge.
 
 Everything is computed from data the app already collects (`radar/analytics/macro.py`). There
-are no paid sources and no Telegram. Every signal was measured on replayed history before being
-described as useful (see *How much each part says about what comes next*).
+are no paid sources and no Telegram.
+
+**Results in short (preliminary, about two weeks of one period):**
+- Only one signal had a positive next-day record: "working this week". Even that rests on a
+  single category.
+- "Busy today", the original watchlist rule, was followed by *worse* next days.
+- Meta health describes decline already under way. It is not an early warning.
+
+Full numbers are in *Results*. Every call the app makes is now also logged and scored on later,
+unseen data (*Forward validation*).
 
 Reproduce:
 
@@ -92,7 +101,7 @@ Each category gets one finding, with the evidence for it and anything that argue
 - Shared early-buyer wallets and shared X posts are shown as supporting evidence.
 - Correlation is not causation, and the screen says so.
 
-## Tomorrow's watchlist (rotation)
+## Rotation signals and Tomorrow's outlook
 
 All of these are computed at the time of the read, from data available then.
 
@@ -112,24 +121,27 @@ to graduate. The category is therefore compared with the market *on the same coi
 cancels that. Its usual rate against the market comes from coins launched 2–7 days earlier,
 shrunk toward the market when it has few coins.
 
-**Watchlist rule** (set before the backtest): buyers up **and** share up **and** broad **and
-not** crowding.
+**Busy-today rule** (set before the backtest as the "watchlist" rule, and not changed after it):
+buyers up **and** share up **and** broad **and not** crowding.
+
+**Why "watchlist" became "busy today".** On history, categories meeting this rule had *worse*
+next days (see *Results*). The app therefore shows them as what is happening now, labelled with
+that record, and never as tomorrow's picks.
+
+Tomorrow's outlook puts them beside a separate list, **working this week**: the categories the
+weekly view marks "working". That was the only signal with a positive next-day record, and it is
+labelled *preliminary* because that record rests on one category.
 
 **Stage of each item:**
 
-| Stage | When |
+| Stage (shown as) | When |
 |---|---|
-| Confirmed | its week already reads "working" |
-| Emerging | its weekly rate is improving against last week, or its new coins are already graduating |
-| Speculative | nothing behind it but today's buying |
+| Week working | its week already reads "working" |
+| Record improving | its weekly rate is improving against last week, or its new coins are already graduating |
+| No record | nothing behind it but today's buying |
 
-**Each item lists:**
-- the evidence;
-- the risks (no record, concentration, launches rising too, money in not rising, no new coin
-  graduating yet, coins not adding holders);
-- what would **confirm** it: buyers stay at 1.5×+ over 3+ coins, and more graduations from
-  different creators in the next 24 h;
-- what would **invalidate** it: buyers fall back below usual, one coin takes 60%+, or crowding.
+Each busy item lists its evidence and its risks: no record, concentration, launches rising too,
+money in not rising, no new coin graduating yet, coins not adding holders, and its health.
 
 **Other lists:**
 - categories gaining or losing share;
@@ -137,8 +149,8 @@ not** crowding.
 - one-coin categories ("a coin working, not the category");
 - crowding categories.
 
-No confidence score is attached to any item. The only number about the future is each signal's
-measured record on history, shown next to it.
+No confidence score is attached to any item. The only numbers about what follows are each list's
+measured record on history and its forward record, both shown next to it.
 
 ## Meta health: decay and exhaustion
 
@@ -176,14 +188,18 @@ in a test with a market-wide fall, that read as a decline when nothing had chang
 
 **Statuses:**
 
-| Status | When |
+| Status (shown as) | When |
 |---|---|
-| Decay confirmed | 2+ families now, including a slow one, and 2+ the day before too |
-| Early weakening | 2+ families |
-| Recovering | was weakening in either of the last two days, now at most one family |
-| Cooling off | the last day's share of buying ≤ 0.75× baseline, but 3-day demand and results hold up |
-| Healthy | at most one family, none slow |
+| Deteriorated | 2+ families now, including a slow one, and 2+ the day before too |
+| Weakening signs | 2+ families |
+| Improving | was weakening in either of the last two days, now at most one family |
+| Quiet today | the last day's share of buying ≤ 0.75× baseline, but 3-day demand and results hold up |
+| Holding up | at most one family, none slow |
 | Too little data | under 30 recent coins |
+
+The rules were fixed before the backtest. Only the names changed after it: the old names
+("decay confirmed", "early weakening") sounded like forecasts. The backtest found that these
+statuses describe decline already under way and do not reliably anticipate it.
 
 **What each category shows:**
 - how many consecutive days it has been flagged;
@@ -193,7 +209,7 @@ in a test with a market-wide fall, that read as a decline when nothing had chang
 - what would confirm recovery or further decay;
 - every measure, recent against before, in the category sheet.
 
-A watchlist item whose category is weakening says so first among its risks.
+A busy-today item whose category reads "weakening signs" or "deteriorated" says so among its risks.
 
 **What the corpus cannot test:**
 - **Holder retention and liquidity milestones.** The corpus has no holder counts or liquidity,
@@ -202,9 +218,128 @@ A watchlist item whose category is weakening says so first among its risks.
 - **The length of each coin's momentum.** Not measured: the coin summaries keep peaks, not
   durations.
 
-## How much each part says about what comes next
+## Results
 
-*Being measured: the replay of the corpus is still running. This section is filled in from `scripts/macro_check.py` once it finishes.*
+> **Preliminary.** About two weeks (2026-06-19 to 2026-07-14) of one market period from one
+> corpus, with no out-of-period test. Treat these as a baseline for independent testing, not proof.
+> The signal rules were fixed before this test and have not been changed since. Only the display
+> names changed.
+
+**Method** (`scripts/macro_check.py`, results in `radar/data/macro_check.json`):
+- **Replay.** The corpus is replayed hour by hour through the app's own narrative pipeline
+  (`scripts/meta_replay.py`). Each view is computed using only data available at that hour.
+- **Comparison.** At each reading, flagged categories are compared with unflagged ones on the
+  coins launched *afterwards*: next day for the weekly view and rotation, next 6 hours for
+  heating, next 3 days for decay. Each is measured against all coins launched in the same window.
+- **Ranges.** 90% ranges come from a **moving-block bootstrap over days**: 2-day blocks, and
+  4-day blocks for 3-day outcomes. Readings 6 hours apart share outcome coins, so resampling
+  single readings, or even single days, would overstate certainty.
+
+**Audit checks**, after a first pass resampled single days:
+- **Distinct categories.** Each comparison reports how many distinct categories it rests on,
+  the largest one's share, and the result with that category left out. Categories differ
+  hugely in size.
+- **Decline episodes.** Decay results count separate decline episodes as well as readings,
+  since one decline spans several readings.
+- **Multiple testing.** 23 comparisons were run, so one range just clear of
+  zero is weak evidence.
+
+### Next-day record of each signal
+
+Each entry is coins after a flagged reading vs after unflagged ones, both against the market
+(graduations). The difference has a 90% range.
+
+| Signal | Flagged vs rest | Difference (90%) | Sample | Categories behind it | Verdict |
+|---|---|---|---|---|---|
+| Marked “working” this week | 1.15× vs 0.90× | +0.25 (+0.17 to +0.31) | 11/12 days, 13 readings, 401 grads | 3 (100% largest); rests on one category; without it -0.85 | better |
+| “heating” today | 1.11× vs 0.93× | +0.18 (-0.03 to +0.38) | 10/11 days, 155 readings, 84 grads | 40 (52% largest); without it -0.04 | no clear difference |
+| Busy today (the former watchlist rule) | 0.82× vs 0.98× | -0.16 (-0.59 to -0.10) | 10/11 days, 48 readings, 108 grads | 17 (41% largest); without it -0.17 | **worse** |
+| Busy today, no record | 0.72× vs 0.98× | -0.26 (-0.56 to -0.15) | 10/11 days, 45 readings, 54 grads | 17 (37% largest); without it -0.30 | **worse** |
+| Busy today, record improving | — | — | — | — | too few to test |
+| Busy today, week working | — | — | — | — | too few to test |
+| Buyers at 1.5× usual | 0.96× vs 0.96× | +0.00 (-0.23 to +0.09) | 10/11 days, 173 readings, 232 grads | 44 (50% largest); without it -0.04 | no clear difference |
+| Money in above usual | 1.06× vs 0.95× | +0.11 (-0.09 to +0.33) | 11/11 days, 160 readings, 75 grads | 69 (35% largest); without it +0.23 | no clear difference |
+| Share of buying rising | 0.89× vs 0.98× | -0.09 (-0.20 to +0.01) | 11/11 days, 209 readings, 195 grads | 101 (38% largest); without it -0.11 | no clear difference |
+| Share of buying falling | 0.98× vs 0.95× | +0.03 (-0.20 to +0.14) | 11/11 days, 170 readings, 340 grads | 14 (33% largest); without it +0.14 | no clear difference |
+| Buying spread over 3+ coins | 1.01× vs 0.81× | +0.20 (-0.22 to +0.30) | 11/11 days, 180 readings, 745 grads | 36 (68% largest); without it +0.03 | no clear difference |
+| Buyers up on one coin | 0.91× vs 0.96× | -0.06 (-0.39 to +0.99) | 10/11 days, 42 readings, 18 grads | 20 (24% largest); without it -0.24 | no clear difference |
+| Broad momentum (against single-coin momentum) | 0.97× vs 0.91× | +0.06 (-0.74 to +0.35) | 10/10 days, 67 readings, 209 grads | 17 (56% largest); without it -0.15 | no clear difference |
+| Launches outpacing buyers | 1.05× vs 0.94× | +0.12 (-0.01 to +0.19) | 10/11 days, 111 readings, 220 grads | 15 (72% largest); rests on one category; without it -0.03 | no clear difference |
+| New coins already graduating | 0.71× vs 0.96× | -0.26 (-0.86 to -0.05) | 6/11 days, 10 readings, 12 grads | 4 (59% largest); without it -0.69 | **worse** |
+
+**What the table says:**
+- **Working this week** is the one positive record, and it is preliminary twice over:
+  - It rests entirely on **Characters & creatures**, the largest category, which was marked
+    "working" on 9 of 12 days.
+  - The other two categories ever marked working had 4 readings and no graduations between
+    them. With Characters & creatures left out, the difference is -0.85.
+  - So the data cannot yet separate "the label works" from "that category did well that
+    fortnight".
+- **Busy today** (the former watchlist rule) was followed by *worse* next days. This was spread
+  across categories (the largest is 41% of flagged coins) and held in
+  both halves of the period.
+- **Ranking categories by their week:** +0.04 rank correlation with the
+  next day (90% range -0.12 to +0.20, 12 days), no better than
+  chance.
+- **Heating** and the individual rotation signals made no clear difference.
+- **New coins already graduating** was followed by worse days, but on 12 graduations it is weak
+  evidence.
+- **Launches outpacing buyers** looked slightly positive when resampling single days. With 2-day
+  blocks its range includes zero, and it rests mostly on one category.
+
+### Meta health
+
+379 readings of 14 categories that had an edge, over 14 days.
+54 declining readings make up 16 separate decline
+episodes. A decline means drawing 50+ buyers at 0.6× its own pre-read baseline or less, within 3
+days.
+
+| Status / rule | Readings | Declined after | Declined otherwise | Difference (90%) | False alarms | Declines caught |
+|---|---|---|---|---|---|---|
+| Weakening signs or deteriorated (a warning) | 111 | 20% | 12% | +0.08 (-0.01 to +0.17) | 80% | 41% |
+| Deteriorated | 63 | 21% | 13% | +0.08 (-0.07 to +0.86) | 79% | 24% |
+| Weakening signs | 48 | 19% | 14% | +0.05 (+0.00 to +0.14) | 81% | 17% |
+| Quiet today | 20 | 0% | 15% | -0.15 (-0.18 to -0.07) | 100% | 0% |
+| Improving | 54 | 0% | 17% | -0.17 (-0.20 to -0.07) | 100% | 0% |
+| Holding up | 194 | 16% | 12% | +0.05 (-0.06 to +0.13) | 84% | 59% |
+| Family flagged: buyers and money in | 117 | 16% | 13% | +0.03 (-0.09 to +0.12) | 84% | 35% |
+| Family flagged: results already falling | 143 | 29% | 5% | +0.24 (+0.09 to +0.29) | 71% | 78% |
+| Family flagged: crowding | 12 | 0% | 15% | -0.15 (-0.18 to -0.06) | 100% | 0% |
+
+- **Overall:** warnings are not clear of chance, 80% are false alarms, and they catch 41% of
+  declining readings.
+- **The early-warning question.** Of the 292 readings taken before a decline showed in
+  matured results, 19 went on to decline. Warned readings declined
+  8% of the time against 6% without a warning
+  (90% range -0.01 to +0.10). That is **no reliable early warning**.
+- **Lead time.** Of 22 collapses, 10 had a warning first, a median
+  0.9 days ahead.
+- **The one strong piece is "results already falling"**. It describes deterioration already
+  under way, which tends to continue. It is not a forecast.
+- **"Improving" and "quiet today"** were not followed by declines in this period: 0 of
+  54 and 0 of 20 readings.
+
+## Forward validation
+
+From this version, the app logs a call about every category every 6 hours (`forecast_log`):
+- whether it is working this week;
+- whether it is busy today;
+- each tracked category's health.
+
+Each row stores the time, the call, the category's baseline and the market state (down / normal /
+up, from category buying against its 11-day level). Once every coin launched in the call's window
+has finished its first day, the call is scored on those coins, which the app had not seen when it
+made the call:
+- **Working and busy today:** graduations against the market the next day.
+- **Health:** a decline within 3 days, same definition as above.
+
+Macro · Today ("How much to trust this") shows:
+- the forward record: flagged vs not flagged, false alarms and declines caught;
+- the same split by market state;
+- the number of calls and days behind it.
+
+No verdict is shown before 14 days of scored calls. Rules stay fixed while this runs, so the
+forward record is an independent test of the baseline above.
 
 ## Reference projects reviewed
 
@@ -221,9 +356,13 @@ A watchlist item whose category is weakening says so first among its risks.
   October replays are 36 hours each, too short for the 3-day baseline rotation needs, so the
   rotation signals have **no out-of-period test**. Agreement between the corpus's two halves is
   reported instead.
-- **Overlapping outcomes.** Reads every 6 hours with 24-hour outcomes overlap. The bootstrap
-  resamples whole days, but neighbouring days still share some outcome hours, so ranges are if
-  anything too narrow.
+- **Overlapping outcomes.** Reads every 6 hours with 24-hour or 3-day outcomes overlap. The
+  moving-block bootstrap (2- and 4-day blocks) allows for that, but with 11–14 days of data the
+  ranges are themselves rough.
+- **Uneven categories.** One category is a large share of all categorised coins, and the only
+  positive result rests on it. Ranges describe variation over days, not over categories.
+- **Multiple comparisons.** Many signals were tested on the same days. A single range just clear
+  of zero, such as "weakening signs" or "new coins already graduating", is weak evidence.
 - **No holder or wallet data in the corpus.** Holder growth and shared-wallet evidence work
   only on a live install, and are untested.
 - **Corpus market cap** is the price × 1e9 supply.

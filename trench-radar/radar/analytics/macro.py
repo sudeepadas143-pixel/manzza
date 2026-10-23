@@ -555,7 +555,9 @@ def _holder_growth(con, as_of: int) -> dict:
 
 
 def rotation(con, as_of: int, macro: dict, intraday: dict) -> dict:
-    """Where buying is moving, and a watchlist of categories that might work next. Every signal is
+    """Where buying is moving, and the "busy today" list (kept under the key "watchlist"): categories
+    whose buying is spreading now. On replayed history busy categories had worse next days, so the app
+    shows them as what is happening, not as picks (radar/data/macro_check.json). Every signal is
     point-in-time; how each one did historically is measured in scripts/macro_check.py."""
     out = {"as_of": as_of, "categories": [], "gaining": [], "losing": [], "watchlist": [], "weakening": [],
            "crowding": [], "single_coin": [], "notes": []}
@@ -698,8 +700,10 @@ DECAY_BASE_D, DECAY_RECENT_D = 11, 3        # baseline = the 11 days before the 
 DECAY_PRIOR = 20                            # prior strength for recent-vs-baseline rate comparisons
 FAST = ("demand", "crowding", "concentration")
 SLOW = ("results", "breadth", "follow_through")
-DECAY_LABEL = {"healthy": "Healthy", "cooldown": "Cooling off", "early": "Early weakening", "confirmed": "Decay confirmed",
-               "recovering": "Recovering", "no edge": "No edge to lose", "thin": "Too little data"}
+# Labels describe what has already happened. On replayed history (radar/data/macro_check.json) the
+# warnings did not reliably anticipate declines, so none of them is worded as a forecast.
+DECAY_LABEL = {"healthy": "Holding up", "cooldown": "Quiet today", "early": "Weakening signs", "confirmed": "Deteriorated",
+               "recovering": "Improving", "no edge": "No edge to lose", "thin": "Too little data"}
 FAMILY_LABEL = {"demand": "buyers and money in", "crowding": "crowding", "concentration": "concentration",
                 "results": "results", "breadth": "breadth of winners", "follow_through": "follow-through"}
 
@@ -969,19 +973,21 @@ def _decay_text(cat, st, prev_st, ev, days, trend) -> dict:
     if f["concentration"]:
         lines.append(f"Concentration: two coins hold {_pct(m['top_two_share'])} of its recent buying; the rest draw buyers at "
                      f"{_x(m['rest_vs_baseline'])} their earlier rate.")
-    why = {"confirmed": f"{cat} is losing its edge: {_and([FAMILY_LABEL[k] for k, v in f.items() if v])} have weakened, including how its coins end up, "
-                        f"for {days} day{'s' if days != 1 else ''} running.",
-           "early": f"{cat} is showing early weakening in {_and([FAMILY_LABEL[k] for k, v in f.items() if v])}"
-                    + ("; its coins' results have not turned yet." if not ev["slow_on"] else "; it needs another day to count as confirmed."),
-           "recovering": f"{cat} was weakening in the last days, and the warning signs have eased.",
-           "cooldown": f"{cat} is quieter in the last day than usual, but its 3-day demand and results hold up: a cooldown, not decay so far.",
-           "healthy": f"{cat} is holding its edge: at most one sign of weakening, and none in how its coins end up.",
+    fams = _and([FAMILY_LABEL[k] for k, v in f.items() if v])
+    why = {"confirmed": f"{cat} has deteriorated: {fams} are weaker than its own baseline, including how its coins end up, "
+                        f"for {days} day{'s' if days != 1 else ''} running. This describes what has already happened, not what comes next.",
+           "early": f"{cat} shows weakening signs in {fams}"
+                    + ("; its coins' results have not turned." if not ev["slow_on"] else "; not yet two days running.")
+                    + " On history such signs were not a reliable early warning.",
+           "recovering": f"{cat} showed weakening signs in the last days, and they have eased.",
+           "cooldown": f"{cat} is quieter in the last day than usual, while its 3-day demand and results hold up.",
+           "healthy": f"{cat} is holding up: at most one sign of weakening, and none in how its coins end up.",
            "thin": f"{cat} had an edge, but too few recent coins to judge it now."}[st]
     if prev_st and prev_st != st and prev_st not in ("no edge", "thin"):
         why += f" It was “{DECAY_LABEL[prev_st].lower()}” a day ago."
-    recover = ["Its share of buying returns to its baseline for a full day.",
+    recover = ["Its share of buying is back at its baseline for a full day.",
                f"Its coins draw 50+ buyers at {_x(ev['base_ratio'])} the market again, from several creators."]
-    worse = ["Results turn: its matured coins draw buyers clearly less often than before, against the market.",
+    worse = ["Its matured coins draw buyers clearly less often than before, against the market.",
              "Fewer different creators produce winners while launches keep coming.",
              "One or two coins take most of its buying while the rest fade."]
     return {"why": why, "evidence": lines, "against": ev["against"],
@@ -989,13 +995,13 @@ def _decay_text(cat, st, prev_st, ev, days, trend) -> dict:
 
 
 def _decay_into_watchlist(rot: dict, dec: dict) -> None:
-    """A watchlist category that is decaying says so: today's buying may be a last spike."""
+    """A busy category whose health reads weakening or deteriorated says so among its risks."""
     st = {r["category"]: r for r in dec.get("categories", [])}
     for w in rot.get("watchlist", []):
         d = st.get(w["category"])
         w["health"] = d["status"] if d else None
         if d and d["status"] in ("early", "confirmed"):
-            w["risks"].insert(0, f"Its health reads “{d['label'].lower()}”: buying today may be a spike in a meta losing its edge.")
+            w["risks"].insert(0, f"Its health reads “{d['label'].lower()}”.")
 
 
 def _and(xs):
@@ -1235,10 +1241,162 @@ def read(con, as_of: int | None = None, live_narratives: dict | None = None) -> 
         r["sentence"] = macro_sentence(r)
     rot, dec = rotation(con, as_of, mac, intra), decay(con, as_of)
     _decay_into_watchlist(rot, dec)
+    check = _check()
     return {"as_of": as_of, "macro": mac, "intraday": intra, "links": links(mac, intra),
-            "rotation": rot, "decay": dec,
+            "rotation": rot, "decay": dec, "outlook": outlook(mac, intra, rot, dec, check),
             "comovement": comovement(con, as_of), "popularity_vs_success": popularity_vs_success(mac),
-            "check": _check()}
+            "check": check}
+
+
+# ---------------------------------------------------------------- outlook: what to look at tomorrow
+def outlook(mac: dict, intra: dict, rot: dict, dec: dict, check: dict | None) -> dict:
+    """Two lists, kept apart because their records differ. "Working this week": the only signal whose
+    next-day record on history was positive (preliminary, and resting on one category). "Busy today":
+    the former watchlist rule, unchanged; on history its next-day outcomes were worse."""
+    sig = (check or {}).get("signals") or {}
+    I = {r["category"]: r for r in intra.get("categories", [])}
+    H_ = {r["category"]: r for r in dec.get("categories", [])}
+    w7 = (mac.get("windows") or {}).get("7") or {}
+    working = []
+    for r in w7.get("categories", []) if w7.get("available") else []:
+        if r["status"] != "working":
+            continue
+        i, h = I.get(r["category"]), H_.get(r["category"])
+        working.append({"category": r["category"], "sentence": r.get("sentence") or macro_sentence(r),
+                        "today": i["status"] if i else None, "demand_vs_usual": i["demand_vs_usual"] if i else None,
+                        "health": h["label"] if h else None, "ratio_ex_best": r["grad"]["ratio_ex_best"],
+                        "independent_successes": r["independent_successes"], "coins": r["coins"]})
+    return {"working": working, "busy": rot.get("watchlist", []),
+            "record": {"working": sig.get("working"), "busy": sig.get("watch")},
+            "note": ("Neither list is a prediction. “Working this week” is a preliminary positive signal from about two weeks "
+                     "of history; “busy today” has been followed by worse next days.")}
+
+
+# ---------------------------------------------------------------- forward validation
+FORECAST_EVERY = 6 * H
+
+
+def _market_state(dec: dict) -> str:
+    mk = (dec or {}).get("market") or {}
+    b = mk.get("buyers_per_read")
+    if not b or not b[1]:
+        return "unknown"
+    r = b[0] / b[1]
+    return "down" if r <= 0.7 else "up" if r >= 1.3 else "normal"
+
+
+def log_forecasts(con, m: dict, now_t: int | None = None) -> int:
+    """Record, at most every 6 hours, what the app is saying now about every category, flagged or not,
+    so it can be scored later on coins it has not seen. Rules are the app's, unchanged."""
+    now_t = now_t or _now()
+    last = con.execute("SELECT MAX(made_at) FROM forecast_log").fetchone()[0]
+    if last and now_t - last < FORECAST_EVERY:
+        return 0
+    mk = _market_state(m.get("decay"))
+    rows_ = []
+    w7 = (m.get("macro", {}).get("windows") or {}).get("7") or {}
+    for r in w7.get("categories", []) if w7.get("available") else []:
+        if r["coins"] >= MIN_COINS:
+            rows_.append((now_t, "working", r["category"], int(r["status"] == "working"), r["status"], D, None, mk))
+    for r in (m.get("rotation") or {}).get("categories", []):
+        rows_.append((now_t, "busy_today", r["category"], int(bool(r["watch"])), r.get("stage"), D, None, mk))
+    for r in (m.get("decay") or {}).get("categories", []):
+        if r["status"] not in ("thin", "no edge") and r["baseline"]["drew_buyers_vs_market"]:
+            rows_.append((now_t, "decay_warning", r["category"], int(r["status"] in ("early", "confirmed")), r["status"], 3 * D,
+                          r["baseline"]["drew_buyers_vs_market"], mk))
+    con.execute("BEGIN")
+    try:
+        con.executemany("""INSERT INTO forecast_log (made_at, kind, category, flagged, label, horizon_s, baseline, market)
+                           VALUES (?,?,?,?,?,?,?,?)""", rows_)
+        con.execute("COMMIT")
+    except Exception:
+        con.execute("ROLLBACK")
+        raise
+    return len(rows_)
+
+
+def resolve_forecasts(con, now_t: int | None = None) -> int:
+    """Score every call whose outcome coins have all finished their first day. Outcome: the category's
+    coins launched in [made_at, made_at + horizon), against all coins then: graduations (not instant)
+    for "working" and "busy_today"; drawing 50+ buyers against its own baseline for decay, where 0.6x
+    or less is a decline (the backtest's definition)."""
+    now_t = now_t or _now()
+    groups = con.execute("""SELECT DISTINCT made_at, horizon_s FROM forecast_log
+                            WHERE resolved_at IS NULL AND made_at + horizon_s + ? <= ?""", (D, now_t)).fetchall()
+    done = 0
+    for made, hz in groups:
+        cs = [c for c in _coins(con, made, made + hz)]
+        if not cs:
+            con.execute("UPDATE forecast_log SET resolved_at=? WHERE made_at=? AND horizon_s=? AND resolved_at IS NULL",
+                        (now_t, made, hz))
+            continue
+        pg = sum(_success(c) for c in cs) / len(cs)
+        pt = sum(_traction(c) for c in cs) / len(cs)
+        by: dict[str, list] = {}
+        for c in cs:
+            if c["category"]:
+                b = by.setdefault(c["category"], [0, 0, 0])
+                b[0] += _success(c)
+                b[1] += _traction(c)
+                b[2] += 1
+        upd = []
+        for fid, kind, cat, base in con.execute("""SELECT id, kind, category, baseline FROM forecast_log
+                                                   WHERE made_at=? AND horizon_s=? AND resolved_at IS NULL""", (made, hz)).fetchall():
+            g, t_, n = by.get(cat, [0, 0, 0])
+            if kind == "decay_warning":
+                ratio = (t_ / n / pt) if n and pt else None
+                flag = int(ratio <= 0.6 * base) if ratio is not None and base else None
+                upd.append((now_t, t_, n, round(pt, 5), round(ratio, 3) if ratio is not None else None, flag, fid))
+            else:
+                ratio = (g / n / pg) if n and pg else None
+                upd.append((now_t, g, n, round(pg, 5), round(ratio, 3) if ratio is not None else None, None, fid))
+        con.execute("BEGIN")
+        try:
+            con.executemany("""UPDATE forecast_log SET resolved_at=?, outcome_k=?, outcome_n=?, market_rate=?, outcome_ratio=?,
+                               outcome_flag=? WHERE id=?""", upd)
+            con.execute("COMMIT")
+        except Exception:
+            con.execute("ROLLBACK")
+            raise
+        done += len(upd)
+    return done
+
+
+def forward_summary(con) -> dict:
+    """The forward record so far: calls made by this install and scored on later coins. Flagged
+    against not flagged, overall and by market state, with the sample behind each; no ranges until
+    there are 14+ days, and no verdict before that."""
+    out = {"kinds": {}, "first": None, "resolved": 0, "pending": 0}
+    f = con.execute("SELECT MIN(made_at), SUM(resolved_at IS NOT NULL), SUM(resolved_at IS NULL) FROM forecast_log").fetchone()
+    out["first"], out["resolved"], out["pending"] = f[0], f[1] or 0, f[2] or 0
+    for kind in ("working", "busy_today", "decay_warning"):
+        rs = con.execute("""SELECT made_at, category, flagged, outcome_k, outcome_n, market_rate, outcome_flag, market
+                            FROM forecast_log WHERE kind=? AND resolved_at IS NOT NULL AND outcome_n > 0""", (kind,)).fetchall()
+        if not rs:
+            continue
+        days = len({r[0] // D for r in rs})
+
+        def part(sub):
+            if kind == "decay_warning":
+                on = [r[6] for r in sub if r[2] and r[6] is not None]
+                off = [r[6] for r in sub if not r[2] and r[6] is not None]
+                dec = [r for r in sub if r[6]]
+                return {"flagged": len(on), "declined_after_flag": round(sum(on) / len(on), 3) if on else None,
+                        "declined_otherwise": round(sum(off) / len(off), 3) if off else None,
+                        "false_alarms": round(1 - sum(on) / len(on), 3) if on else None,
+                        "declines": len(dec), "declines_caught": round(sum(1 for r in dec if r[2]) / len(dec), 3) if dec else None}
+            on = [r for r in sub if r[2]]
+            off = [r for r in sub if not r[2]]
+            ratio = lambda xs: (sum(r[3] for r in xs) / sum(r[4] * r[5] for r in xs)) if xs and sum(r[4] * r[5] for r in xs) else None  # noqa: E731
+            a, b = ratio(on), ratio(off)
+            return {"flagged": len(on), "flagged_successes": sum(r[3] for r in on),
+                    "flagged_vs_market": round(a, 3) if a is not None else None,
+                    "rest_vs_market": round(b, 3) if b is not None else None}
+        out["kinds"][kind] = {"days": days, "calls": len(rs), "categories": len({r[1] for r in rs}), **part(rs),
+                              "by_market": {m: part([r for r in rs if r[7] == m]) for m in ("down", "normal", "up")
+                                            if any(r[7] == m for r in rs)},
+                              "enough": days >= 14}
+    return out
 
 
 def _check() -> dict | None:

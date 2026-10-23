@@ -336,3 +336,46 @@ def test_summaries_never_aggregate_inside_a_write_transaction(market, monkeypatc
         assert tx and all(s.startswith("INSERT OR REPLACE INTO TOKEN_SUMMARY") and "SELECT" not in s for s in tx)
         assert len(tx) <= 100
     assert market.execute("SELECT COUNT(*) FROM token_summary").fetchone()[0] == n
+
+
+def test_forward_validation_logs_then_scores_only_after_the_outcome_has_matured(market):
+    M.summarize(market, NOW, limit=None)
+    made = NOW - 5 * D
+    m = {"macro": {"windows": {"7": {"available": True, "categories": [
+            {"category": "Winners", "coins": 80, "status": "working"}, {"category": "Plain", "coins": 400, "status": "average"}]}}},
+         "rotation": {"categories": [{"category": "Winners", "watch": True, "stage": "speculative"},
+                                     {"category": "Plain", "watch": False}]},
+         "decay": {"market": {"buyers_per_read": [300, 1000]}, "categories": [
+             {"category": "Winners", "status": "early", "baseline": {"drew_buyers_vs_market": 2.0}},
+             {"category": "Plain", "status": "thin", "baseline": {"drew_buyers_vs_market": 1.0}}]}}
+    assert M.log_forecasts(market, m, made) == 5                 # every category, flagged or not; thin ones skipped
+    assert M.log_forecasts(market, m, made + 3600) == 0          # at most every 6 hours
+    assert [r[0] for r in market.execute("SELECT DISTINCT market FROM forecast_log")] == ["down"]
+    # a day later the next-day calls' coins are not all a day old yet: nothing is scored
+    assert M.resolve_forecasts(market, made + D + 3600) == 0
+    assert M.resolve_forecasts(market, made + 2 * D) == 4        # the next-day calls only
+    assert M.resolve_forecasts(market, made + 4 * D) == 1        # then the 3-day decay call
+    rows = {(k, c): (f, n, r) for k, c, f, n, r in market.execute(
+        "SELECT kind, category, flagged, outcome_n, outcome_ratio FROM forecast_log")}
+    n_win = market.execute("SELECT COUNT(*) FROM token_summary WHERE category='Winners' AND NOT factory AND created_at >= ? AND created_at < ?",
+                           (made, made + D)).fetchone()[0]
+    assert rows[("working", "Winners")][1] == n_win and rows[("working", "Winners")][0] == 1
+    fw = M.forward_summary(market)
+    assert fw["resolved"] == 5 and fw["pending"] == 0
+    assert fw["kinds"]["working"]["enough"] is False and fw["kinds"]["working"]["calls"] == 2
+    assert set(fw["kinds"]) == {"working", "busy_today", "decay_warning"}
+
+
+def test_outlook_keeps_working_and_busy_apart_with_their_records():
+    mac = {"windows": {"7": {"available": True, "categories": [
+        {"category": "A", "status": "working", "coins": 90, "graduated": 9, "independent_successes": 5, "grad": {"ratio": 2.0, "ratio_ex_best": 1.8}},
+        {"category": "B", "status": "average", "coins": 90, "graduated": 2, "independent_successes": 2, "grad": {"ratio": 1.0, "ratio_ex_best": 0.9}}]}}}
+    intra = {"categories": [{"category": "A", "status": "cooling", "demand_vs_usual": 0.5}]}
+    rot = {"watchlist": [{"category": "B", "stage": "speculative"}]}
+    dec = {"categories": [{"category": "A", "label": "Holding up"}]}
+    check = {"signals": {"working": {"verdict": "better", "text": "w"}, "watch": {"verdict": "worse", "text": "b"}}}
+    o = M.outlook(mac, intra, rot, dec, check)
+    assert [w["category"] for w in o["working"]] == ["A"] and o["working"][0]["today"] == "cooling"
+    assert o["working"][0]["health"] == "Holding up" and [b["category"] for b in o["busy"]] == ["B"]
+    assert o["record"]["busy"]["verdict"] == "worse" and "Neither list is a prediction" in o["note"]
+    assert M.DECAY_LABEL["confirmed"] == "Deteriorated" and "forecast" not in M.DECAY_LABEL.values()

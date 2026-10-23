@@ -141,6 +141,14 @@ CREATE TABLE IF NOT EXISTS token_summary (      -- each coin's first 24 hours, k
 CREATE INDEX IF NOT EXISTS ix_ts_created ON token_summary(created_at);
 CREATE INDEX IF NOT EXISTS ix_ts_cat ON token_summary(category, created_at);
 
+CREATE TABLE IF NOT EXISTS forecast_log (       -- timestamped calls, resolved later on data not seen when they were made
+  id INTEGER PRIMARY KEY, made_at INTEGER NOT NULL, kind TEXT NOT NULL, category TEXT NOT NULL,
+  flagged INTEGER NOT NULL, label TEXT, horizon_s INTEGER NOT NULL, baseline REAL, market TEXT,
+  resolved_at INTEGER, outcome_k INTEGER, outcome_n INTEGER, market_rate REAL, outcome_ratio REAL, outcome_flag INTEGER
+);
+CREATE INDEX IF NOT EXISTS ix_fc_kind ON forecast_log(kind, made_at);
+CREATE INDEX IF NOT EXISTS ix_fc_open ON forecast_log(resolved_at, made_at);
+
 CREATE TABLE IF NOT EXISTS early_buyers (       -- first 20 distinct buyers of each token
   mint TEXT NOT NULL, wallet TEXT NOT NULL, ts INTEGER NOT NULL, sol REAL, rank INTEGER,
   PRIMARY KEY (mint, wallet)
