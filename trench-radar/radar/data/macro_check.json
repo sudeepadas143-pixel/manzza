@@ -1,0 +1,704 @@
+{
+ "status": "preliminary",
+ "source": "Pump.fun Memecoin Corpus, replayed through the app's narrative pipeline",
+ "period": [
+  "2026-06-19",
+  "2026-07-14"
+ ],
+ "method": "Flagged categories against the rest at the same reads, on coins launched afterwards, each against all coins launched then. 90% ranges from a moving-block bootstrap over days (2-day blocks; 4-day for 3-day outcomes). Signal rules were fixed before this test and not tuned on it.",
+ "caveat": "Preliminary: about two weeks of one market period from one corpus, with no out-of-period test. Readings six hours apart share outcomes; categories differ greatly in size, so one category can carry a comparison. Many comparisons were run, so a single range just clear of zero is weak evidence.",
+ "week_to_next_day": {
+  "mean_rank_correlation": 0.036,
+  "ci90": [
+   -0.118,
+   0.199
+  ],
+  "days": 12
+ },
+ "signals": {
+  "working": {
+   "label": "marked \u201cworking\u201d this week",
+   "verdict": "better",
+   "flagged": 1.146,
+   "rest": 0.898,
+   "difference": 0.248,
+   "ci90": [
+    0.174,
+    0.309
+   ],
+   "days": 12,
+   "flagged_days": 11,
+   "flagged_obs": 13,
+   "flagged_successes": 401,
+   "flagged_categories": 3,
+   "largest_category": "Characters & creatures",
+   "largest_share": 1.0,
+   "without_largest": -0.852,
+   "halves": [
+    0.282,
+    0.279
+   ],
+   "text": "Marked \u201cworking\u201d this week came before better outcomes: the coins that followed graduated 1.15\u00d7 the market against 0.90\u00d7 (difference +0.25, 90% range +0.17 to +0.31; flagged on 11 of 12 days, 13 readings, 401 graduations). It rests mostly on one category (Characters & creatures, 100% of the flagged coins); without it the difference is -0.85."
+  },
+  "heating": {
+   "label": "\u201cheating\u201d today",
+   "verdict": "no clear difference",
+   "flagged": 1.114,
+   "rest": 0.929,
+   "difference": 0.185,
+   "ci90": [
+    -0.034,
+    0.384
+   ],
+   "days": 11,
+   "flagged_days": 10,
+   "flagged_obs": 155,
+   "flagged_successes": 84,
+   "flagged_categories": 40,
+   "largest_category": "Characters & creatures",
+   "largest_share": 0.52,
+   "without_largest": -0.04,
+   "halves": [
+    -0.019,
+    0.212
+   ],
+   "text": "\u201cheating\u201d today made no clear difference: the coins that followed graduated 1.11\u00d7 the market against 0.93\u00d7 (difference +0.18, 90% range -0.03 to +0.38; flagged on 10 of 11 days, 155 readings, 84 graduations). The two halves of the period point in opposite directions."
+  },
+  "buyers_up": {
+   "label": "buyers at 1.5\u00d7 usual",
+   "verdict": "no clear difference",
+   "flagged": 0.962,
+   "rest": 0.96,
+   "difference": 0.002,
+   "ci90": [
+    -0.225,
+    0.086
+   ],
+   "days": 11,
+   "flagged_days": 10,
+   "flagged_obs": 173,
+   "flagged_successes": 232,
+   "flagged_categories": 44,
+   "largest_category": "Characters & creatures",
+   "largest_share": 0.5,
+   "without_largest": -0.042,
+   "halves": [
+    -0.343,
+    0.057
+   ],
+   "drew_buyers": {
+    "flagged": 1.253,
+    "rest": 1.253,
+    "ci90": [
+     -0.098,
+     0.095
+    ]
+   },
+   "text": "Buyers at 1.5\u00d7 usual made no clear difference: the coins that followed graduated 0.96\u00d7 the market against 0.96\u00d7 (difference +0.00, 90% range -0.23 to +0.09; flagged on 10 of 11 days, 173 readings, 232 graduations). The two halves of the period point in opposite directions."
+  },
+  "sol_up": {
+   "label": "money in above usual",
+   "verdict": "no clear difference",
+   "flagged": 1.061,
+   "rest": 0.953,
+   "difference": 0.108,
+   "ci90": [
+    -0.092,
+    0.328
+   ],
+   "days": 11,
+   "flagged_days": 11,
+   "flagged_obs": 160,
+   "flagged_successes": 75,
+   "flagged_categories": 69,
+   "largest_category": "Crypto-native",
+   "largest_share": 0.35,
+   "without_largest": 0.229,
+   "halves": [
+    0.199,
+    -0.051
+   ],
+   "drew_buyers": {
+    "flagged": 1.131,
+    "rest": 1.276,
+    "ci90": [
+     -0.275,
+     -0.033
+    ]
+   },
+   "text": "Money in above usual made no clear difference: the coins that followed graduated 1.06\u00d7 the market against 0.95\u00d7 (difference +0.11, 90% range -0.09 to +0.33; flagged on 11 of 11 days, 160 readings, 75 graduations). The two halves of the period point in opposite directions."
+  },
+  "share_up": {
+   "label": "share of buying rising",
+   "verdict": "no clear difference",
+   "flagged": 0.889,
+   "rest": 0.981,
+   "difference": -0.091,
+   "ci90": [
+    -0.201,
+    0.008
+   ],
+   "days": 11,
+   "flagged_days": 11,
+   "flagged_obs": 209,
+   "flagged_successes": 195,
+   "flagged_categories": 101,
+   "largest_category": "Characters & creatures",
+   "largest_share": 0.38,
+   "without_largest": -0.114,
+   "halves": [
+    -0.099,
+    -0.131
+   ],
+   "drew_buyers": {
+    "flagged": 1.262,
+    "rest": 1.25,
+    "ci90": [
+     -0.111,
+     0.163
+    ]
+   },
+   "text": "Share of buying rising made no clear difference: the coins that followed graduated 0.89\u00d7 the market against 0.98\u00d7 (difference -0.09, 90% range -0.20 to +0.01; flagged on 11 of 11 days, 209 readings, 195 graduations)."
+  },
+  "share_down": {
+   "label": "share of buying falling",
+   "verdict": "no clear difference",
+   "flagged": 0.981,
+   "rest": 0.95,
+   "difference": 0.032,
+   "ci90": [
+    -0.202,
+    0.138
+   ],
+   "days": 11,
+   "flagged_days": 11,
+   "flagged_obs": 170,
+   "flagged_successes": 340,
+   "flagged_categories": 14,
+   "largest_category": "Characters & creatures",
+   "largest_share": 0.33,
+   "without_largest": 0.142,
+   "halves": [
+    -0.125,
+    0.06
+   ],
+   "drew_buyers": {
+    "flagged": 1.18,
+    "rest": 1.289,
+    "ci90": [
+     -0.201,
+     -0.008
+    ]
+   },
+   "text": "Share of buying falling made no clear difference: the coins that followed graduated 0.98\u00d7 the market against 0.95\u00d7 (difference +0.03, 90% range -0.20 to +0.14; flagged on 11 of 11 days, 170 readings, 340 graduations). The two halves of the period point in opposite directions."
+  },
+  "early_successes": {
+   "label": "new coins already graduating",
+   "verdict": "worse",
+   "flagged": 0.709,
+   "rest": 0.965,
+   "difference": -0.256,
+   "ci90": [
+    -0.857,
+    -0.048
+   ],
+   "days": 11,
+   "flagged_days": 6,
+   "flagged_obs": 10,
+   "flagged_successes": 12,
+   "flagged_categories": 4,
+   "largest_category": "Internet culture & slang",
+   "largest_share": 0.59,
+   "without_largest": -0.692,
+   "halves": [
+    -0.865,
+    -0.127
+   ],
+   "drew_buyers": {
+    "flagged": 1.198,
+    "rest": 1.254,
+    "ci90": [
+     -0.433,
+     0.124
+    ]
+   },
+   "text": "New coins already graduating came before worse outcomes: the coins that followed graduated 0.71\u00d7 the market against 0.96\u00d7 (difference -0.26, 90% range -0.86 to -0.05; flagged on 6 of 11 days, 10 readings, 12 graduations)."
+  },
+  "broad": {
+   "label": "buying spread over 3+ coins",
+   "verdict": "no clear difference",
+   "flagged": 1.014,
+   "rest": 0.814,
+   "difference": 0.2,
+   "ci90": [
+    -0.218,
+    0.299
+   ],
+   "days": 11,
+   "flagged_days": 11,
+   "flagged_obs": 180,
+   "flagged_successes": 745,
+   "flagged_categories": 36,
+   "largest_category": "Characters & creatures",
+   "largest_share": 0.68,
+   "without_largest": 0.025,
+   "halves": [
+    -0.266,
+    0.301
+   ],
+   "drew_buyers": {
+    "flagged": 1.329,
+    "rest": 1.072,
+    "ci90": [
+     0.176,
+     0.346
+    ]
+   },
+   "text": "Buying spread over 3+ coins made no clear difference: the coins that followed graduated 1.01\u00d7 the market against 0.81\u00d7 (difference +0.20, 90% range -0.22 to +0.30; flagged on 11 of 11 days, 180 readings, 745 graduations). The two halves of the period point in opposite directions."
+  },
+  "single_coin": {
+   "label": "buyers up on one coin",
+   "verdict": "no clear difference",
+   "flagged": 0.906,
+   "rest": 0.962,
+   "difference": -0.056,
+   "ci90": [
+    -0.386,
+    0.99
+   ],
+   "days": 11,
+   "flagged_days": 10,
+   "flagged_obs": 42,
+   "flagged_successes": 18,
+   "flagged_categories": 20,
+   "largest_category": "Politics & geopolitics",
+   "largest_share": 0.24,
+   "without_largest": -0.237,
+   "halves": [
+    0.4,
+    -0.096
+   ],
+   "drew_buyers": {
+    "flagged": 1.369,
+    "rest": 1.251,
+    "ci90": [
+     -0.05,
+     0.253
+    ]
+   },
+   "text": "Buyers up on one coin made no clear difference: the coins that followed graduated 0.91\u00d7 the market against 0.96\u00d7 (difference -0.06, 90% range -0.39 to +0.99; flagged on 10 of 11 days, 42 readings, 18 graduations). The two halves of the period point in opposite directions."
+  },
+  "crowding": {
+   "label": "launches outpacing buyers",
+   "verdict": "no clear difference",
+   "flagged": 1.054,
+   "rest": 0.936,
+   "difference": 0.119,
+   "ci90": [
+    -0.011,
+    0.191
+   ],
+   "days": 11,
+   "flagged_days": 10,
+   "flagged_obs": 111,
+   "flagged_successes": 220,
+   "flagged_categories": 15,
+   "largest_category": "Characters & creatures",
+   "largest_share": 0.72,
+   "without_largest": -0.031,
+   "halves": [
+    -0.025,
+    0.109
+   ],
+   "drew_buyers": {
+    "flagged": 1.331,
+    "rest": 1.217,
+    "ci90": [
+     0.053,
+     0.208
+    ]
+   },
+   "text": "Launches outpacing buyers made no clear difference: the coins that followed graduated 1.05\u00d7 the market against 0.94\u00d7 (difference +0.12, 90% range -0.01 to +0.19; flagged on 10 of 11 days, 111 readings, 220 graduations). It rests mostly on one category (Characters & creatures, 72% of the flagged coins); without it the difference is -0.03. The two halves of the period point in opposite directions."
+  },
+  "watch": {
+   "label": "busy today (the former watchlist rule)",
+   "verdict": "worse",
+   "flagged": 0.819,
+   "rest": 0.982,
+   "difference": -0.163,
+   "ci90": [
+    -0.594,
+    -0.102
+   ],
+   "days": 11,
+   "flagged_days": 10,
+   "flagged_obs": 48,
+   "flagged_successes": 108,
+   "flagged_categories": 17,
+   "largest_category": "Characters & creatures",
+   "largest_share": 0.41,
+   "without_largest": -0.174,
+   "halves": [
+    -0.749,
+    -0.086
+   ],
+   "drew_buyers": {
+    "flagged": 1.136,
+    "rest": 1.268,
+    "ci90": [
+     -0.309,
+     -0.003
+    ]
+   },
+   "text": "Busy today (the former watchlist rule) came before worse outcomes: the coins that followed graduated 0.82\u00d7 the market against 0.98\u00d7 (difference -0.16, 90% range -0.59 to -0.10; flagged on 10 of 11 days, 48 readings, 108 graduations)."
+  },
+  "watch_confirmed": {
+   "label": "busy today, week working",
+   "verdict": "untested",
+   "flagged": 0.957,
+   "rest": 0.961,
+   "difference": -0.004,
+   "ci90": [
+    -1.012,
+    0.059
+   ],
+   "days": 11,
+   "flagged_days": 3,
+   "flagged_obs": 3,
+   "flagged_successes": 54,
+   "flagged_categories": 3,
+   "largest_category": "Characters & creatures",
+   "largest_share": 0.93,
+   "without_largest": -0.341,
+   "halves": [
+    null,
+    0.028
+   ],
+   "drew_buyers": {
+    "flagged": 1.425,
+    "rest": 1.248,
+    "ci90": [
+     -0.575,
+     0.237
+    ]
+   },
+   "text": "Busy today, week working: too few occasions to test."
+  },
+  "watch_emerging": {
+   "label": "busy today, record improving",
+   "verdict": "untested",
+   "text": "Busy today, record improving: too few occasions to test."
+  },
+  "watch_speculative": {
+   "label": "busy today, no record",
+   "verdict": "worse",
+   "flagged": 0.717,
+   "rest": 0.98,
+   "difference": -0.264,
+   "ci90": [
+    -0.562,
+    -0.155
+   ],
+   "days": 11,
+   "flagged_days": 10,
+   "flagged_obs": 45,
+   "flagged_successes": 54,
+   "flagged_categories": 17,
+   "largest_category": "Internet culture & slang",
+   "largest_share": 0.37,
+   "without_largest": -0.299,
+   "halves": [
+    -0.749,
+    -0.177
+   ],
+   "drew_buyers": {
+    "flagged": 1.044,
+    "rest": 1.273,
+    "ci90": [
+     -0.337,
+     -0.098
+    ]
+   },
+   "text": "Busy today, no record came before worse outcomes: the coins that followed graduated 0.72\u00d7 the market against 0.98\u00d7 (difference -0.26, 90% range -0.56 to -0.15; flagged on 10 of 11 days, 45 readings, 54 graduations)."
+  },
+  "broad_vs_single": {
+   "label": "broad momentum (against single-coin momentum)",
+   "verdict": "no clear difference",
+   "flagged": 0.968,
+   "rest": 0.906,
+   "difference": 0.062,
+   "ci90": [
+    -0.744,
+    0.352
+   ],
+   "days": 10,
+   "flagged_days": 10,
+   "flagged_obs": 67,
+   "flagged_successes": 209,
+   "flagged_categories": 17,
+   "largest_category": "Characters & creatures",
+   "largest_share": 0.56,
+   "without_largest": -0.146,
+   "halves": [
+    -1.125,
+    0.203
+   ],
+   "text": "Broad momentum (against single-coin momentum) made no clear difference: the coins that followed graduated 0.97\u00d7 the market against 0.91\u00d7 (difference +0.06, 90% range -0.74 to +0.35; flagged on 10 of 10 days, 67 readings, 209 graduations). The two halves of the period point in opposite directions."
+  }
+ },
+ "decay": {
+  "rows": 379,
+  "days": 14,
+  "categories": 14,
+  "decline_readings": 54,
+  "decline_episodes": 16,
+  "base_rate": 0.142,
+  "all": {
+   "warning": {
+    "flagged": 0.198,
+    "rest": 0.119,
+    "difference": 0.079,
+    "ci90": [
+     -0.014,
+     0.17
+    ],
+    "days": 14,
+    "flagged_days": 13,
+    "flagged_obs": 111,
+    "flagged_successes": 22,
+    "flagged_categories": 12,
+    "largest_category": "Technology & AI",
+    "largest_share": 0.17,
+    "without_largest": 0.106,
+    "halves": [
+     0.095,
+     0.077
+    ],
+    "false_alarms": 0.802,
+    "declines_caught": 0.407
+   },
+   "confirmed": {
+    "flagged": 0.206,
+    "rest": 0.13,
+    "difference": 0.077,
+    "ci90": [
+     -0.073,
+     0.861
+    ],
+    "days": 14,
+    "flagged_days": 8,
+    "flagged_obs": 63,
+    "flagged_successes": 13,
+    "flagged_categories": 9,
+    "largest_category": "Technology & AI",
+    "largest_share": 0.24,
+    "without_largest": 0.105,
+    "halves": [
+     0.878,
+     0.054
+    ],
+    "false_alarms": 0.794,
+    "declines_caught": 0.241
+   },
+   "early": {
+    "flagged": 0.188,
+    "rest": 0.136,
+    "difference": 0.052,
+    "ci90": [
+     0.001,
+     0.139
+    ],
+    "days": 14,
+    "flagged_days": 13,
+    "flagged_obs": 48,
+    "flagged_successes": 9,
+    "flagged_categories": 11,
+    "largest_category": "\u25ce",
+    "largest_share": 0.19,
+    "without_largest": 0.087,
+    "halves": [
+     0.029,
+     0.053
+    ],
+    "false_alarms": 0.812,
+    "declines_caught": 0.167
+   },
+   "cooldown": {
+    "flagged": 0.0,
+    "rest": 0.15,
+    "difference": -0.15,
+    "ci90": [
+     -0.179,
+     -0.068
+    ],
+    "days": 14,
+    "flagged_days": 8,
+    "flagged_obs": 20,
+    "flagged_successes": 0,
+    "flagged_categories": 4,
+    "largest_category": "Gaming, anime & entertainment",
+    "largest_share": 0.3,
+    "without_largest": -0.166,
+    "halves": [
+     -0.137,
+     -0.162
+    ],
+    "false_alarms": 1.0,
+    "declines_caught": 0.0
+   },
+   "recovering": {
+    "flagged": 0.0,
+    "rest": 0.166,
+    "difference": -0.166,
+    "ci90": [
+     -0.195,
+     -0.069
+    ],
+    "days": 14,
+    "flagged_days": 11,
+    "flagged_obs": 54,
+    "flagged_successes": 0,
+    "flagged_categories": 11,
+    "largest_category": "\u25ce",
+    "largest_share": 0.17,
+    "without_largest": -0.175,
+    "halves": [
+     -0.138,
+     -0.196
+    ],
+    "false_alarms": 1.0,
+    "declines_caught": 0.0
+   },
+   "healthy": {
+    "flagged": 0.165,
+    "rest": 0.119,
+    "difference": 0.046,
+    "ci90": [
+     -0.06,
+     0.127
+    ],
+    "days": 14,
+    "flagged_days": 14,
+    "flagged_obs": 194,
+    "flagged_successes": 32,
+    "flagged_categories": 14,
+    "largest_category": "Characters & creatures",
+    "largest_share": 0.15,
+    "without_largest": 0.057,
+    "halves": [
+     0.07,
+     0.09
+    ],
+    "false_alarms": 0.835,
+    "declines_caught": 0.593
+   },
+   "demand_only": {
+    "flagged": 0.162,
+    "rest": 0.134,
+    "difference": 0.029,
+    "ci90": [
+     -0.088,
+     0.125
+    ],
+    "days": 14,
+    "flagged_days": 12,
+    "flagged_obs": 117,
+    "flagged_successes": 19,
+    "flagged_categories": 11,
+    "largest_category": "Gaming, anime & entertainment",
+    "largest_share": 0.18,
+    "without_largest": 0.054,
+    "halves": [
+     -0.114,
+     0.093
+    ],
+    "false_alarms": 0.838,
+    "declines_caught": 0.352
+   },
+   "results_only": {
+    "flagged": 0.294,
+    "rest": 0.051,
+    "difference": 0.243,
+    "ci90": [
+     0.087,
+     0.292
+    ],
+    "days": 14,
+    "flagged_days": 14,
+    "flagged_obs": 143,
+    "flagged_successes": 42,
+    "flagged_categories": 13,
+    "largest_category": "Characters & creatures",
+    "largest_share": 0.25,
+    "without_largest": 0.33,
+    "halves": [
+     0.219,
+     0.271
+    ],
+    "false_alarms": 0.706,
+    "declines_caught": 0.778
+   },
+   "crowding_only": {
+    "flagged": 0.0,
+    "rest": 0.147,
+    "difference": -0.147,
+    "ci90": [
+     -0.178,
+     -0.063
+    ],
+    "days": 14,
+    "flagged_days": 4,
+    "flagged_obs": 12,
+    "flagged_successes": 0,
+    "flagged_categories": 4,
+    "largest_category": "Politics & geopolitics",
+    "largest_share": 0.5,
+    "without_largest": -0.112,
+    "halves": [
+     -0.131,
+     -0.161
+    ],
+    "false_alarms": 1.0,
+    "declines_caught": 0.0
+   }
+  },
+  "not_yet_visible": {
+   "rows": 292,
+   "decline_readings": 19,
+   "base_rate": 0.065,
+   "warning": {
+    "flagged": 0.078,
+    "rest": 0.06,
+    "difference": 0.017,
+    "ci90": [
+     -0.012,
+     0.1
+    ],
+    "days": 14,
+    "flagged_days": 12,
+    "flagged_obs": 77,
+    "flagged_successes": 6,
+    "flagged_categories": 12,
+    "largest_category": "Technology & AI",
+    "largest_share": 0.18,
+    "without_largest": 0.022,
+    "halves": [
+     -0.066,
+     0.036
+    ],
+    "false_alarms": 0.922,
+    "declines_caught": 0.316
+   }
+  },
+  "lead": {
+   "collapses": 22,
+   "warned_before": 10,
+   "median_days_ahead": 0.9
+  },
+  "text": "Over 14 days and 14 categories that had an edge (379 readings, 16 separate declines), 20% of warned readings were followed by a decline within 3 days, against 12% of the others (difference +0.08, 90% range -0.01 to +0.17): not clear of chance. 80% of warnings were false alarms; 41% of declining readings had one.",
+  "text_early": "Before a decline showed in results, warned readings declined 8% of the time against 6% without a warning (90% range -0.01 to +0.10; 19 declining readings): no reliable early warning. Of 22 collapses, 10 had a warning first, a median 0.9 days ahead.",
+  "text_results": "When results had already fallen, 29% declined further against 5% (90% range +0.09 to +0.29): deterioration already under way tends to continue. That is a description, not an early warning."
+ },
+ "comparisons_run": 23,
+ "text_week": "Ranking categories by their week did no better than chance at ordering the next day (average rank correlation +0.04, 90% range -0.12 to +0.20; 12 days)."
+}
